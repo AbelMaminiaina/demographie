@@ -6,6 +6,10 @@ Pipeline qui télécharge, nettoie et visualise les données démographiques de 
 
 **https://abelmaminiaina.github.io/demographie/**
 
+[![Tableau de bord : vue d'ensemble, population des régions au recensement de 2018](docs/captures/vue_ensemble.png)](https://abelmaminiaina.github.io/demographie/)
+
+[![Tableau de bord : densité estimée par fokontany et fiche du fokontany d'Ambohibao](docs/captures/fokontany.png)](https://abelmaminiaina.github.io/demographie/)
+
 Une carte de Madagascar à quatre niveaux (régions, districts, communes et 17 464 fokontany). Elle propose les résultats du recensement de 2018, les estimations et la croissance WorldPop année par année (grille de 100 m pour les fokontany), la population des fokontany calée sur le recensement, et les indicateurs de santé DHS. Le tableau de bord propose aussi :
 
 - une recherche jusqu'au fokontany ;
@@ -14,9 +18,7 @@ Une carte de Madagascar à quatre niveaux (régions, districts, communes et 17 4
 - une pyramide des âges année par année ;
 - un classement triable.
 
-La page est un fichier HTML autonome (`sorties/tableau_de_bord/index.html`), régénéré par le pipeline et republié chaque mois sur GitHub Pages. Elle s'ouvre aussi directement depuis le disque.
-
-**Activation (une seule fois) :** dans **Settings**, puis **Pages**, choisir **Source : GitHub Actions**.
+La page est un fichier HTML autonome (`sorties/tableau_de_bord/index.html`), régénéré par le pipeline et republié chaque mois sur GitHub Pages. Elle s'ouvre aussi directement depuis le disque. Les captures ci-dessus sont dans `docs/captures/`.
 
 ## Aperçu
 
