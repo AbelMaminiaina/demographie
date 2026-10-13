@@ -101,14 +101,21 @@ Les sources régionales utilisent encore le découpage en 22 régions, où Vatov
 
 ## Exécution automatique
 
-Le workflow `.github/workflows/mise-a-jour-mensuelle.yml` exécute le pipeline le 1er de chaque mois :
+Le workflow `.github/workflows/mise-a-jour-mensuelle.yml` exécute le pipeline :
+
+- le 1er de chaque mois, pour reprendre les données les plus récentes ;
+- à chaque push sur `main` qui modifie le code (`src/`, `requirements.txt` ou le workflow), pour publier aussitôt les changements. Une modification de la documentation seule ne le déclenche pas.
+
+À chaque exécution :
 
 - les graphiques sont recommités seulement s'ils ont changé ;
 - chaque requête est retentée jusqu'à 5 fois en cas de coupure réseau ;
 - les données et le rapport complet sont téléchargeables 90 jours dans l'onglet **Actions** (artefact `donnees-…`) ;
 - un échec (source indisponible, contrôle qualité échoué) déclenche un email de GitHub.
 
-Lancement manuel : onglet **Actions**, puis **Mise à jour mensuelle**, puis **Run workflow**.
+Lancement manuel, si besoin : onglet **Actions**, puis **Mise à jour mensuelle**, puis **Run workflow**.
+
+Le robot commite les graphiques sur `main` : faites un `git pull` avant de modifier le projet.
 
 ## Pistes suivantes
 

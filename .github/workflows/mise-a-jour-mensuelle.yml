@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "0 6 1 * *"   # le 1er de chaque mois à 06:00 UTC (09:00 à Madagascar)
   workflow_dispatch:       # lancement manuel depuis l'onglet Actions
+  push:                    # à chaque modification du code poussée sur main
+    branches: [main]
+    paths:
+      - "src/**"
+      - "requirements.txt"
+      - ".github/workflows/mise-a-jour-mensuelle.yml"
 
 permissions:
   contents: write          # pour commiter les graphiques mis à jour
@@ -69,7 +75,9 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Mise à jour mensuelle des graphiques ($(date -u +%Y-%m))"
+          git commit -m "Mise à jour des graphiques ($(date -u +%Y-%m-%d))"
+          # Un autre commit a pu arriver sur main pendant l'exécution : on se place après lui
+          git pull --rebase
           git push
 
   publication:
