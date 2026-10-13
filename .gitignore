@@ -1,0 +1,4 @@
+data/
+sorties/
+__pycache__/
+.venv/
