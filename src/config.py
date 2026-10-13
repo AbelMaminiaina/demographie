@@ -28,6 +28,7 @@ TRAITE = {
     "dhs": "sante/dhs_regions.csv",
     "worldpop": "estimations/worldpop_{niveau}.csv",
     "rgph3": "recensement/rgph3_{niveau}.csv",
+    "fokontany_cales": "recensement/fokontany_estimation_calee_rgph3.csv",
 }
 
 

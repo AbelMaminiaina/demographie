@@ -315,6 +315,27 @@ def rapport(donnees, annee, annee_courante):
     colonnes = {"nom": "Fokontany", "commune": "Commune", "district": "District"}
     tableau("Les 10 plus peuplés", fk.head(10), colonnes)
 
+    cales = donnees["fokontany_cales"]
+    ok = cales.dropna(subset=["population_calee"])
+    lignes += ["", "## Fokontany : estimation 2018 calée sur le recensement", "",
+               "Le RGPH-3 n'est pas publié par fokontany. Pour chaque commune reliée au recensement, sa population "
+               "recensée est répartie entre ses fokontany au prorata de leur poids dans l'estimation HDX. Les totaux "
+               "communaux sont donc exacts, mais la répartition entre fokontany reste celle des données de 2009. "
+               "Tableau complet : `data/traite/recensement/fokontany_estimation_calee_rgph3.csv`.", "",
+               f"- {nombre(len(ok))} fokontany sur {nombre(len(cales))} sont calés, soit "
+               f"{nombre(ok['population_calee'].sum())} habitants ({ok['population_calee'].sum() / rg['regions']['population'].sum():.1%} "
+               "de la population recensée).",
+               f"- {nombre(len(cales) - len(ok))} fokontany ne le sont pas : leur commune n'a pas d'équivalent dans le recensement.",
+               f"- {nombre((ok['decoupage_identique'] == True).sum())} fokontany calés sont dans un district dont le découpage "
+               "communal est identique dans les deux sources ; pour les autres, la commune du recensement peut ne pas "
+               "couvrir exactement le même territoire.",
+               f"- Population médiane d'un fokontany calé : {nombre(ok['population_calee'].median())} habitants.", "",
+               "### Les 10 plus peuplés (estimation calée)", "",
+               "| Fokontany | Commune | District | Estimation calée | Estimation HDX |", "|---|---|---|---:|---:|"]
+    for _, r in ok.nlargest(10, "population_calee").iterrows():
+        lignes.append(f"| {r['nom']} | {r['commune']} | {r['district']} | {nombre(r['population_calee'])} "
+                      f"| {nombre(r['estimation_hdx_2018'])} |")
+
     # Projections ONU
     proj = donnees["projections"]
     lignes += ["", "## Projections de l'ONU", "",

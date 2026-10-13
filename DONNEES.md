@@ -71,6 +71,11 @@ Les dernières années manquent parfois : la Banque mondiale publie certains ind
   - les 114 districts du recensement couvrent exactement les 119 districts HDX. Antananarivo Renivohitra y est détaillé par ses 6 arrondissements, et « Toliara-I » correspond à « Toliary-I » ;
   - les communes sont reliées par leur nom dans chaque district : 1 474 exactement, 39 par un nom proche (variantes d'orthographe) et 214 sans correspondance. Le recensement compte 1 727 communes contre 1 579 dans le découpage HDX ; les communes créées depuis n'ont pas de contour ;
   - dans 99 districts sur 114, le découpage communal diffère. Le chiffre d'une commune reliée peut alors ne pas couvrir exactement le territoire dessiné (colonne `decoupage_identique`).
+- **Fokontany :** le recensement n'est pas publié par fokontany (les tomes 1 et 2 s'arrêtent à la commune). Le projet produit donc une **estimation calée** :
+  - la population recensée de chaque commune reliée est répartie entre ses fokontany, au prorata de leur poids dans l'estimation HDX ;
+  - les arrondis suivent la méthode du plus fort reste, si bien que la somme des fokontany redonne exactement le total de la commune ;
+  - 16 651 fokontany sur 17 464 sont calés (23,3 millions d'habitants, 90,8 % de la population recensée). Les 813 autres appartiennent à des communes HDX sans équivalent dans le recensement ;
+  - c'est une estimation : la répartition entre les fokontany d'une même commune reste celle des données de 2009.
 - **Différence avec les estimations HDX :** au niveau national, l'estimation 2018 diffusée sur HDX dépasse le recensement de 4,0 %. Les écarts vont de −34 % (Morombe) à +47 % (Besalampy) selon les districts.
 
 ### INSTAT : population par unité administrative (2009-2018)
@@ -166,7 +171,8 @@ data/
     │   ├── pyramide_ages.csv
     │   └── projections_onu.csv
     ├── recensement/                    Résultats du RGPH-3 (2018)
-    │   └── rgph3_regions.csv, rgph3_districts.csv, rgph3_communes.csv
+    │   ├── rgph3_regions.csv, rgph3_districts.csv, rgph3_communes.csv
+    │   └── fokontany_estimation_calee_rgph3.csv
     ├── territoires/                    Estimations HDX : population et densité par unité administrative
     │   ├── regions.csv, districts.csv, communes.csv, fokontany.csv
     │   └── <niveau>_series_2009_2018.csv
@@ -244,6 +250,21 @@ Une ligne par commune ou arrondissement du recensement (1 727).
 | `correspondance` | `exacte`, `approchée` (variante d'orthographe) ou `aucune` |
 | `decoupage_identique` | Vrai si le district a exactement les mêmes communes dans les deux sources |
 
+### `recensement/fokontany_estimation_calee_rgph3.csv`
+Une ligne par fokontany (17 464). **Estimation**, et non résultat du recensement.
+
+| Colonne | Contenu |
+|---|---|
+| `pcode`, `nom` | Code et nom du fokontany |
+| `commune_pcode`, `commune`, `district_pcode`, `district`, `region_pcode`, `region` | Rattachement |
+| `estimation_hdx_2018` | Estimation HDX (base 2009) |
+| `population_calee` | Estimation 2018 calée sur la population recensée de la commune ; vide si la commune n'est pas reliée au recensement |
+| `part_commune_pct` | Part du fokontany dans la population de sa commune (%) |
+| `superficie_km2`, `densite_calee` | Superficie calculée et densité correspondante |
+| `population_commune_rgph3` | Population recensée de la commune |
+| `correspondance_commune` | Correspondance de la commune avec le recensement : `exacte` ou `approchée` |
+| `decoupage_identique` | Vrai si le district a les mêmes communes dans les deux sources |
+
 ### `territoires/<niveau>.csv`
 Une ligne par unité, pour 2018 (estimation INSTAT/BNGRC).
 
@@ -280,6 +301,7 @@ Une ligne par région, district ou commune : `pcode`, `nom`, puis `wp_2015` à `
   - un contour pour chaque unité ;
   - les 22 régions DHS reconnues ;
   - les contrôles d'extraction du recensement (voir la fiche RGPH-3) ;
+  - chaque commune calée retrouve exactement sa population recensée dans la somme de ses fokontany ;
   - la pyramide des âges cohérente avec la population totale, à 1 % près ;
   - le total WorldPop proche de celui de l'ONU, à 5 % près, avec moins de 2 % de la population hors des contours.
 

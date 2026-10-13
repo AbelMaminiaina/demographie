@@ -97,11 +97,13 @@ def _niveaux(donnees):
                             "geometry": simplifier(niveaux[niveau]["contours"][u["cle"]], TOLERANCES[niveau])})
         resultat[niveau] = {"unites": lignes, "geo": {"type": "FeatureCollection", "features": entites}}
 
-    # Fokontany regroupés par commune, du plus peuplé au moins peuplé
+    # Fokontany regroupés par commune : [nom, estimation HDX, densité, estimation calée sur le recensement]
+    cales = donnees["fokontany_cales"].set_index("cle")["population_calee"]
     fk = [[] for _ in range(len(niveaux["communes"]["unites"]))]
     for _, f in niveaux["fokontany"]["unites"].iterrows():
+        cale = cales.get(f["cle"])
         fk[index["communes"][f["commune_pcode"].split("|")[0]]].append(
-            [f["nom"], int(f["population"]), round(float(f["densite"]))])
+            [f["nom"], int(f["population"]), round(float(f["densite"])), None if cale != cale else int(cale)])
     return resultat, fk, annees_wp
 
 

@@ -593,16 +593,24 @@ function fiche() {
 
   if (niveau === "communes") {
     const fk = D.fokontany[i];
+    // Estimation calée sur le recensement quand la commune y est reliée, sinon estimation HDX
+    const calee = fk.length && fk[0][3] != null;
+    const valeur = f => calee ? f[3] : f[1];
     const b = el.append("div").attr("class", "bloc");
-    b.append("span").attr("class", "etiquette").text(`${fk.length} fokontany · ${REF}`);
-    const max = d3.max(fk, f => f[1]);
+    b.append("span").attr("class", "etiquette").text(
+      `${fk.length} fokontany · ${calee ? "estimation 2018 calée sur le recensement" : `estimation HDX ${REF}`}`);
+    const max = d3.max(fk, valeur);
     const ul = b.append("ul").attr("class", "liste-fk");
-    fk.slice().sort((a, b2) => b2[1] - a[1]).forEach(f => {
-      const li = ul.append("li").classed("repere", f[0] === etat.fkRepere);
+    fk.slice().sort((a, b2) => valeur(b2) - valeur(a)).forEach(f => {
+      const li = ul.append("li").classed("repere", f[0] === etat.fkRepere)
+        .attr("title", calee ? `Estimation HDX : ${entier(f[1])}` : null);
       li.append("span").text(f[0]);
-      li.append("span").attr("class", "tab").text(entier(f[1]));
-      li.append("span").attr("class", "barre").style("width", `${100 * f[1] / max}%`);
+      li.append("span").attr("class", "tab").text(entier(valeur(f)));
+      li.append("span").attr("class", "barre").style("width", `${100 * valeur(f) / max}%`);
     });
+    b.append("small").attr("class", "note").style("margin", 0).text(calee
+      ? "La population recensée de la commune est répartie entre ses fokontany selon leur poids dans l'estimation HDX : le total est exact, la répartition est estimée."
+      : "Cette commune n'a pas d'équivalent dans le recensement : les chiffres sont ceux de l'estimation HDX.");
     // Fait défiler la liste seule jusqu'au fokontany cherché, sans déplacer la page.
     const repere = ul.select("li.repere").node();
     if (repere) ul.node().scrollTop = repere.offsetTop - ul.node().offsetTop - 40;

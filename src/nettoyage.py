@@ -364,6 +364,55 @@ def recensement(niveaux):
     return {"regions": reg, "districts": dist, "communes": com}
 
 
+def _repartir(total, poids):
+    """Répartit un entier au prorata des poids, en arrondissant sans perdre d'habitant
+    (méthode du plus fort reste)."""
+    parts = np.asarray(poids, dtype="float64")
+    parts = parts / parts.sum() * total
+    entiers = np.floor(parts).astype(int)
+    reste = int(total - entiers.sum())
+    if reste:
+        entiers[np.argsort(-(parts - entiers), kind="stable")[:reste]] += 1
+    return entiers
+
+
+def fokontany_cales(niveaux, rgph):
+    """Estimation de la population 2018 des fokontany, calée sur le recensement.
+
+    Le RGPH-3 n'est pas publié par fokontany. Pour chaque commune reliée au recensement,
+    sa population recensée est répartie entre ses fokontany au prorata de leur poids dans
+    l'estimation HDX (répartition de 2009). Les totaux communaux sont exacts ; la
+    répartition interne reste une estimation.
+    """
+    fk = niveaux["fokontany"]["unites"].copy()
+    fk["cle_commune"] = fk["cle"].str.rsplit("/", n=1).str[0]
+    communes = rgph["communes"].dropna(subset=["cle_hdx"]).set_index("cle_hdx")
+    fk["population_calee"] = np.nan
+    for cle_commune, groupe in fk.groupby("cle_commune"):
+        if cle_commune not in communes.index:
+            continue
+        total = int(communes.loc[cle_commune, "population"])
+        fk.loc[groupe.index, "population_calee"] = _repartir(total, groupe["population"].clip(lower=1))
+    fk = fk.join(communes[["population", "correspondance", "decoupage_identique"]]
+                 .rename(columns={"population": "population_commune_rgph3",
+                                  "correspondance": "correspondance_commune"}), on="cle_commune")
+
+    # Contrôle : chaque commune calée retrouve exactement sa population recensée
+    calees = fk.dropna(subset=["population_calee"])
+    sommes = calees.groupby("cle_commune")["population_calee"].sum()
+    attendu = communes.loc[sommes.index, "population"]
+    if not (sommes.astype(int) == attendu.astype(int)).all():
+        raise ValueError("Fokontany calés : une commune ne retrouve pas sa population recensée")
+
+    fk["part_commune_pct"] = 100 * fk["population_calee"] / fk["population_commune_rgph3"]
+    fk["densite_calee"] = fk["population_calee"] / fk["superficie_km2"]
+    fk = fk.rename(columns={"population": "estimation_hdx_2018"})
+    return fk[["cle", "pcode", "nom", "commune_pcode", "commune", "district_pcode", "district",
+               "region_pcode", "region", "estimation_hdx_2018", "population_calee", "part_commune_pct",
+               "superficie_km2", "densite_calee", "population_commune_rgph3", "correspondance_commune",
+               "decoupage_identique"]]
+
+
 def tout_nettoyer():
     """Renvoie un dictionnaire avec :
     - series, pyramide : indicateurs nationaux (Banque mondiale) ;
@@ -371,7 +420,8 @@ def tout_nettoyer():
     - niveaux : par découpage, {population (format long), unites (2018), contours} ;
     - dhs : indicateurs régionaux de la dernière enquête DHS ;
     - worldpop : estimations annuelles 2015-2030 par région, district et commune ;
-    - rgph3 : résultats du recensement de 2018 par région, district et commune.
+    - rgph3 : résultats du recensement de 2018 par région, district et commune ;
+    - fokontany_cales : population 2018 des fokontany estimée en calant sur le recensement.
     """
     DOSSIER_TRAITE.mkdir(parents=True, exist_ok=True)
     series, pyramide = indicateurs_nationaux()
@@ -399,6 +449,10 @@ def tout_nettoyer():
     print(f"  RGPH-3 : {len(rgph['districts'])} districts, {len(rgph['communes'])} communes "
           f"({reliees.get('exacte', 0)} reliées exactement, {reliees.get('approchée', 0)} approximativement, "
           f"{reliees.get('aucune', 0)} sans correspondance)")
+    cales = fokontany_cales(niveaux, rgph)
+    n_cales = cales["population_calee"].notna().sum()
+    print(f"  Fokontany calés sur le recensement : {n_cales} sur {len(cales)} "
+          f"({cales['population_calee'].sum():,.0f} habitants)".replace(",", " "))
 
     series.to_csv(traite("indicateurs"))
     pyramide.to_csv(traite("pyramide"), index=False)
@@ -407,6 +461,10 @@ def tout_nettoyer():
     for niveau, table in rgph.items():
         table.drop(columns=[c for c in ("cle", "cle_hdx") if c in table]).round(2).to_csv(
             traite("rgph3", niveau=niveau), index=False)
+    sortie = cales.drop(columns="cle").copy()
+    sortie["population_calee"] = sortie["population_calee"].astype("Int64")
+    sortie["population_commune_rgph3"] = sortie["population_commune_rgph3"].astype("Int64")
+    sortie.round(2).to_csv(traite("fokontany_cales"), index=False)
     for niveau, donnees in niveaux.items():
         donnees["population"].drop(columns="cle").to_csv(
             traite("series", niveau=niveau), index=False)
@@ -420,4 +478,4 @@ def tout_nettoyer():
     print(f"  -> {len(series)} années d'indicateurs, "
           + ", ".join(f"{len(d['unites'])} {n}" for n, d in niveaux.items()))
     return {"series": series, "pyramide": pyramide, "projections": proj, "niveaux": niveaux,
-            "dhs": table_dhs, "worldpop": estimations, "rgph3": rgph}
+            "dhs": table_dhs, "worldpop": estimations, "rgph3": rgph, "fokontany_cales": cales}
