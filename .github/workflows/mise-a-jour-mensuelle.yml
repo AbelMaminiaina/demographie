@@ -1,0 +1,54 @@
+name: Mise à jour mensuelle
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"   # le 1er de chaque mois à 06:00 UTC (09:00 à Madagascar)
+  workflow_dispatch:       # lancement manuel depuis l'onglet Actions
+
+permissions:
+  contents: write          # pour commiter les graphiques mis à jour
+
+concurrency:
+  group: mise-a-jour
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Exécuter le pipeline
+        run: python src/pipeline.py
+
+      - name: Conserver les données et le rapport
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: donnees-${{ github.run_id }}
+          path: |
+            data/
+            sorties/
+          retention-days: 90
+          if-no-files-found: ignore
+
+      - name: Commiter les graphiques s'ils ont changé
+        run: |
+          git add sorties/*.png
+          if git diff --cached --quiet; then
+            echo "Aucun changement dans les graphiques."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Mise à jour mensuelle des graphiques ($(date -u +%Y-%m))"
+          git push

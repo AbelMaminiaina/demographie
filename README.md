@@ -46,9 +46,18 @@ Les sources écrivent les noms différemment (« Haute Matsiatra » / « Matsiat
 
 Les sources régionales utilisent encore le découpage en 22 régions, où Vatovavy-Fitovinany forme une seule région. La séparation en Vatovavy et Fitovinany (2021) n'y apparaît pas encore.
 
+## Exécution automatique
+
+Le workflow `.github/workflows/mise-a-jour-mensuelle.yml` exécute le pipeline le 1er de chaque mois :
+
+- les graphiques sont recommités seulement s'ils ont changé ;
+- les données et le rapport complet sont téléchargeables 90 jours dans l'onglet **Actions** (artefact `donnees-…`) ;
+- un échec (source indisponible, contrôle qualité échoué) déclenche un email de GitHub.
+
+Lancement manuel : onglet **Actions**, puis **Mise à jour mensuelle**, puis **Run workflow**.
+
 ## Pistes suivantes
 
-- Planification mensuelle (GitHub Actions ou Planificateur de tâches Windows).
 - Données par district et par commune (ADM2 à ADM4, déjà disponibles sur HDX).
 - Extraction des tableaux PDF de l'INSTAT.
 - Base de données (DuckDB/PostgreSQL) et tableau de bord interactif.
