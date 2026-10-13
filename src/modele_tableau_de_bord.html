@@ -106,12 +106,13 @@ select { padding: 6px 10px; border: 1px solid var(--trait-fort); border-radius: 
 .curseur { display: flex; align-items: center; gap: 8px; }
 .curseur input { width: 140px; accent-color: var(--accent); }
 .zone-carte { position: relative; }
-#carte { width: 100%; height: auto; display: block; touch-action: none; cursor: grab; }
+#carte { position: relative; z-index: 1; width: 100%; height: auto; display: block; touch-action: none; cursor: grab; }
+#canevas-fk { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
 #carte path.unite { stroke: var(--surface); stroke-width: 0.6; vector-effect: non-scaling-stroke; cursor: pointer; }
 #carte path.unite:hover { stroke: var(--selection); stroke-width: 1.4; }
 #carte path.choisie { stroke: var(--selection); stroke-width: 2.4; }
 #carte path.contour-region { fill: none; stroke: var(--encre); stroke-opacity: 0.55; stroke-width: 0.9; vector-effect: non-scaling-stroke; pointer-events: none; }
-.boutons-zoom { position: absolute; top: 8px; right: 8px; display: grid; gap: 4px; }
+.boutons-zoom { position: absolute; z-index: 2; top: 8px; right: 8px; display: grid; gap: 4px; }
 .boutons-zoom button {
   width: 32px; height: 32px; border: 1px solid var(--trait-fort); border-radius: 8px; background: var(--surface); cursor: pointer; font-size: 1rem;
 }
@@ -199,6 +200,7 @@ footer a { color: var(--accent); }
           <button type="button" id="niveau-regions" data-niveau="regions" aria-pressed="true">Régions</button>
           <button type="button" id="niveau-districts" data-niveau="districts" aria-pressed="false">Districts</button>
           <button type="button" id="niveau-communes" data-niveau="communes" aria-pressed="false">Communes</button>
+          <button type="button" id="niveau-fokontany" data-niveau="fokontany" aria-pressed="false">Fokontany</button>
         </div>
         <label class="etiquette" for="indicateur" hidden>Indicateur</label>
         <select id="indicateur" aria-label="Indicateur affiché"></select>
@@ -209,6 +211,7 @@ footer a { color: var(--accent); }
         </div>
       </div>
       <div class="zone-carte">
+        <canvas id="canevas-fk" aria-hidden="true"></canvas>
         <svg id="carte" viewBox="0 0 600 860" role="img" aria-label="Carte de Madagascar"></svg>
         <div class="boutons-zoom">
           <button type="button" id="zoom-plus" aria-label="Zoomer">+</button>
@@ -260,6 +263,7 @@ footer a { color: var(--accent); }
         <tbody id="corps-classement"></tbody>
       </table>
     </div>
+    <p class="note" id="classement-reste" hidden></p>
   </section>
 
   <footer>
@@ -284,6 +288,21 @@ const REF = D.meta.annee_ref;
 const ANNEE_COURANTE = Math.min(new Date().getFullYear(), ANNEES_WP[ANNEES_WP.length - 1]);
 const NOMS_NIVEAU = { regions: ["Région", "faritra"], districts: ["District", "distrika"], communes: ["Commune", "kaominina"], fokontany: ["Fokontany", "fokontany"] };
 const couleur = nom => getComputedStyle(document.documentElement).getPropertyValue(nom).trim();
+
+// Fokontany : contours compressés (entiers, écarts entre points) et rattachement par la commune
+(function () {
+  const F = D.niveaux.fokontany, C = D.niveaux.communes.unites, E = F.echelle;
+  F.geo = { type: "FeatureCollection", features: F.anneaux.map((anneaux, i) => ({ type: "Feature", properties: { i },
+    geometry: { type: "MultiPolygon", coordinates: anneaux.map(plat => {
+      const pts = []; let x = 0, y = 0;
+      for (let k = 0; k < plat.length; k += 2) { x += plat[k]; y += plat[k + 1]; pts.push([x / E, y / E]); }
+      return [pts];
+    }) } })) };
+  delete F.anneaux;
+  F.unites.forEach(u => { u.di = C[u.c].di; u.r = C[u.c].r; u.d = u.s > 0 ? u.p / u.s : null; });
+})();
+const FK_PAR_COMMUNE = D.niveaux.communes.unites.map(() => []);
+D.niveaux.fokontany.unites.forEach((u, i) => FK_PAR_COMMUNE[u.c].push(i));
 const rampe = () => [1, 2, 3, 4, 5, 6, 7].map(i => couleur(`--q${i}`));
 
 // ---------- Indicateurs de la carte ----------
@@ -301,7 +320,11 @@ const INDICATEURS = [
   { id: "d", nom: `Densité ${REF}, estimation HDX (hab/km²)`, val: u => u.d, fmt: v => fmt(v, v < 10 ? 1 : 0),
     note: "Habitants par km², superficie calculée à partir des contours." },
   { id: "wp", nom: "Population estimée (WorldPop)", annee: true, val: u => u.wp[ANNEES_WP.indexOf(etat.annee)], fmt: v => entier(v), court: v => compact(v),
-    note: "Estimation WorldPop sur grille de 1 km, ajustée aux totaux de l'ONU." },
+    note: "Estimation WorldPop ajustée aux totaux de l'ONU (grille de 1 km ; grille de 100 m pour les fokontany)." },
+  { id: "wpd", nom: "Densité estimée, WorldPop (hab/km²)", annee: true, val: u => u.s > 0 ? u.wp[ANNEES_WP.indexOf(etat.annee)] / u.s : null,
+    fmt: v => fmt(v, v < 10 ? 1 : 0), note: "Population WorldPop de l'année choisie rapportée à la superficie calculée à partir des contours." },
+  { id: "ca", nom: "Population 2018 calée sur le recensement", fokontanySeul: true, val: u => u.ca ?? null, fmt: v => entier(v), court: v => compact(v),
+    note: "Population recensée de la commune répartie entre ses fokontany selon leur poids dans l'estimation HDX : le total communal est exact, la répartition est estimée. Grisé : commune sans équivalent dans le recensement." },
   { id: "cr", nom: `Croissance estimée depuis ${REF} (%/an)`, annee: true, val: u => croissance(u, etat.annee), fmt: v => `${fmt(v, 1)} %`,
     note: `Croissance annuelle moyenne entre ${REF} et l'année choisie, d'après WorldPop.` },
   ...Object.entries(D.meta.noms_dhs).map(([id, nom]) => ({
@@ -311,6 +334,7 @@ const INDICATEURS = [
 function croissance(u, annee) {
   if (annee === REF) return 0;
   const a = u.wp[ANNEES_WP.indexOf(REF)], b = u.wp[ANNEES_WP.indexOf(annee)];
+  if (!a) return null;
   return (Math.pow(b / a, 1 / (annee - REF)) - 1) * 100;
 }
 
@@ -383,6 +407,8 @@ const chemin = d3.geoPath(projection);
 const zoom = d3.zoom().scaleExtent([1, 40]).translateExtent([[0, 0], [LARGEUR, HAUTEUR]])
   .on("zoom", e => {
     racine.attr("transform", e.transform);
+    transformCourante = e.transform;
+    planifierFk();
     // Les contours de régions, plus simplifiés, ne coïncident plus avec les communes au fort zoom.
     coucheRegions.attr("opacity", e.transform.k > 4 ? 0 : 1);
   });
@@ -390,6 +416,94 @@ svgCarte.call(zoom).on("dblclick.zoom", null);
 document.getElementById("zoom-plus").onclick = () => svgCarte.transition().duration(250).call(zoom.scaleBy, 1.8);
 document.getElementById("zoom-moins").onclick = () => svgCarte.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
 document.getElementById("zoom-reinit").onclick = () => svgCarte.transition().duration(350).call(zoom.transform, d3.zoomIdentity);
+
+// Les 17 464 fokontany sont dessinés sur un canevas sous la carte SVG : en SVG, autant de formes
+// rendraient le zoom saccadé. Le survol et le clic retrouvent le fokontany par un test point-dans-polygone.
+const canevas = document.getElementById("canevas-fk");
+const ctx = canevas.getContext("2d");
+let transformCourante = d3.zoomIdentity, couleursFk = null, cheminsFk = null, boitesFk = null, grilleFk = null;
+let survolFk = null, dessinPrevu = false;
+function preparerFk() {
+  if (cheminsFk) return;
+  const features = D.niveaux.fokontany.geo.features;
+  cheminsFk = features.map(f => new Path2D(chemin(f)));
+  boitesFk = features.map(f => chemin.bounds(f));
+  const pas = 8, g = new Map();
+  boitesFk.forEach((b, i) => {
+    for (let gx = Math.floor(b[0][0] / pas); gx <= Math.floor(b[1][0] / pas); gx++)
+      for (let gy = Math.floor(b[0][1] / pas); gy <= Math.floor(b[1][1] / pas); gy++) {
+        const k = `${gx},${gy}`; if (!g.has(k)) g.set(k, []); g.get(k).push(i);
+      }
+  });
+  grilleFk = { g, pas };
+}
+function planifierFk() {
+  if (!dessinPrevu) { dessinPrevu = true; requestAnimationFrame(dessinerFokontany); }
+}
+function dessinerFokontany() {
+  dessinPrevu = false;
+  const rect = svgCarte.node().getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.round(rect.width * dpr), h = Math.round(rect.height * dpr);
+  if (canevas.width !== w || canevas.height !== h) { canevas.width = w; canevas.height = h; }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (etat.niveau !== "fokontany" || !couleursFk || !rect.width) return;
+  preparerFk();
+  const r = rect.width / LARGEUR * dpr, t = transformCourante, echelle = r * t.k;
+  ctx.setTransform(echelle, 0, 0, echelle, r * t.x, r * t.y);
+  // Zone visible, en coordonnées de carte : on ne dessine que les fokontany qui la touchent
+  const [vx0, vy0] = t.invert([0, 0]), [vx1, vy1] = t.invert([LARGEUR, HAUTEUR]);
+  const visibles = [];
+  for (let i = 0; i < cheminsFk.length; i++) {
+    const b = boitesFk[i];
+    if (b[1][0] < vx0 || b[0][0] > vx1 || b[1][1] < vy0 || b[0][1] > vy1) continue;
+    visibles.push(i);
+    ctx.fillStyle = couleursFk[i];
+    ctx.fill(cheminsFk[i]);
+  }
+  if (t.k >= 3) {
+    ctx.strokeStyle = couleur("--surface");
+    ctx.lineWidth = 0.6 * dpr / echelle;
+    for (const i of visibles) ctx.stroke(cheminsFk[i]);
+  }
+  ctx.strokeStyle = couleur("--selection");
+  if (survolFk != null) { ctx.lineWidth = 1.4 * dpr / echelle; ctx.stroke(cheminsFk[survolFk]); }
+  if (etat.choix && etat.choix.niveau === "fokontany") { ctx.lineWidth = 2.4 * dpr / echelle; ctx.stroke(cheminsFk[etat.choix.i]); }
+}
+function fokontanyEn(px, py) {
+  preparerFk();
+  const candidats = grilleFk.g.get(`${Math.floor(px / grilleFk.pas)},${Math.floor(py / grilleFk.pas)}`) || [];
+  const [x, y] = projection.invert([px, py]);
+  for (const i of candidats) {
+    for (const polygone of D.niveaux.fokontany.geo.features[i].geometry.coordinates) {
+      const anneau = polygone[0];
+      let dedans = false;
+      for (let a = 0, b = anneau.length - 1; a < anneau.length; b = a++) {
+        const [xa, ya] = anneau[a], [xb, yb] = anneau[b];
+        if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) dedans = !dedans;
+      }
+      if (dedans) return i;
+    }
+  }
+  return null;
+}
+svgCarte
+  .on("mousemove.fk", evt => {
+    if (etat.niveau !== "fokontany") return;
+    const [x, y] = transformCourante.invert(d3.pointer(evt));
+    const i = fokontanyEn(x, y);
+    if (i !== survolFk) { survolFk = i; planifierFk(); }
+    if (i == null) return cacherBulle();
+    const u = D.niveaux.fokontany.unites[i], ind = indicateurCourant();
+    montrerBulle(evt, `<strong>${u.n}</strong>${parentTexte("fokontany", u)}<span class="tab">${ind.fmt(ind.val(u))}</span>`);
+  })
+  .on("mouseleave.fk", () => { if (survolFk != null) { survolFk = null; planifierFk(); } cacherBulle(); })
+  .on("click.fk", evt => {
+    if (etat.niveau !== "fokontany" || evt.defaultPrevented) return;
+    const i = fokontanyEn(...transformCourante.invert(d3.pointer(evt)));
+    if (i != null) choisir("fokontany", i, false);
+  });
+new ResizeObserver(planifierFk).observe(svgCarte.node());
 
 function zoomerSur(niveau, i) {
   const f = D.niveaux[niveau].geo.features[i];
@@ -417,8 +531,11 @@ function dessinerCarte() {
   const unites = D.niveaux[niveau].unites;
   const echelle = echelleCouleurs(unites.map(ind.val), ind);
   const vide = couleur("--vide");
+  const surCanevas = niveau === "fokontany";
+  couleursFk = surCanevas ? unites.map(u => { const v = ind.val(u); return v == null ? vide : echelle(v); }) : null;
+  planifierFk();
   coucheUnites.selectAll("path.unite")
-    .data(D.niveaux[niveau].geo.features, f => `${niveau}-${f.properties.i}`)
+    .data(surCanevas ? [] : D.niveaux[niveau].geo.features, f => `${niveau}-${f.properties.i}`)
     .join("path")
     .attr("class", f => `unite${etat.choix && etat.choix.niveau === niveau && etat.choix.i === f.properties.i ? " choisie" : ""}`)
     .attr("d", chemin)
@@ -440,6 +557,7 @@ function parentTexte(niveau, u) {
   if (niveau === "regions") return "";
   const reg = D.niveaux.regions.unites[u.r].n;
   if (niveau === "districts") return `<span>${reg}</span>`;
+  if (niveau === "fokontany") return `<span>${D.niveaux.communes.unites[u.c].n} · ${D.niveaux.districts.unites[u.di].n}</span>`;
   return `<span>${D.niveaux.districts.unites[u.di].n} · ${reg}</span>`;
 }
 
@@ -490,11 +608,13 @@ function remplirIndicateurs() {
 selectIndicateur.onchange = () => { etat.indicateur = selectIndicateur.value; memoriser(); majCommandes(); dessinerCarte(); classement(); };
 document.querySelectorAll(".onglets button").forEach(b => b.onclick = () => changerNiveau(b.dataset.niveau));
 function indisponible(ind, niveau) {
-  return (ind.dhs && niveau !== "regions") || (ind.recensement && niveau === "communes");
+  return (ind.dhs && niveau !== "regions") || (ind.recensement && (niveau === "communes" || niveau === "fokontany"))
+    || (ind.fokontanySeul && niveau !== "fokontany");
 }
+const INDICATEUR_PAR_DEFAUT = { regions: "rg", districts: "rg", communes: "p", fokontany: "wpd" };
 function changerNiveau(niveau) {
   etat.niveau = niveau;
-  if (indisponible(indicateurCourant(), niveau)) etat.indicateur = niveau === "communes" ? "p" : "rg";
+  if (indisponible(indicateurCourant(), niveau)) etat.indicateur = INDICATEUR_PAR_DEFAUT[niveau];
   memoriser(); majCommandes(); dessinerCarte(); classement();
 }
 const curseur = document.getElementById("annee");
@@ -510,7 +630,7 @@ function majCommandes() {
 // ---------- Sélection et fiche ----------
 function choisir(niveau, i, recentrer, fkRepere = null) {
   etat.choix = { niveau, i }; etat.fkRepere = fkRepere;
-  if (niveau !== etat.niveau) { etat.niveau = niveau; if (indisponible(indicateurCourant(), niveau)) etat.indicateur = niveau === "communes" ? "p" : "rg"; majCommandes(); }
+  if (niveau !== etat.niveau) { etat.niveau = niveau; if (indisponible(indicateurCourant(), niveau)) etat.indicateur = INDICATEUR_PAR_DEFAUT[niveau]; majCommandes(); }
   dessinerCarte(); classement(); fiche();
   if (recentrer) zoomerSur(niveau, i);
 }
@@ -528,9 +648,13 @@ function fiche() {
     fil.append("span").text("›");
     fil.append("button").attr("type", "button").text(D.niveaux.regions.unites[u.r].n).on("click", () => choisir("regions", u.r, true));
   }
-  if (niveau === "communes") {
+  if (niveau === "communes" || niveau === "fokontany") {
     fil.append("span").text("›");
     fil.append("button").attr("type", "button").text(D.niveaux.districts.unites[u.di].n).on("click", () => choisir("districts", u.di, true));
+  }
+  if (niveau === "fokontany") {
+    fil.append("span").text("›");
+    fil.append("button").attr("type", "button").text(D.niveaux.communes.unites[u.c].n).on("click", () => choisir("communes", u.c, true));
   }
   const [type, malgache] = NOMS_NIVEAU[niveau];
   el.append("span").attr("class", "etiquette").html(`${type} <span class="malgache">· ${malgache}</span>`);
@@ -538,18 +662,27 @@ function fiche() {
 
   const cles = el.append("div").attr("class", "chiffres-cles");
   const iEst = ANNEES_WP.indexOf(ANNEE_COURANTE);
-  const recense = niveau !== "communes" && u.rg;
-  const chiffres = recense
+  const recense = (niveau === "regions" || niveau === "districts") && u.rg;
+  const densiteWp = u.s > 0 ? u.wp[iEst] / u.s : null;
+  const chiffres = niveau === "fokontany"
+    ? [[entier(u.wp[iEst]), `estimés en ${ANNEE_COURANTE} (WorldPop 100 m)`], [fmt(densiteWp, densiteWp < 10 ? 1 : 0), "hab/km² (WorldPop)"],
+       [fmt(u.s, u.s < 10 ? 1 : 0), "km²"], [u.ca != null ? entier(u.ca) : "n.d.", "en 2018, calée sur le recensement"],
+       [entier(u.p), `en ${REF}, estimation HDX`], [`${fmt(croissance(u, ANNEE_COURANTE), 1)} %`, `par an depuis ${REF} (WorldPop)`]]
+    : recense
     ? [[entier(u.rg.p), "habitants recensés en 2018"], [fmt(u.rg.d, u.rg.d < 10 ? 1 : 0), "hab/km² (recensement)"],
        [`${fmt(u.rg.u, 1)} %`, "population urbaine"], [fmt(u.rg.rm, 1), "hommes pour 100 femmes"],
        [entier(u.s), "km²"], [entier(u.wp[iEst]), `estimés en ${ANNEE_COURANTE} (WorldPop)`]]
     : [[entier(u.p), `habitants en ${REF} (estimation HDX)`], [fmt(u.d, u.d < 10 ? 1 : 0), "hab/km²"],
        [entier(u.s), "km²"], [entier(u.wp[iEst]), `estimés en ${ANNEE_COURANTE} (WorldPop)`],
-       [`${fmt(croissance(u, ANNEE_COURANTE), 1)} %`, `par an depuis ${REF}`], [entier(D.fokontany[i] ? D.fokontany[i].length : 0), "fokontany"]];
+       [`${fmt(croissance(u, ANNEE_COURANTE), 1)} %`, `par an depuis ${REF}`], [entier(FK_PAR_COMMUNE[i].length), "fokontany"]];
   for (const [v, l] of chiffres) {
     const d = cles.append("div");
     d.append("span").attr("class", "chiffre").text(v);
     d.append("small").text(l);
+  }
+  if (niveau === "fokontany") {
+    el.append("p").attr("class", "note").style("margin", 0).text(
+      "Aucune source publique ne compte la population par fokontany : ces trois chiffres sont des estimations, qui divergent parfois fortement.");
   }
   if (recense) {
     el.append("p").attr("class", "note").style("margin", 0).html(
@@ -592,16 +725,16 @@ function fiche() {
   }
 
   if (niveau === "communes") {
-    const fk = D.fokontany[i];
+    const fk = FK_PAR_COMMUNE[i].map(j => [j, D.niveaux.fokontany.unites[j]]);
     // Deux vues : 2018 (calée sur le recensement si possible, sinon HDX) ou WorldPop 100 m récent
-    const calee = fk.length && fk[0][3] != null;
-    const AN = D.meta.annee_wp100;
+    const calee = fk.length && fk[0][1].ca != null;
+    const AN = ANNEE_COURANTE, iAN = ANNEES_WP.indexOf(AN), i18 = ANNEES_WP.indexOf(2018), i30 = ANNEES_WP.length - 1;
     const vues = {
-      "2018": { titre: calee ? "2018, calée sur le recensement" : `${REF}, estimation HDX`, val: f => calee ? f[3] : f[1],
+      "2018": { titre: calee ? "2018, calée sur le recensement" : `${REF}, estimation HDX`, val: ([, f]) => calee ? f.ca : f.p,
                 note: calee ? "La population recensée de la commune est répartie entre ses fokontany selon leur poids dans l'estimation HDX : le total est exact, la répartition est estimée."
                             : "Cette commune n'a pas d'équivalent dans le recensement : les chiffres sont ceux de l'estimation HDX." },
-      wp: { titre: `${AN}, WorldPop 100 m`, val: f => f[5],
-            note: `Estimation WorldPop sur grille de 100 m, sommée par fokontany. Survolez un nom pour voir 2018 et 2030.` },
+      wp: { titre: `${AN}, WorldPop 100 m`, val: ([, f]) => f.wp[iAN],
+            note: `Estimation WorldPop sur grille de 100 m, sommée par fokontany. Cliquez sur un fokontany pour afficher sa fiche.` },
     };
     if (!(etat.vueFk in vues)) etat.vueFk = "2018";
     const b = el.append("div").attr("class", "bloc");
@@ -617,12 +750,13 @@ function fiche() {
     b.append("small").attr("class", "note").style("margin", 0).text(`Population ${vue.titre}`);
     const max = d3.max(fk, valeur) || 1;
     const ul = b.append("ul").attr("class", "liste-fk");
-    fk.slice().sort((a, b2) => valeur(b2) - valeur(a)).forEach(f => {
-      const li = ul.append("li").classed("repere", f[0] === etat.fkRepere)
-        .attr("title", `Estimation HDX ${REF} : ${entier(f[1])}${f[3] != null ? ` · calée : ${entier(f[3])}` : ""} · WorldPop 2018 : ${entier(f[4])}, ${AN} : ${entier(f[5])}, 2030 : ${entier(f[6])}`);
-      li.append("span").text(f[0]);
-      li.append("span").attr("class", "tab").text(entier(valeur(f)));
-      li.append("span").attr("class", "barre").style("width", `${100 * valeur(f) / max}%`);
+    fk.slice().sort((a, b2) => valeur(b2) - valeur(a)).forEach(([j, f]) => {
+      const li = ul.append("li").classed("repere", f.n === etat.fkRepere).style("cursor", "pointer")
+        .on("click", () => choisir("fokontany", j, true))
+        .attr("title", `Estimation HDX ${REF} : ${entier(f.p)}${f.ca != null ? ` · calée : ${entier(f.ca)}` : ""} · WorldPop 2018 : ${entier(f.wp[i18])}, ${AN} : ${entier(f.wp[iAN])}, 2030 : ${entier(f.wp[i30])}`);
+      li.append("span").text(f.n);
+      li.append("span").attr("class", "tab").text(entier(valeur([j, f])));
+      li.append("span").attr("class", "barre").style("width", `${100 * valeur([j, f]) / max}%`);
     });
     b.append("small").attr("class", "note").style("margin", 0).text(vue.note);
     // Fait défiler la liste seule jusqu'au fokontany cherché, sans déplacer la page.
@@ -640,7 +774,7 @@ function ficheNationale(el) {
   for (const [v, l] of [[entier(total), "habitants recensés en 2018"], [entier(est), `estimés en ${ANNEE_COURANTE} (WorldPop)`],
                          [fmt(total / d3.sum(D.niveaux.regions.unites, r => r.s), 0), "hab/km² en 2018"],
                          [D.niveaux.regions.unites.length, "régions"], [entier(D.meta.rgph_communes), "communes au recensement"],
-                         [entier(d3.sum(D.fokontany, f => f.length)), "fokontany"]]) {
+                         [entier(D.niveaux.fokontany.unites.length), "fokontany"]]) {
     const d = cles.append("div");
     d.append("span").attr("class", "chiffre").text(v);
     d.append("small").text(l);
@@ -666,7 +800,8 @@ function courbeEvolution(conteneur, u) {
     .attr("aria-label", `Population estimée de ${u.n}`);
   const pts = ANNEES_WP.map((a, j) => [a, u.wp[j]]);
   const x = d3.scaleLinear().domain(d3.extent(ANNEES_WP)).range([m.g, L - m.d]);
-  const ref = u.rg ? u.rg.p : u.p, refNom = u.rg ? "recensement" : "estimation HDX";
+  const ref = u.rg ? u.rg.p : (u.ca != null ? u.ca : u.p);
+  const refNom = u.rg ? "recensement" : u.ca != null ? "calée 2018" : "estimation HDX";
   const y = d3.scaleLinear().domain([0, d3.max([...pts.map(p => p[1]), ref]) * 1.08]).nice(4).range([H - m.b, m.h]);
   svg.append("g").attr("class", "grille").selectAll("line").data(y.ticks(4)).join("line")
     .attr("x1", m.g).attr("x2", L - m.d).attr("y1", y).attr("y2", y);
@@ -701,10 +836,11 @@ function classement() {
   const unites = D.niveaux[niveau].unites;
   document.getElementById("titre-classement").textContent = `${NOMS_NIVEAU[niveau][0]}s · ${ind.nom}${ind.annee ? ` · ${etat.annee}` : ""}`;
   const colonnes = [["rang", "Rang", true], ["n", NOMS_NIVEAU[niveau][0], false]];
-  if (niveau !== "regions") colonnes.push(["parent", niveau === "communes" ? "District" : "Région", false]);
+  if (niveau !== "regions") colonnes.push(["parent", { districts: "Région", communes: "District", fokontany: "Commune" }[niveau], false]);
   colonnes.push(["v", ind.nom.replace(/ \(.*\)$/, ""), true]);
   const lignes = unites.map((u, i) => ({ i, u, n: u.n, v: ind.val(u),
-    parent: niveau === "districts" ? D.niveaux.regions.unites[u.r].n : niveau === "communes" ? D.niveaux.districts.unites[u.di].n : "" }))
+    parent: niveau === "districts" ? D.niveaux.regions.unites[u.r].n : niveau === "communes" ? D.niveaux.districts.unites[u.di].n
+      : niveau === "fokontany" ? D.niveaux.communes.unites[u.c].n : "" }))
     .filter(l => l.v != null);
   const rangs = new Map(lignes.slice().sort((a, b) => b.v - a.v).map((l, k) => [l.i, k + 1]));
   lignes.forEach(l => { l.rang = rangs.get(l.i); });
@@ -712,7 +848,12 @@ function classement() {
   const cle = colonnes.some(c => c[0] === col) ? col : "v";
   lignes.sort((a, b) => (typeof a[cle] === "string" ? a[cle].localeCompare(b[cle], "fr") : a[cle] - b[cle]) * sens);
   const q = normaliser(filtre.value);
-  const visibles = q ? lignes.filter(l => normaliser(l.n).includes(q) || normaliser(l.parent).includes(q)) : lignes;
+  const filtrees = q ? lignes.filter(l => normaliser(l.n).includes(q) || normaliser(l.parent).includes(q)) : lignes;
+  // 17 464 lignes ralentiraient la page : on en affiche 400, le filtre donne accès aux autres.
+  const MAX_LIGNES = 400, visibles = filtrees.slice(0, MAX_LIGNES);
+  const reste = document.getElementById("classement-reste");
+  reste.hidden = filtrees.length <= MAX_LIGNES;
+  reste.textContent = `${entier(MAX_LIGNES)} lignes affichées sur ${entier(filtrees.length)}. Filtrez par nom ou par ${colonnes[2] ? colonnes[2][1].toLowerCase() : "nom"} pour voir les autres.`;
 
   d3.select("#entete-classement").selectAll("th").data(colonnes).join("th")
     .attr("class", c => c[2] ? "num" : null)
@@ -734,8 +875,8 @@ for (const niveau of ["regions", "districts", "communes"]) {
   D.niveaux[niveau].unites.forEach((u, i) => INDEX.push({ niveau, i, n: u.n, cle: normaliser(u.n),
     detail: niveau === "regions" ? "Région" : niveau === "districts" ? `District · ${D.niveaux.regions.unites[u.r].n}` : `Commune · ${D.niveaux.districts.unites[u.di].n}` }));
 }
-D.fokontany.forEach((liste, i) => liste.forEach(f => INDEX.push({ niveau: "fokontany", i, n: f[0], cle: normaliser(f[0]),
-  detail: `Fokontany · ${D.niveaux.communes.unites[i].n}` })));
+D.niveaux.fokontany.unites.forEach((u, i) => INDEX.push({ niveau: "fokontany", i, n: u.n, cle: normaliser(u.n),
+  detail: `Fokontany · ${D.niveaux.communes.unites[u.c].n}` }));
 const champ = document.getElementById("champ-recherche"), liste = document.getElementById("suggestions");
 let resultats = [], actif = -1;
 champ.oninput = () => {
@@ -768,8 +909,7 @@ function afficherSuggestions() {
 function fermer() { liste.hidden = true; champ.parentElement.setAttribute("aria-expanded", "false"); champ.removeAttribute("aria-activedescendant"); }
 function valider(r) {
   fermer(); champ.value = r.n;
-  if (r.niveau === "fokontany") choisir("communes", r.i, true, r.n);
-  else choisir(r.niveau, r.i, true);
+  choisir(r.niveau, r.i, true);
 }
 champ.onkeydown = e => {
   if (liste.hidden || !resultats.length) return;

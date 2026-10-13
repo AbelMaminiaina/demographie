@@ -6,7 +6,7 @@ Pipeline qui télécharge, nettoie et visualise les données démographiques de 
 
 **https://abelmaminiaina.github.io/demographie/**
 
-Une carte de Madagascar à trois niveaux (régions, districts, communes) avec 12 indicateurs : population, densité, estimations et croissance WorldPop année par année, et indicateurs de santé DHS. Le tableau de bord propose aussi :
+Une carte de Madagascar à quatre niveaux (régions, districts, communes et 17 464 fokontany). Elle propose les résultats du recensement de 2018, les estimations et la croissance WorldPop année par année (grille de 100 m pour les fokontany), la population des fokontany calée sur le recensement, et les indicateurs de santé DHS. Le tableau de bord propose aussi :
 
 - une recherche jusqu'au fokontany ;
 - une fiche par lieu (évolution 2015-2030, indicateurs DHS de la région, liste des fokontany d'une commune) ;

@@ -102,23 +102,46 @@ def _niveaux(donnees):
                             "geometry": simplifier(niveaux[niveau]["contours"][u["cle"]], TOLERANCES[niveau])})
         resultat[niveau] = {"unites": lignes, "geo": {"type": "FeatureCollection", "features": entites}}
 
-    # Fokontany regroupés par commune : [nom, estimation HDX, densité, estimation calée sur le recensement,
-    # WorldPop 100 m en 2018, l'année en cours et 2030]
+    # Fokontany : un niveau de carte à part entière. La région et le district se déduisent de
+    # la commune (indice « c ») ; les contours sont compressés (voir _encoder_contours).
     cales = donnees["fokontany_cales"].set_index("cle")["population_calee"]
     wp100 = donnees["worldpop_100m"].set_index("cle")
-    annee_wp100 = annee_courante_wp100(wp100)
-    colonnes_wp100 = [f"wp100_{a}" for a in (2018, annee_wp100, 2030)]
-    fk = [[] for _ in range(len(niveaux["communes"]["unites"]))]
-    for _, f in niveaux["fokontany"]["unites"].iterrows():
+    colonnes_wp100 = [f"wp100_{a}" for a in annees_wp]
+    unites_fk = niveaux["fokontany"]["unites"]
+    lignes = []
+    for _, f in unites_fk.iterrows():
         cale = cales.get(f["cle"])
-        fk[index["communes"][f["commune_pcode"].split("|")[0]]].append(
-            [f["nom"], int(f["population"]), round(float(f["densite"])), None if cale != cale else int(cale),
-             *[int(wp100.loc[f["cle"], c]) for c in colonnes_wp100]])
-    return resultat, fk, annees_wp
+        lignes.append({"n": f["nom"], "c": index["communes"][f["commune_pcode"].split("|")[0]],
+                       "p": int(f["population"]), "ca": None if cale != cale else int(cale),
+                       "s": round(float(f["superficie_km2"]), 2),
+                       "wp": [int(v) for v in wp100.loc[f["cle"], colonnes_wp100]]})
+    resultat["fokontany"] = {"unites": lignes, "echelle": PRECISION_FK, "anneaux": [
+        _encoder_contours(niveaux["fokontany"]["contours"][c]) for c in unites_fk["cle"]]}
+    return resultat, annees_wp
+
+
+# Contours des fokontany : simplification (degrés) et précision des coordonnées (1/10 000 de degré, environ 11 m)
+TOLERANCE_FK, PRECISION_FK = 0.0008, 10_000
+
+
+def _encoder_contours(geometrie, tolerance=TOLERANCE_FK):
+    """Contours simplifiés, en entiers (1/PRECISION_FK de degré), chaque point codé par son écart au précédent.
+
+    Ce codage divise environ par deux la taille des 17 464 contours de fokontany.
+    """
+    anneaux = []
+    for polygone in simplifier(geometrie, tolerance, 4)["coordinates"]:
+        plat, px, py = [], 0, 0
+        for x, y in polygone[0]:
+            ix, iy = round(x * PRECISION_FK), round(y * PRECISION_FK)
+            plat += [ix - px, iy - py]
+            px, py = ix, iy
+        anneaux.append(plat)
+    return anneaux
 
 
 def generer(donnees):
-    niveaux, fokontany, annees_wp = _niveaux(donnees)
+    niveaux, annees_wp = _niveaux(donnees)
     try:
         collecte = json.loads(brut("journal").read_text(encoding="utf-8"))["fin"][:10]
     except FileNotFoundError:
@@ -132,7 +155,6 @@ def generer(donnees):
                  "annee_wp100": annee_courante_wp100(donnees["worldpop_100m"])},
         **_national(donnees),
         "niveaux": niveaux,
-        "fokontany": fokontany,
     }
     texte = json.dumps(contenu, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     page = MODELE.read_text(encoding="utf-8").replace("/*__DONNEES__*/null", texte)
