@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Démographie de Madagascar</title>
+<meta name="description" content="Population, densité, croissance et santé de Madagascar, de la région au fokontany.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Mise en page : bandeau d'indicateurs, puis carte + fiche côte à côte, puis tendances nationales et classement. */
+:root {
+  --fond: #f7f8f6;
+  --surface: #ffffff;
+  --encre: #13201d;
+  --encre-2: #4c5955;
+  --discret: #7d8783;
+  --trait: #dfe3e0;
+  --trait-fort: #c2c9c5;
+  --accent: #2a78d6;
+  --accent-doux: #e3eefb;
+  --homme: #2a78d6;
+  --femme: #eb6834;
+  --vide: #eceeec;
+  --q1: #cde2fb; --q2: #9ec5f4; --q3: #6da7ec; --q4: #3987e5; --q5: #256abf; --q6: #184f95; --q7: #0d366b;
+  --selection: #13201d;
+  --police: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --police-chiffres: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --rayon: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fond: #101615; --surface: #18201e; --encre: #eef2f0; --encre-2: #b9c3bf; --discret: #87918d;
+    --trait: #2a3431; --trait-fort: #3c4844; --accent: #5598e7; --accent-doux: #1b2c3f;
+    --homme: #3987e5; --femme: #d95926; --vide: #222b29;
+    --q1: #12304f; --q2: #104281; --q3: #184f95; --q4: #256abf; --q5: #3987e5; --q6: #6da7ec; --q7: #b7d3f6;
+    --selection: #ffffff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --fond: #101615; --surface: #18201e; --encre: #eef2f0; --encre-2: #b9c3bf; --discret: #87918d;
+  --trait: #2a3431; --trait-fort: #3c4844; --accent: #5598e7; --accent-doux: #1b2c3f;
+  --homme: #3987e5; --femme: #d95926; --vide: #222b29;
+  --q1: #12304f; --q2: #104281; --q3: #184f95; --q4: #256abf; --q5: #3987e5; --q6: #6da7ec; --q7: #b7d3f6;
+  --selection: #ffffff;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--fond); }
+body {
+  margin: 0; background: var(--fond); color: var(--encre); font-family: var(--police);
+  font-size: 15px; line-height: 1.5;
+}
+.page { max-width: 1320px; margin: 0 auto; padding-inline: 20px; padding-block: 20px 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.page > * { min-width: 0; }
+@media (max-width: 520px) { .page { padding-inline: 16px; } .chiffres-cles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.05rem; font-weight: 650; }
+.chiffre, .tab { font-family: var(--police-chiffres); font-variant-numeric: tabular-nums; }
+.etiquette { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--discret); font-weight: 600; }
+.malgache { font-style: italic; color: var(--discret); font-weight: 400; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* En-tête */
+.entete { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; }
+.entete p { margin: 4px 0 0; color: var(--encre-2); max-width: 62ch; }
+.recherche { position: relative; flex: 1 1 280px; max-width: 420px; }
+.recherche input {
+  width: 100%; padding: 10px 14px; border: 1px solid var(--trait-fort); border-radius: var(--rayon);
+  background: var(--surface);
+}
+.suggestions {
+  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px;
+  list-style: none; background: var(--surface); border: 1px solid var(--trait-fort); border-radius: var(--rayon);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); max-height: 320px; overflow-y: auto;
+}
+.suggestions li { padding: 7px 10px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 12px; }
+.suggestions li[aria-selected="true"], .suggestions li:hover { background: var(--accent-doux); }
+.suggestions small { color: var(--discret); white-space: nowrap; }
+
+/* Indicateurs nationaux */
+.tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.tuile { background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon); padding: 12px 14px; display: grid; gap: 2px; }
+.tuile .valeur { font-family: var(--police-chiffres); font-size: 1.35rem; font-weight: 500; }
+.tuile .annee { color: var(--discret); font-size: 0.8rem; }
+.tuile svg { width: 100%; height: 30px; display: block; margin-top: 4px; }
+
+/* Carte et fiche */
+.principal { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .principal { grid-template-columns: minmax(0, 1fr); } }
+.panneau { background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon); padding: 16px; min-width: 0; }
+.commandes { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 12px; }
+.onglets { display: inline-flex; border: 1px solid var(--trait-fort); border-radius: 8px; overflow: hidden; }
+.onglets button { border: 0; background: transparent; padding: 6px 12px; cursor: pointer; }
+.onglets button + button { border-left: 1px solid var(--trait-fort); }
+.onglets button[aria-pressed="true"] { background: var(--encre); color: var(--surface); }
+select { padding: 6px 10px; border: 1px solid var(--trait-fort); border-radius: 8px; background: var(--surface); max-width: 100%; }
+.curseur { display: flex; align-items: center; gap: 8px; }
+.curseur input { width: 140px; accent-color: var(--accent); }
+.zone-carte { position: relative; }
+#carte { width: 100%; height: auto; display: block; touch-action: none; cursor: grab; }
+#carte path.unite { stroke: var(--surface); stroke-width: 0.6; vector-effect: non-scaling-stroke; cursor: pointer; }
+#carte path.unite:hover { stroke: var(--selection); stroke-width: 1.4; }
+#carte path.choisie { stroke: var(--selection); stroke-width: 2.4; }
+#carte path.contour-region { fill: none; stroke: var(--encre); stroke-opacity: 0.55; stroke-width: 0.9; vector-effect: non-scaling-stroke; pointer-events: none; }
+.boutons-zoom { position: absolute; top: 8px; right: 8px; display: grid; gap: 4px; }
+.boutons-zoom button {
+  width: 32px; height: 32px; border: 1px solid var(--trait-fort); border-radius: 8px; background: var(--surface); cursor: pointer; font-size: 1rem;
+}
+.legende { display: flex; flex-wrap: wrap; gap: 4px 0; align-items: stretch; margin-top: 10px; }
+.legende div { flex: 1 1 0; min-width: 0; display: grid; gap: 3px; }
+.legende span.case { height: 10px; display: block; }
+.legende span.borne { font-size: 0.7rem; white-space: nowrap; color: var(--encre-2); font-family: var(--police-chiffres); }
+.note { font-size: 0.8rem; color: var(--discret); margin: 8px 0 0; }
+
+.fiche { display: grid; gap: 14px; }
+.fil { font-size: 0.82rem; color: var(--discret); display: flex; flex-wrap: wrap; gap: 4px; }
+.fil button { border: 0; background: none; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.chiffres-cles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.chiffres-cles div { display: grid; gap: 1px; }
+.chiffres-cles .chiffre { font-size: 1.1rem; }
+.chiffres-cles small { color: var(--discret); font-size: 0.76rem; }
+.bloc { display: grid; gap: 6px; border-top: 1px solid var(--trait); padding-top: 12px; }
+#evolution { width: 100%; height: 130px; display: block; }
+.dhs { display: grid; gap: 8px; margin: 0; }
+.dhs div { display: grid; grid-template-columns: minmax(0, 1fr) 56px; gap: 2px 10px; align-items: center; }
+.dhs dt { font-size: 0.84rem; color: var(--encre-2); }
+.dhs dd { margin: 0; text-align: right; font-family: var(--police-chiffres); }
+.dhs .echelle { grid-column: 1 / -1; position: relative; height: 6px; border-radius: 3px; background: var(--vide); }
+.dhs .echelle i { position: absolute; top: -3px; width: 4px; height: 12px; border-radius: 2px; background: var(--accent); transform: translateX(-2px); }
+.liste-fk { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto; display: grid; gap: 2px; }
+.liste-fk li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 4px 6px; border-radius: 6px; font-size: 0.86rem; }
+.liste-fk li.repere { background: var(--accent-doux); }
+.liste-fk .barre { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--q3); }
+
+/* Tendances nationales */
+.tendances { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 900px) { .tendances { grid-template-columns: minmax(0, 1fr); } }
+.graphique svg { width: 100%; height: auto; display: block; overflow: visible; }
+.axe text { fill: var(--discret); font-size: 11px; font-family: var(--police-chiffres); }
+.axe line, .axe path { stroke: var(--trait-fort); }
+.grille line { stroke: var(--trait); }
+.legende-ligne { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.82rem; color: var(--encre-2); margin-top: 6px; }
+.legende-ligne span { display: inline-flex; align-items: center; gap: 6px; }
+.legende-ligne i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--accent); }
+.legende-ligne i.pointille { border-top-style: dashed; }
+.legende-ligne i.carre { width: 10px; height: 10px; border: 0; border-radius: 2px; }
+
+/* Classement */
+.classement { overflow: auto; max-height: 440px; border: 1px solid var(--trait); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--trait); white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--surface); z-index: 1; font-weight: 600; }
+th button { border: 0; background: none; padding: 0; cursor: pointer; font-weight: 600; }
+td.num, th.num { text-align: right; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--accent-doux); }
+tbody tr.choisie { background: var(--accent-doux); font-weight: 600; }
+
+.infobulle {
+  position: fixed; z-index: 30; pointer-events: none; background: var(--encre); color: var(--fond);
+  padding: 7px 10px; border-radius: 8px; font-size: 0.82rem; max-width: 260px; box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+}
+.infobulle strong { display: block; }
+footer { color: var(--discret); font-size: 0.82rem; display: grid; gap: 4px; }
+footer a { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="entete">
+    <div>
+      <span class="etiquette">Repoblikan'i Madagasikara · données ouvertes</span>
+      <h1>Démographie de Madagascar</h1>
+      <p>Population, densité, croissance et santé, de la région <span class="malgache">(faritra)</span> au fokontany. Données collectées le <span id="date-collecte" class="tab"></span>.</p>
+    </div>
+    <div class="recherche" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="suggestions">
+      <label class="etiquette" for="champ-recherche">Rechercher un lieu</label>
+      <input id="champ-recherche" type="search" autocomplete="off" placeholder="Région, district, commune ou fokontany" aria-controls="suggestions">
+      <ul id="suggestions" class="suggestions" role="listbox" hidden></ul>
+    </div>
+  </header>
+
+  <section class="tuiles" id="tuiles" aria-label="Indicateurs nationaux"></section>
+
+  <section class="principal">
+    <div class="panneau">
+      <div class="commandes">
+        <div class="onglets" role="group" aria-label="Découpage">
+          <button type="button" id="niveau-regions" data-niveau="regions" aria-pressed="true">Régions</button>
+          <button type="button" id="niveau-districts" data-niveau="districts" aria-pressed="false">Districts</button>
+          <button type="button" id="niveau-communes" data-niveau="communes" aria-pressed="false">Communes</button>
+        </div>
+        <label class="etiquette" for="indicateur" hidden>Indicateur</label>
+        <select id="indicateur" aria-label="Indicateur affiché"></select>
+        <div class="curseur" id="bloc-annee" hidden>
+          <label for="annee" class="etiquette">Année</label>
+          <input id="annee" type="range" min="2015" max="2030" step="1" value="2026">
+          <span id="annee-valeur" class="tab"></span>
+        </div>
+      </div>
+      <div class="zone-carte">
+        <svg id="carte" viewBox="0 0 600 860" role="img" aria-label="Carte de Madagascar"></svg>
+        <div class="boutons-zoom">
+          <button type="button" id="zoom-plus" aria-label="Zoomer">+</button>
+          <button type="button" id="zoom-moins" aria-label="Dézoomer">−</button>
+          <button type="button" id="zoom-reinit" aria-label="Vue d'ensemble">⟲</button>
+        </div>
+      </div>
+      <div class="legende" id="legende"></div>
+      <p class="note" id="note-indicateur"></p>
+    </div>
+
+    <aside class="panneau fiche" id="fiche" aria-live="polite"></aside>
+  </section>
+
+  <section class="tendances">
+    <div class="panneau graphique">
+      <h2>Population de 1960 à 2050</h2>
+      <svg id="graphique-population" viewBox="0 0 640 300" role="img" aria-label="Population observée et projetée"></svg>
+      <div class="legende-ligne">
+        <span><i></i>Estimations</span><span><i class="pointille"></i>Projection de l'ONU</span>
+      </div>
+    </div>
+    <div class="panneau graphique">
+      <div class="commandes" style="justify-content: space-between; margin-bottom: 4px;">
+        <h2>Pyramide des âges</h2>
+        <div class="curseur">
+          <label for="annee-pyramide" class="etiquette">Année</label>
+          <input id="annee-pyramide" type="range" step="1">
+          <span id="annee-pyramide-valeur" class="tab"></span>
+        </div>
+      </div>
+      <svg id="graphique-pyramide" viewBox="0 0 440 320" role="img" aria-label="Pyramide des âges"></svg>
+      <div class="legende-ligne">
+        <span><i class="carre" style="background: var(--homme)"></i>Hommes</span>
+        <span><i class="carre" style="background: var(--femme)"></i>Femmes</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panneau">
+    <div class="commandes" style="justify-content: space-between;">
+      <h2 id="titre-classement">Classement</h2>
+      <input id="filtre-classement" type="search" placeholder="Filtrer par nom" aria-label="Filtrer le classement"
+        style="padding: 6px 10px; border: 1px solid var(--trait-fort); border-radius: 8px; background: var(--surface);">
+    </div>
+    <div class="classement">
+      <table>
+        <thead><tr id="entete-classement"></tr></thead>
+        <tbody id="corps-classement"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>Sources : recensement RGPH-3 2018 (INSTAT, via OCHA/HDX) · Banque mondiale · ONU, World Population Prospects · enquête DHS · WorldPop (R2025A) · contours geoBoundaries.</span>
+    <span>Les chiffres WorldPop sont des estimations modélisées : fiables par région ou district, plus incertaines par commune.</span>
+    <span>Page générée automatiquement chaque mois par le dépôt <a href="https://github.com/AbelMaminiaina/demographie">AbelMaminiaina/demographie</a>.</span>
+  </footer>
+</div>
+<div class="infobulle" id="infobulle" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script id="donnees" type="application/json">/*__DONNEES__*/null</script>
+<script>
+"use strict";
+const D = JSON.parse(document.getElementById("donnees").textContent);
+const fr = d3.formatLocale({ decimal: ",", thousands: " ", grouping: [3], currency: ["", " €"] });
+const entier = fr.format(",.0f");
+const fmt = (v, dec = 0) => v == null || Number.isNaN(v) ? "n.d." : fr.format(`,.${dec}f`)(v);
+const compact = v => v >= 1e6 ? `${fmt(v / 1e6, 1)} M` : v >= 1e4 ? `${fmt(v / 1e3, 0)} k` : entier(v);
+const ANNEES_WP = D.meta.annees_wp;
+const RGPH = D.meta.annee_rgph;
+const ANNEE_COURANTE = Math.min(new Date().getFullYear(), ANNEES_WP[ANNEES_WP.length - 1]);
+const NOMS_NIVEAU = { regions: ["Région", "faritra"], districts: ["District", "distrika"], communes: ["Commune", "kaominina"], fokontany: ["Fokontany", "fokontany"] };
+const couleur = nom => getComputedStyle(document.documentElement).getPropertyValue(nom).trim();
+const rampe = () => [1, 2, 3, 4, 5, 6, 7].map(i => couleur(`--q${i}`));
+
+// ---------- Indicateurs de la carte ----------
+const INDICATEURS = [
+  { id: "p", nom: `Population ${RGPH} (recensement)`, val: u => u.p, fmt: v => entier(v), court: v => compact(v),
+    note: `Recensement général de la population (RGPH-3), ${RGPH}.` },
+  { id: "d", nom: `Densité ${RGPH} (hab/km²)`, val: u => u.d, fmt: v => fmt(v, v < 10 ? 1 : 0),
+    note: "Habitants par km², superficie calculée à partir des contours." },
+  { id: "wp", nom: "Population estimée (WorldPop)", annee: true, val: u => u.wp[ANNEES_WP.indexOf(etat.annee)], fmt: v => entier(v), court: v => compact(v),
+    note: "Estimation WorldPop sur grille de 1 km, ajustée aux totaux de l'ONU." },
+  { id: "cr", nom: `Croissance estimée depuis ${RGPH} (%/an)`, annee: true, val: u => croissance(u, etat.annee), fmt: v => `${fmt(v, 1)} %`,
+    note: `Croissance annuelle moyenne entre ${RGPH} et l'année choisie, d'après WorldPop.` },
+  ...Object.entries(D.meta.noms_dhs).map(([id, nom]) => ({
+    id: `dhs:${id}`, nom, dhs: true, val: u => u.dhs ? u.dhs[id] : null, fmt: v => fmt(v, Number.isInteger(v) ? 0 : 1),
+    note: `Enquête ${D.meta.enquete_dhs}, disponible par région uniquement.` })),
+];
+function croissance(u, annee) {
+  if (annee === RGPH) return 0;
+  const a = u.wp[ANNEES_WP.indexOf(RGPH)], b = u.wp[ANNEES_WP.indexOf(annee)];
+  return (Math.pow(b / a, 1 / (annee - RGPH)) - 1) * 100;
+}
+
+const etat = { niveau: "regions", indicateur: "p", annee: ANNEE_COURANTE, choix: null, fkRepere: null, tri: { col: "v", sens: -1 } };
+
+// ---------- Lecture et écriture de l'état mémorisé ----------
+try {
+  const memo = JSON.parse(localStorage.getItem("demographie-mdg") || "{}");
+  if (memo.niveau in D.niveaux) etat.niveau = memo.niveau;
+  if (INDICATEURS.some(i => i.id === memo.indicateur)) etat.indicateur = memo.indicateur;
+} catch (e) { /* stockage indisponible : on garde les valeurs par défaut */ }
+function memoriser() {
+  try { localStorage.setItem("demographie-mdg", JSON.stringify({ niveau: etat.niveau, indicateur: etat.indicateur })); } catch (e) { }
+}
+
+// ---------- Infobulle ----------
+const bulle = document.getElementById("infobulle");
+function montrerBulle(evt, html) {
+  bulle.innerHTML = html; bulle.hidden = false;
+  const r = bulle.getBoundingClientRect();
+  let x = evt.clientX + 14, y = evt.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = evt.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = evt.clientY - r.height - 14;
+  bulle.style.left = `${x}px`; bulle.style.top = `${y}px`;
+}
+const cacherBulle = () => { bulle.hidden = true; };
+
+// ---------- Tuiles nationales ----------
+function derniere(serie) {
+  for (let i = serie.length - 1; i >= 0; i--) if (serie[i] != null) return i;
+  return -1;
+}
+function tuiles() {
+  const N = D.national;
+  const defs = [
+    ["Population", "population", v => compact(v)],
+    ["Croissance annuelle", "croissance", v => `${fmt(v, 2)} %`],
+    ["Enfants par femme", "isf", v => fmt(v, 2)],
+    ["Espérance de vie", "esperance", v => `${fmt(v, 1)} ans`],
+    ["Population urbaine", "urbanisation", v => `${fmt(v, 1)} %`],
+    ["Mortalité infantile", "mortalite_infantile", v => `${fmt(v, 1)} ‰`],
+  ];
+  const conteneur = d3.select("#tuiles").html("");
+  for (const [titre, cle, f] of defs) {
+    const serie = N[cle], i = derniere(serie);
+    const t = conteneur.append("div").attr("class", "tuile");
+    t.append("span").attr("class", "etiquette").text(titre);
+    t.append("span").attr("class", "valeur").text(f(serie[i]));
+    t.append("span").attr("class", "annee").text(`${N.annees[i]} · depuis ${N.annees[0]}`);
+    const pts = N.annees.map((a, j) => [a, serie[j]]).filter(p => p[1] != null);
+    const svg = t.append("svg").attr("viewBox", "0 0 160 30").attr("preserveAspectRatio", "none").attr("aria-hidden", "true");
+    const x = d3.scaleLinear().domain(d3.extent(pts, p => p[0])).range([2, 156]);
+    const y = d3.scaleLinear().domain(d3.extent(pts, p => p[1])).range([27, 3]);
+    svg.append("path").attr("d", d3.area().x(p => x(p[0])).y0(30).y1(p => y(p[1]))(pts)).attr("fill", "var(--accent-doux)");
+    svg.append("path").attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1]))(pts))
+      .attr("fill", "none").attr("stroke", "var(--accent)").attr("stroke-width", 1.5).attr("vector-effect", "non-scaling-stroke");
+    const fin = pts[pts.length - 1];
+    svg.append("circle").attr("cx", x(fin[0])).attr("cy", y(fin[1])).attr("r", 2.5).attr("fill", "var(--accent)");
+  }
+}
+
+// ---------- Carte ----------
+const svgCarte = d3.select("#carte");
+const LARGEUR = 600, HAUTEUR = 860;
+const racine = svgCarte.append("g");
+const coucheUnites = racine.append("g");
+const coucheRegions = racine.append("g");
+const projection = d3.geoIdentity().reflectY(true).fitExtent([[16, 16], [LARGEUR - 16, HAUTEUR - 16]], D.niveaux.regions.geo);
+const chemin = d3.geoPath(projection);
+const zoom = d3.zoom().scaleExtent([1, 40]).translateExtent([[0, 0], [LARGEUR, HAUTEUR]])
+  .on("zoom", e => {
+    racine.attr("transform", e.transform);
+    // Les contours de régions, plus simplifiés, ne coïncident plus avec les communes au fort zoom.
+    coucheRegions.attr("opacity", e.transform.k > 4 ? 0 : 1);
+  });
+svgCarte.call(zoom).on("dblclick.zoom", null);
+document.getElementById("zoom-plus").onclick = () => svgCarte.transition().duration(250).call(zoom.scaleBy, 1.8);
+document.getElementById("zoom-moins").onclick = () => svgCarte.transition().duration(250).call(zoom.scaleBy, 1 / 1.8);
+document.getElementById("zoom-reinit").onclick = () => svgCarte.transition().duration(350).call(zoom.transform, d3.zoomIdentity);
+
+function zoomerSur(niveau, i) {
+  const f = D.niveaux[niveau].geo.features[i];
+  const [[x0, y0], [x1, y1]] = chemin.bounds(f);
+  const k = Math.min(40, 0.7 / Math.max((x1 - x0) / LARGEUR, (y1 - y0) / HAUTEUR));
+  const echelle = Math.max(1, k);
+  const t = d3.zoomIdentity.translate(LARGEUR / 2, HAUTEUR / 2).scale(echelle).translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
+  svgCarte.transition().duration(500).call(zoom.transform, t);
+}
+
+const indicateurCourant = () => INDICATEURS.find(i => i.id === etat.indicateur);
+
+function echelleCouleurs(valeurs) {
+  const v = valeurs.filter(x => x != null && !Number.isNaN(x));
+  const n = Math.min(7, new Set(v).size);
+  const couleurs = rampe();
+  const choix = n >= 7 ? couleurs : d3.quantize(t => couleurs[Math.round(t * 6)], Math.max(n, 2));
+  return d3.scaleQuantile().domain(v).range(choix);
+}
+
+function dessinerCarte() {
+  const niveau = etat.niveau, ind = indicateurCourant();
+  const unites = D.niveaux[niveau].unites;
+  const echelle = echelleCouleurs(unites.map(ind.val));
+  const vide = couleur("--vide");
+  coucheUnites.selectAll("path.unite")
+    .data(D.niveaux[niveau].geo.features, f => `${niveau}-${f.properties.i}`)
+    .join("path")
+    .attr("class", f => `unite${etat.choix && etat.choix.niveau === niveau && etat.choix.i === f.properties.i ? " choisie" : ""}`)
+    .attr("d", chemin)
+    .attr("fill", f => { const v = ind.val(unites[f.properties.i]); return v == null ? vide : echelle(v); })
+    .on("mousemove", (evt, f) => {
+      const u = unites[f.properties.i];
+      montrerBulle(evt, `<strong>${u.n}</strong>${parentTexte(niveau, u)}<span class="tab">${ind.fmt(ind.val(u))}</span>`);
+    })
+    .on("mouseleave", cacherBulle)
+    .on("click", (evt, f) => choisir(niveau, f.properties.i, false));
+  coucheUnites.selectAll("path.choisie").raise();
+  coucheRegions.selectAll("path.contour-region")
+    .data(niveau === "regions" ? [] : D.niveaux.regions.geo.features)
+    .join("path").attr("class", "contour-region").attr("d", chemin);
+  legende(echelle, ind);
+}
+
+function parentTexte(niveau, u) {
+  if (niveau === "regions") return "";
+  const reg = D.niveaux.regions.unites[u.r].n;
+  if (niveau === "districts") return `<span>${reg}</span>`;
+  return `<span>${D.niveaux.districts.unites[u.di].n} · ${reg}</span>`;
+}
+
+function legende(echelle, ind) {
+  const bornes = [d3.min(echelle.domain()), ...echelle.quantiles(), d3.max(echelle.domain())];
+  const conteneur = d3.select("#legende").html("");
+  echelle.range().forEach((c, i) => {
+    const d = conteneur.append("div");
+    d.append("span").attr("class", "case").style("background", c);
+    d.append("span").attr("class", "borne").text((ind.court || ind.fmt)(bornes[i]).replace(" %", ""));
+  });
+  const fin = conteneur.append("div").style("flex", "0 0 auto").style("min-width", "auto");
+  fin.append("span").attr("class", "case");
+  fin.append("span").attr("class", "borne").text((ind.court || ind.fmt)(bornes[bornes.length - 1]));
+  document.getElementById("note-indicateur").textContent =
+    `${ind.note} Classes de même effectif (quantiles). Glisser pour déplacer la carte, molette ou boutons pour zoomer.`;
+}
+
+// ---------- Commandes ----------
+const selectIndicateur = document.getElementById("indicateur");
+function remplirIndicateurs() {
+  selectIndicateur.innerHTML = "";
+  const groupes = [["Recensement et estimations", INDICATEURS.filter(i => !i.dhs)],
+                   [`Santé et fécondité (${D.meta.enquete_dhs}, régions)`, INDICATEURS.filter(i => i.dhs)]];
+  for (const [nom, liste] of groupes) {
+    const g = document.createElement("optgroup"); g.label = nom;
+    for (const i of liste) {
+      const o = new Option(i.nom, i.id);
+      o.disabled = i.dhs && etat.niveau !== "regions";
+      g.append(o);
+    }
+    selectIndicateur.append(g);
+  }
+  selectIndicateur.value = etat.indicateur;
+}
+selectIndicateur.onchange = () => { etat.indicateur = selectIndicateur.value; memoriser(); majCommandes(); dessinerCarte(); classement(); };
+document.querySelectorAll(".onglets button").forEach(b => b.onclick = () => changerNiveau(b.dataset.niveau));
+function changerNiveau(niveau) {
+  etat.niveau = niveau;
+  if (indicateurCourant().dhs && niveau !== "regions") etat.indicateur = "p";
+  memoriser(); majCommandes(); dessinerCarte(); classement();
+}
+const curseur = document.getElementById("annee");
+curseur.min = ANNEES_WP[0]; curseur.max = ANNEES_WP[ANNEES_WP.length - 1]; curseur.value = etat.annee;
+curseur.oninput = () => { etat.annee = +curseur.value; majCommandes(); dessinerCarte(); classement(); if (etat.choix) fiche(); };
+function majCommandes() {
+  document.querySelectorAll(".onglets button").forEach(b => b.setAttribute("aria-pressed", b.dataset.niveau === etat.niveau));
+  remplirIndicateurs();
+  document.getElementById("bloc-annee").hidden = !indicateurCourant().annee;
+  document.getElementById("annee-valeur").textContent = etat.annee;
+}
+
+// ---------- Sélection et fiche ----------
+function choisir(niveau, i, recentrer, fkRepere = null) {
+  etat.choix = { niveau, i }; etat.fkRepere = fkRepere;
+  if (niveau !== etat.niveau) { etat.niveau = niveau; if (indicateurCourant().dhs && niveau !== "regions") etat.indicateur = "p"; majCommandes(); }
+  dessinerCarte(); classement(); fiche();
+  if (recentrer) zoomerSur(niveau, i);
+}
+
+function regionDe(niveau, u) { return niveau === "regions" ? u : D.niveaux.regions.unites[u.r]; }
+
+function fiche() {
+  const el = d3.select("#fiche").html("");
+  if (!etat.choix) return ficheNationale(el);
+  const { niveau, i } = etat.choix;
+  const u = D.niveaux[niveau].unites[i];
+  const fil = el.append("nav").attr("class", "fil").attr("aria-label", "Rattachement");
+  fil.append("button").attr("type", "button").text("Madagascar").on("click", () => { etat.choix = null; dessinerCarte(); classement(); fiche(); });
+  if (niveau !== "regions") {
+    fil.append("span").text("›");
+    fil.append("button").attr("type", "button").text(D.niveaux.regions.unites[u.r].n).on("click", () => choisir("regions", u.r, true));
+  }
+  if (niveau === "communes") {
+    fil.append("span").text("›");
+    fil.append("button").attr("type", "button").text(D.niveaux.districts.unites[u.di].n).on("click", () => choisir("districts", u.di, true));
+  }
+  const [type, malgache] = NOMS_NIVEAU[niveau];
+  el.append("span").attr("class", "etiquette").html(`${type} <span class="malgache">· ${malgache}</span>`);
+  el.append("h2").style("font-size", "1.4rem").text(u.n);
+
+  const total = d3.sum(D.niveaux.regions.unites, r => r.p);
+  const cles = el.append("div").attr("class", "chiffres-cles");
+  const iEst = ANNEES_WP.indexOf(ANNEE_COURANTE);
+  for (const [v, l] of [[entier(u.p), `habitants en ${RGPH}`], [fmt(u.d, u.d < 10 ? 1 : 0), "hab/km²"],
+                         [entier(u.s), "km²"], [entier(u.wp[iEst]), `estimés en ${ANNEE_COURANTE}`],
+                         [`${fmt(croissance(u, ANNEE_COURANTE), 1)} %`, `par an depuis ${RGPH}`],
+                         [`${fmt(100 * u.p / total, u.p / total < 0.01 ? 2 : 1)} %`, "de la population"]]) {
+    const d = cles.append("div");
+    d.append("span").attr("class", "chiffre").text(v);
+    d.append("small").text(l);
+  }
+
+  const bloc = el.append("div").attr("class", "bloc");
+  bloc.append("span").attr("class", "etiquette").text(`Population estimée ${ANNEES_WP[0]}-${ANNEES_WP[ANNEES_WP.length - 1]}`);
+  courbeEvolution(bloc, u);
+
+  const reg = regionDe(niveau, u);
+  if (reg.dhs) {
+    const b = el.append("div").attr("class", "bloc");
+    b.append("span").attr("class", "etiquette").text(
+      `${D.meta.enquete_dhs}${niveau === "regions" ? "" : ` · région ${reg.n}`}`);
+    const dl = b.append("dl").attr("class", "dhs");
+    for (const [id, nom] of Object.entries(D.meta.noms_dhs)) {
+      const v = reg.dhs[id]; if (v == null) continue;
+      const valeurs = D.niveaux.regions.unites.map(r => r.dhs[id]).filter(x => x != null);
+      const [mn, mx] = d3.extent(valeurs);
+      const ligne = dl.append("div");
+      ligne.append("dt").text(nom);
+      ligne.append("dd").text(fmt(v, Number.isInteger(v) ? 0 : 1));
+      ligne.append("span").attr("class", "echelle").attr("title", `De ${fmt(mn, 1)} à ${fmt(mx, 1)} selon les régions`)
+        .append("i").style("left", `${mx > mn ? 100 * (v - mn) / (mx - mn) : 50}%`);
+    }
+    b.append("small").attr("class", "note").style("margin", 0).text("Repère : position de la région entre la valeur régionale la plus basse et la plus haute.");
+  }
+
+  if (niveau === "communes") {
+    const fk = D.fokontany[i];
+    const b = el.append("div").attr("class", "bloc");
+    b.append("span").attr("class", "etiquette").text(`${fk.length} fokontany · ${RGPH}`);
+    const max = d3.max(fk, f => f[1]);
+    const ul = b.append("ul").attr("class", "liste-fk");
+    fk.slice().sort((a, b2) => b2[1] - a[1]).forEach(f => {
+      const li = ul.append("li").classed("repere", f[0] === etat.fkRepere);
+      li.append("span").text(f[0]);
+      li.append("span").attr("class", "tab").text(entier(f[1]));
+      li.append("span").attr("class", "barre").style("width", `${100 * f[1] / max}%`);
+    });
+    // Fait défiler la liste seule jusqu'au fokontany cherché, sans déplacer la page.
+    const repere = ul.select("li.repere").node();
+    if (repere) ul.node().scrollTop = repere.offsetTop - ul.node().offsetTop - 40;
+  }
+}
+
+function ficheNationale(el) {
+  el.append("span").attr("class", "etiquette").text("Vue d'ensemble");
+  el.append("h2").style("font-size", "1.4rem").text("Madagascar");
+  const cles = el.append("div").attr("class", "chiffres-cles");
+  const total = d3.sum(D.niveaux.regions.unites, r => r.p);
+  const est = d3.sum(D.niveaux.regions.unites, r => r.wp[ANNEES_WP.indexOf(ANNEE_COURANTE)]);
+  for (const [v, l] of [[entier(total), `habitants en ${RGPH}`], [entier(est), `estimés en ${ANNEE_COURANTE}`],
+                         [fmt(total / d3.sum(D.niveaux.regions.unites, r => r.s), 0), "hab/km² en " + RGPH],
+                         [D.niveaux.regions.unites.length, "régions"], [entier(D.niveaux.communes.unites.length), "communes"],
+                         [entier(d3.sum(D.fokontany, f => f.length)), "fokontany"]]) {
+    const d = cles.append("div");
+    d.append("span").attr("class", "chiffre").text(v);
+    d.append("small").text(l);
+  }
+  const bloc = el.append("div").attr("class", "bloc");
+  bloc.append("span").attr("class", "etiquette").text("Les plus peuplées en " + RGPH);
+  const top = D.niveaux.regions.unites.map((u, i) => [u, i]).sort((a, b) => b[0].p - a[0].p).slice(0, 5);
+  const ul = bloc.append("ul").attr("class", "liste-fk");
+  const max = top[0][0].p;
+  top.forEach(([u, i]) => {
+    const li = ul.append("li").style("cursor", "pointer").on("click", () => choisir("regions", i, true));
+    li.append("span").text(u.n);
+    li.append("span").attr("class", "tab").text(entier(u.p));
+    li.append("span").attr("class", "barre").style("width", `${100 * u.p / max}%`);
+  });
+  el.append("p").attr("class", "note").style("margin", 0)
+    .text("Cliquez sur la carte, dans le classement ou cherchez un lieu pour afficher sa fiche.");
+}
+
+function courbeEvolution(conteneur, u) {
+  const L = 420, H = 130, m = { h: 10, d: 12, b: 22, g: 52 };
+  const svg = conteneur.append("svg").attr("id", "evolution").attr("viewBox", `0 0 ${L} ${H}`).attr("role", "img")
+    .attr("aria-label", `Population estimée de ${u.n}`);
+  const pts = ANNEES_WP.map((a, j) => [a, u.wp[j]]);
+  const x = d3.scaleLinear().domain(d3.extent(ANNEES_WP)).range([m.g, L - m.d]);
+  const y = d3.scaleLinear().domain([0, d3.max([...pts.map(p => p[1]), u.p]) * 1.08]).nice(4).range([H - m.b, m.h]);
+  svg.append("g").attr("class", "grille").selectAll("line").data(y.ticks(4)).join("line")
+    .attr("x1", m.g).attr("x2", L - m.d).attr("y1", y).attr("y2", y);
+  svg.append("g").attr("class", "axe").attr("transform", `translate(${m.g},0)`).call(d3.axisLeft(y).ticks(4).tickFormat(compact).tickSize(0)).call(g => g.select(".domain").remove());
+  svg.append("g").attr("class", "axe").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues([ANNEES_WP[0], RGPH, ANNEE_COURANTE, ANNEES_WP[ANNEES_WP.length - 1]]).tickFormat(d3.format("d")).tickSize(3));
+  const passe = pts.filter(p => p[0] <= ANNEE_COURANTE), futur = pts.filter(p => p[0] >= ANNEE_COURANTE);
+  svg.append("path").attr("d", d3.area().x(p => x(p[0])).y0(H - m.b).y1(p => y(p[1]))(passe)).attr("fill", "var(--accent-doux)");
+  svg.append("path").attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1]))(passe)).attr("fill", "none").attr("stroke", "var(--accent)").attr("stroke-width", 2);
+  svg.append("path").attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1]))(futur)).attr("fill", "none").attr("stroke", "var(--accent)").attr("stroke-width", 2).attr("stroke-dasharray", "4 3");
+  svg.append("circle").attr("cx", x(RGPH)).attr("cy", y(u.p)).attr("r", 4.5).attr("fill", "var(--femme)").attr("stroke", "var(--surface)").attr("stroke-width", 2);
+  svg.append("text").attr("x", x(RGPH) + 7).attr("y", y(u.p) - 7).attr("fill", "var(--encre-2)").attr("font-size", 11).text("recensement");
+  const repere = svg.append("g").style("display", "none");
+  repere.append("line").attr("y1", m.h).attr("y2", H - m.b).attr("stroke", "var(--trait-fort)");
+  repere.append("circle").attr("r", 4).attr("fill", "var(--accent)").attr("stroke", "var(--surface)").attr("stroke-width", 2);
+  svg.append("rect").attr("x", m.g).attr("y", 0).attr("width", L - m.g - m.d).attr("height", H).attr("fill", "transparent")
+    .on("mousemove", evt => {
+      const [px] = d3.pointer(evt);
+      const a = Math.round(x.invert(px)), p = pts.find(q => q[0] === a);
+      if (!p) return;
+      repere.style("display", null).attr("transform", `translate(${x(a)},0)`);
+      repere.select("circle").attr("cy", y(p[1]));
+      montrerBulle(evt, `<strong>${a}</strong><span class="tab">${entier(p[1])}</span> habitants (WorldPop)${a === RGPH ? `<br>Recensement : <span class="tab">${entier(u.p)}</span>` : ""}`);
+    })
+    .on("mouseleave", () => { repere.style("display", "none"); cacherBulle(); });
+}
+
+// ---------- Classement ----------
+const filtre = document.getElementById("filtre-classement");
+filtre.oninput = () => classement();
+function classement() {
+  const niveau = etat.niveau, ind = indicateurCourant();
+  const unites = D.niveaux[niveau].unites;
+  document.getElementById("titre-classement").textContent = `${NOMS_NIVEAU[niveau][0]}s · ${ind.nom}${ind.annee ? ` · ${etat.annee}` : ""}`;
+  const colonnes = [["rang", "Rang", true], ["n", NOMS_NIVEAU[niveau][0], false]];
+  if (niveau !== "regions") colonnes.push(["parent", niveau === "communes" ? "District" : "Région", false]);
+  colonnes.push(["v", ind.nom.replace(/ \(.*\)$/, ""), true]);
+  const lignes = unites.map((u, i) => ({ i, u, n: u.n, v: ind.val(u),
+    parent: niveau === "districts" ? D.niveaux.regions.unites[u.r].n : niveau === "communes" ? D.niveaux.districts.unites[u.di].n : "" }))
+    .filter(l => l.v != null);
+  const rangs = new Map(lignes.slice().sort((a, b) => b.v - a.v).map((l, k) => [l.i, k + 1]));
+  lignes.forEach(l => { l.rang = rangs.get(l.i); });
+  const { col, sens } = etat.tri;
+  const cle = colonnes.some(c => c[0] === col) ? col : "v";
+  lignes.sort((a, b) => (typeof a[cle] === "string" ? a[cle].localeCompare(b[cle], "fr") : a[cle] - b[cle]) * sens);
+  const q = normaliser(filtre.value);
+  const visibles = q ? lignes.filter(l => normaliser(l.n).includes(q) || normaliser(l.parent).includes(q)) : lignes;
+
+  d3.select("#entete-classement").selectAll("th").data(colonnes).join("th")
+    .attr("class", c => c[2] ? "num" : null)
+    .attr("aria-sort", c => c[0] === cle ? (sens > 0 ? "ascending" : "descending") : "none")
+    .html("").append("button").attr("type", "button")
+    .text(c => `${c[1]}${c[0] === cle ? (sens > 0 ? " ↑" : " ↓") : ""}`)
+    .on("click", (e, c) => { etat.tri = { col: c[0], sens: c[0] === cle ? -sens : (c[2] ? -1 : 1) }; classement(); });
+  const choisie = etat.choix && etat.choix.niveau === niveau ? etat.choix.i : -1;
+  d3.select("#corps-classement").selectAll("tr").data(visibles, l => l.i).join("tr")
+    .classed("choisie", l => l.i === choisie)
+    .on("click", (e, l) => choisir(niveau, l.i, true))
+    .html(l => `<td class="num tab">${l.rang}</td><td>${l.n}</td>${niveau !== "regions" ? `<td>${l.parent}</td>` : ""}<td class="num tab">${ind.fmt(l.v)}</td>`);
+}
+
+// ---------- Recherche ----------
+const normaliser = s => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const INDEX = [];
+for (const niveau of ["regions", "districts", "communes"]) {
+  D.niveaux[niveau].unites.forEach((u, i) => INDEX.push({ niveau, i, n: u.n, cle: normaliser(u.n),
+    detail: niveau === "regions" ? "Région" : niveau === "districts" ? `District · ${D.niveaux.regions.unites[u.r].n}` : `Commune · ${D.niveaux.districts.unites[u.di].n}` }));
+}
+D.fokontany.forEach((liste, i) => liste.forEach(f => INDEX.push({ niveau: "fokontany", i, n: f[0], cle: normaliser(f[0]),
+  detail: `Fokontany · ${D.niveaux.communes.unites[i].n}` })));
+const champ = document.getElementById("champ-recherche"), liste = document.getElementById("suggestions");
+let resultats = [], actif = -1;
+champ.oninput = () => {
+  const q = normaliser(champ.value);
+  if (q.length < 2) { fermer(); return; }
+  const ordre = { regions: 0, districts: 1, communes: 2, fokontany: 3 };
+  resultats = INDEX.filter(e => e.cle.includes(q))
+    .sort((a, b) => (b.cle.startsWith(q) - a.cle.startsWith(q)) || ordre[a.niveau] - ordre[b.niveau] || a.n.localeCompare(b.n, "fr"))
+    .slice(0, 12);
+  actif = resultats.length ? 0 : -1;
+  afficherSuggestions();
+};
+function afficherSuggestions() {
+  liste.innerHTML = "";
+  if (!resultats.length) {
+    const li = document.createElement("li"); li.textContent = "Aucun lieu ne correspond."; li.setAttribute("aria-disabled", "true");
+    liste.append(li);
+  }
+  resultats.forEach((r, k) => {
+    const li = document.createElement("li");
+    li.id = `suggestion-${k}`; li.setAttribute("role", "option"); li.setAttribute("aria-selected", k === actif);
+    li.innerHTML = `<span></span><small></small>`;
+    li.firstChild.textContent = r.n; li.lastChild.textContent = r.detail;
+    li.onmousedown = e => { e.preventDefault(); valider(r); };
+    liste.append(li);
+  });
+  liste.hidden = false; champ.parentElement.setAttribute("aria-expanded", "true");
+  if (actif >= 0) champ.setAttribute("aria-activedescendant", `suggestion-${actif}`);
+}
+function fermer() { liste.hidden = true; champ.parentElement.setAttribute("aria-expanded", "false"); champ.removeAttribute("aria-activedescendant"); }
+function valider(r) {
+  fermer(); champ.value = r.n;
+  if (r.niveau === "fokontany") choisir("communes", r.i, true, r.n);
+  else choisir(r.niveau, r.i, true);
+}
+champ.onkeydown = e => {
+  if (liste.hidden || !resultats.length) return;
+  if (e.key === "ArrowDown") { actif = (actif + 1) % resultats.length; afficherSuggestions(); e.preventDefault(); }
+  else if (e.key === "ArrowUp") { actif = (actif - 1 + resultats.length) % resultats.length; afficherSuggestions(); e.preventDefault(); }
+  else if (e.key === "Enter" && actif >= 0) { valider(resultats[actif]); e.preventDefault(); }
+  else if (e.key === "Escape") fermer();
+};
+champ.onblur = fermer;
+
+// ---------- Graphique population 1960-2050 ----------
+function graphiquePopulation() {
+  const svg = d3.select("#graphique-population").html("");
+  const L = 640, H = 300, m = { h: 16, d: 20, b: 28, g: 52 };
+  const N = D.national, P = D.projections;
+  const obs = N.annees.map((a, i) => [a, N.population[i]]).filter(p => p[1] != null);
+  const dernierObs = obs[obs.length - 1][0];
+  const proj = P.annees.map((a, i) => [a, P.population[i], P.p014[i], P.p65[i]]).filter(p => p[0] >= dernierObs && p[1] != null);
+  const x = d3.scaleLinear().domain([obs[0][0], proj[proj.length - 1][0]]).range([m.g, L - m.d]);
+  const y = d3.scaleLinear().domain([0, d3.max(proj, p => p[1]) * 1.05]).nice().range([H - m.b, m.h]);
+  svg.append("g").attr("class", "grille").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.g).attr("x2", L - m.d).attr("y1", y).attr("y2", y);
+  svg.append("g").attr("class", "axe").attr("transform", `translate(${m.g},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(v => v ? `${v / 1e6} M` : "0").tickSize(0)).call(g => g.select(".domain").remove());
+  svg.append("g").attr("class", "axe").attr("transform", `translate(0,${H - m.b})`).call(d3.axisBottom(x).ticks(9).tickFormat(d3.format("d")).tickSize(3));
+  svg.append("path").attr("d", d3.area().x(p => x(p[0])).y0(H - m.b).y1(p => y(p[1]))(obs)).attr("fill", "var(--accent-doux)");
+  svg.append("path").attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1]))(obs)).attr("fill", "none").attr("stroke", "var(--accent)").attr("stroke-width", 2);
+  svg.append("path").attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1]))(proj)).attr("fill", "none").attr("stroke", "var(--accent)").attr("stroke-width", 2).attr("stroke-dasharray", "5 4");
+  for (const p of [obs[obs.length - 1], proj[proj.length - 1]]) {
+    svg.append("circle").attr("cx", x(p[0])).attr("cy", y(p[1])).attr("r", 4.5).attr("fill", "var(--accent)").attr("stroke", "var(--surface)").attr("stroke-width", 2);
+    svg.append("text").attr("x", x(p[0]) - 8).attr("y", y(p[1]) - 10).attr("text-anchor", "end").attr("fill", "var(--encre)")
+      .attr("font-weight", 600).attr("font-size", 12).text(`${fmt(p[1] / 1e6, 1)} M en ${p[0]}`);
+  }
+  const repere = svg.append("g").style("display", "none");
+  repere.append("line").attr("y1", m.h).attr("y2", H - m.b).attr("stroke", "var(--trait-fort)");
+  repere.append("circle").attr("r", 4).attr("fill", "var(--accent)").attr("stroke", "var(--surface)").attr("stroke-width", 2);
+  svg.append("rect").attr("x", m.g).attr("y", 0).attr("width", L - m.g - m.d).attr("height", H).attr("fill", "transparent")
+    .on("mousemove", evt => {
+      const a = Math.round(x.invert(d3.pointer(evt)[0]));
+      const o = obs.find(p => p[0] === a), pr = proj.find(p => p[0] === a);
+      const v = o || pr; if (!v) return;
+      repere.style("display", null).attr("transform", `translate(${x(a)},0)`);
+      repere.select("circle").attr("cy", y(v[1]));
+      const parts = pr ? `<br>0-14 ans : ${fmt(pr[2], 1)} % · 65 ans et plus : ${fmt(pr[3], 1)} %` : "";
+      montrerBulle(evt, `<strong>${a}${o ? "" : " · projection"}</strong><span class="tab">${entier(v[1])}</span> habitants${parts}`);
+    })
+    .on("mouseleave", () => { repere.style("display", "none"); cacherBulle(); });
+}
+
+// ---------- Pyramide des âges ----------
+const curseurPyr = document.getElementById("annee-pyramide");
+const PY = D.pyramide;
+curseurPyr.min = PY.annees[0]; curseurPyr.max = PY.annees[PY.annees.length - 1]; curseurPyr.value = curseurPyr.max;
+curseurPyr.oninput = () => pyramide();
+function pyramide() {
+  const k = PY.annees.indexOf(+curseurPyr.value);
+  document.getElementById("annee-pyramide-valeur").textContent = PY.annees[k];
+  const svg = d3.select("#graphique-pyramide").html("");
+  const L = 440, H = 320, m = { h: 6, b: 24, centre: 22 };
+  const max = d3.max([...PY.H.flat(), ...PY.F.flat()]);
+  const y = d3.scaleBand().domain(PY.groupes.slice().reverse()).range([m.h, H - m.b]).padding(0.12);
+  const demi = L / 2 - m.centre;
+  const xg = d3.scaleLinear().domain([0, max]).range([L / 2 - m.centre, 6]);
+  const xd = d3.scaleLinear().domain([0, max]).range([L / 2 + m.centre, L - 6]);
+  const total = d3.sum(PY.H[k]) + d3.sum(PY.F[k]);
+  const ticks = xd.ticks(3).filter(t => t > 0);
+  svg.append("g").attr("class", "grille").selectAll("line").data(ticks.flatMap(t => [xg(t), xd(t)])).join("line")
+    .attr("x1", d => d).attr("x2", d => d).attr("y1", m.h).attr("y2", H - m.b);
+  svg.append("g").attr("class", "axe").selectAll("text").data(ticks.flatMap(t => [[xg(t), t], [xd(t), t]])).join("text")
+    .attr("x", d => d[0]).attr("y", H - 6).attr("text-anchor", "middle").text(d => `${fmt(d[1] / 1e6, 1)} M`);
+  const groupes = svg.append("g");
+  PY.groupes.forEach((g, i) => {
+    const h = PY.H[k][i], f = PY.F[k][i];
+    const info = evt => montrerBulle(evt, `<strong>${g} ans · ${PY.annees[k]}</strong>Hommes : <span class="tab">${entier(h)}</span><br>Femmes : <span class="tab">${entier(f)}</span><br>${fmt(100 * (h + f) / total, 1)} % de la population`);
+    groupes.append("rect").attr("x", xg(h)).attr("y", y(g)).attr("width", Math.max(0, L / 2 - m.centre - xg(h))).attr("height", y.bandwidth())
+      .attr("rx", 2).attr("fill", "var(--homme)").on("mousemove", info).on("mouseleave", cacherBulle);
+    groupes.append("rect").attr("x", xd(0)).attr("y", y(g)).attr("width", Math.max(0, xd(f) - xd(0))).attr("height", y.bandwidth())
+      .attr("rx", 2).attr("fill", "var(--femme)").on("mousemove", info).on("mouseleave", cacherBulle);
+    if (i % 2 === 0) svg.append("text").attr("x", L / 2).attr("y", y(g) + y.bandwidth() / 2 + 4).attr("text-anchor", "middle")
+      .attr("fill", "var(--discret)").attr("font-size", 10).attr("font-family", "var(--police-chiffres)").text(g.replace("-", "–"));
+  });
+}
+
+// ---------- Thème : la carte lit ses couleurs dans les jetons CSS ----------
+function redessiner() { dessinerCarte(); }
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redessiner);
+new MutationObserver(redessiner).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+// ---------- Démarrage ----------
+document.getElementById("date-collecte").textContent = new Date(D.meta.collecte).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+tuiles(); majCommandes(); dessinerCarte(); fiche(); classement(); graphiquePopulation(); pyramide();
+</script>
+</body>
+</html>

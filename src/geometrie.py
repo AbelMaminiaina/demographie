@@ -58,3 +58,43 @@ def boite(geometrie):
     pts = [p for a in anneaux(geometrie) for p in a]
     return (min(p[0] for p in pts), min(p[1] for p in pts),
             max(p[0] for p in pts), max(p[1] for p in pts))
+
+
+def _douglas_peucker(points, tolerance):
+    """Simplification d'une ligne (algorithme de Douglas-Peucker, version itérative)."""
+    garder = [False] * len(points)
+    garder[0] = garder[-1] = True
+    piles = [(0, len(points) - 1)]
+    while piles:
+        debut, fin = piles.pop()
+        (x1, y1), (x2, y2) = points[debut], points[fin]
+        dx, dy = x2 - x1, y2 - y1
+        norme = math.hypot(dx, dy) or 1e-12
+        indice, distance_max = None, tolerance
+        for i in range(debut + 1, fin):
+            x, y = points[i]
+            d = abs(dy * x - dx * y + x2 * y1 - y2 * x1) / norme
+            if d > distance_max:
+                indice, distance_max = i, d
+        if indice is not None:
+            garder[indice] = True
+            piles += [(debut, indice), (indice, fin)]
+    return [p for p, g in zip(points, garder) if g]
+
+
+def simplifier(geometrie, tolerance, decimales=3):
+    """Contours extérieurs simplifiés et arrondis, au format MultiPolygon.
+
+    Les anneaux devenus trop petits disparaissent ; on garde toujours le plus grand.
+    """
+    resultat = []
+    for anneau in sorted(anneaux(geometrie), key=lambda a: -abs(_aire_signee([p[:2] for p in a]))):
+        brut = [tuple(p[:2]) for p in anneau]
+        # Un anneau fermé commence et finit au même point : on le simplifie en deux moitiés.
+        milieu = len(brut) // 2
+        pts = _douglas_peucker(brut[:milieu + 1], tolerance)[:-1] + _douglas_peucker(brut[milieu:], tolerance)
+        pts = [(round(x, decimales), round(y, decimales)) for x, y in pts]
+        pts = [p for i, p in enumerate(pts) if i == 0 or p != pts[i - 1]]
+        if len(pts) >= 4 or not resultat:
+            resultat.append([[list(p) for p in pts]])
+    return {"type": "MultiPolygon", "coordinates": resultat}

@@ -2,6 +2,22 @@
 
 Pipeline qui télécharge, nettoie et visualise les données démographiques de Madagascar.
 
+## Tableau de bord interactif
+
+**https://abelmaminiaina.github.io/demographie/**
+
+Une carte de Madagascar à trois niveaux (régions, districts, communes) avec 12 indicateurs : population, densité, estimations et croissance WorldPop année par année, et indicateurs de santé DHS. Le tableau de bord propose aussi :
+
+- une recherche jusqu'au fokontany ;
+- une fiche par lieu (évolution 2015-2030, indicateurs DHS de la région, liste des fokontany d'une commune) ;
+- la population de 1960 à 2050 ;
+- une pyramide des âges année par année ;
+- un classement triable.
+
+La page est un fichier HTML autonome (`sorties/tableau_de_bord/index.html`), régénéré par le pipeline et republié chaque mois sur GitHub Pages. Elle s'ouvre aussi directement depuis le disque.
+
+**Activation (une seule fois) :** dans **Settings**, puis **Pages**, choisir **Source : GitHub Actions**.
+
 ## Aperçu
 
 ![Évolution démographique de Madagascar](sorties/tendances.png)
@@ -42,6 +58,7 @@ python src/pipeline.py --sans-collecte  # réutilise les données déjà téléc
 | 1. Collecte | `src/collecte.py` | `data/brut/` |
 | 2. Nettoyage et contrôles qualité | `src/nettoyage.py` | `data/traite/*.csv` |
 | 3. Graphiques et rapport | `src/visualisation.py` | `sorties/` |
+| 4. Tableau de bord | `src/tableau_de_bord.py`, `src/modele_tableau_de_bord.html` | `sorties/tableau_de_bord/` |
 
 ## Sources
 
@@ -85,4 +102,4 @@ Lancement manuel : onglet **Actions**, puis **Mise à jour mensuelle**, puis **R
 ## Pistes suivantes
 
 - Extraction des tableaux PDF de l'INSTAT, une fois son site sécurisé.
-- Base de données (DuckDB/PostgreSQL) et tableau de bord interactif.
+- Base de données (DuckDB/PostgreSQL) pour interroger les séries.

@@ -1,4 +1,4 @@
-"""Point d'entrée : collecte -> nettoyage -> visualisation.
+"""Point d'entrée : collecte -> nettoyage -> visualisation -> tableau de bord.
 
 Usage :
     python src/pipeline.py               # pipeline complet
@@ -8,6 +8,7 @@ import argparse
 
 from collecte import tout_collecter
 from nettoyage import tout_nettoyer
+from tableau_de_bord import generer as generer_tableau_de_bord
 from visualisation import tout_visualiser
 
 
@@ -18,12 +19,14 @@ def main():
     args = parser.parse_args()
 
     if not args.sans_collecte:
-        print("[1/3] Collecte")
+        print("[1/4] Collecte")
         tout_collecter()
-    print("[2/3] Nettoyage et contrôles")
+    print("[2/4] Nettoyage et contrôles")
     donnees = tout_nettoyer()
-    print("[3/3] Graphiques et rapport")
+    print("[3/4] Graphiques et rapport")
     tout_visualiser(donnees)
+    print("[4/4] Tableau de bord")
+    generer_tableau_de_bord(donnees)
     print("Terminé.")
 
 

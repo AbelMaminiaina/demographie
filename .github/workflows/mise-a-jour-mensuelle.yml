@@ -41,6 +41,11 @@ jobs:
           retention-days: 90
           if-no-files-found: ignore
 
+      - name: Préparer le tableau de bord pour GitHub Pages
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: sorties/tableau_de_bord
+
       - name: Commiter les graphiques s'ils ont changé
         run: |
           git add sorties/*.png
@@ -52,3 +57,17 @@ jobs:
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           git commit -m "Mise à jour mensuelle des graphiques ($(date -u +%Y-%m))"
           git push
+
+  publication:
+    needs: pipeline
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write         # publier sur GitHub Pages
+      id-token: write      # prouver l'origine du déploiement
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - name: Publier le tableau de bord
+        id: deploiement
+        uses: actions/deploy-pages@v5
