@@ -1,4 +1,5 @@
 """Étape 3 : graphiques et rapport de synthèse."""
+import io
 from datetime import date
 
 import matplotlib
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.patches import Polygon
 import pandas as pd
+from PIL import Image
 
 from config import DOSSIER_SORTIES
 from geometrie import anneaux
@@ -33,11 +35,27 @@ plt.rcParams.update({
 })
 
 
+def _memes_pixels(chemin, tampon):
+    with Image.open(chemin) as ancien, Image.open(tampon) as nouveau:
+        return ancien.size == nouveau.size and ancien.convert("RGBA").tobytes() == nouveau.convert("RGBA").tobytes()
+
+
 def _sauver(fig, nom):
+    """Enregistre le graphique, sauf si l'image existante a exactement les mêmes pixels.
+
+    La compression PNG diffère légèrement entre Windows et Linux : sans cette vérification,
+    chaque exécution sur une autre machine produirait de faux changements dans git.
+    """
     DOSSIER_SORTIES.mkdir(parents=True, exist_ok=True)
     chemin = DOSSIER_SORTIES / nom
-    fig.savefig(chemin, dpi=150, bbox_inches="tight")
+    tampon = io.BytesIO()
+    fig.savefig(tampon, format="png", dpi=150, bbox_inches="tight")
     plt.close(fig)
+    tampon.seek(0)
+    if chemin.exists() and _memes_pixels(chemin, tampon):
+        print(f"  = sorties/{nom} (inchangé)")
+        return chemin
+    chemin.write_bytes(tampon.getvalue())
     print(f"  -> sorties/{nom}")
     return chemin
 
