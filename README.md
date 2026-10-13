@@ -14,6 +14,12 @@ Pipeline qui télécharge, nettoie et visualise les données démographiques de 
 |---|---|
 | ![Densité par commune](sorties/carte_densite_communes.png) | ![Pyramide des âges](sorties/pyramide_ages.png) |
 
+| Fécondité par région (DHS) | Croissance estimée par district (WorldPop) |
+|---|---|
+| ![Fécondité par région](sorties/carte_fecondite_regions.png) | ![Croissance par district](sorties/carte_croissance_districts.png) |
+
+![Projections jusqu'en 2050](sorties/projections.png)
+
 Les graphiques sont régénérés à chaque exécution du pipeline.
 
 ## Installation
@@ -39,11 +45,18 @@ python src/pipeline.py --sans-collecte  # réutilise les données déjà téléc
 
 ## Sources
 
-- **Banque mondiale** (API WDI + Santé/Population) : séries nationales depuis 1960 et effectifs par âge et sexe.
-- **HDX / OCHA** (`cod-ps-mdg`) : population par région (22), par district (119, dont les 6 arrondissements d'Antananarivo) et par commune (1 579) d'après le RGPH-3 de 2018.
-- **geoBoundaries** : contours simplifiés des régions, des districts et des communes. Ils servent aussi au calcul des superficies et des densités.
+| Source | Contenu | Accès |
+|---|---|---|
+| **Banque mondiale** (WDI + Santé/Population) | Séries nationales depuis 1960, effectifs par âge et sexe | API publique |
+| **ONU, World Population Prospects** | Projections jusqu'en 2050 (population, structure par âge) | Via la Banque mondiale (base 40) : l'API de l'ONU exige un jeton |
+| **HDX / OCHA** (`cod-ps-mdg`) | Population 2018 (RGPH-3) des 22 régions, 119 districts, 1 579 communes et 17 465 fokontany | API CKAN |
+| **geoBoundaries** | Contours des quatre niveaux, qui servent aussi au calcul des superficies et des densités | API publique |
+| **DHS Program** | Dernière enquête (2021) par région : fécondité, mortalité infantile, contraception, accouchements, malnutrition, alphabétisation | API publique, sans clé |
+| **WorldPop** (R2025A) | Estimations annuelles 2015-2030 sur grille de 1 km, agrégées par commune, district et région | API publique |
 
-Les années 2009-2017 des fichiers HDX ne sont pas des observations : elles sont rétropolées depuis 2018 avec un taux national unique (2,72 %/an). Elles ne permettent donc pas de comparer la croissance entre régions ou districts.
+Les années 2009-2017 des fichiers HDX ne sont pas des observations : elles sont rétropolées depuis 2018 avec un taux national unique (2,72 %/an). Pour l'évolution récente par territoire, il faut utiliser les estimations WorldPop. Ce sont des modèles, moins fiables à l'échelle d'une commune qu'à celle d'un district ou d'une région.
+
+**INSTAT** (instat.mg) n'est pas collecté automatiquement. En octobre 2026, sa page d'accueil contenait des liens cachés vers des sites de jeux d'argent, signe d'une compromission du site. Un script ne doit pas suivre ces liens.
 
 ## Harmonisation des noms
 
@@ -52,7 +65,9 @@ Les sources écrivent les noms différemment (« Haute Matsiatra » / « Matsiat
 
 Beaucoup de communes portent le même nom dans des districts différents, et les contours geoBoundaries n'indiquent pas le district. `nettoyage.rattacher_contours()` le retrouve en cherchant le district qui contient un point intérieur de chaque commune (`src/geometrie.py`), puis relie la commune par le couple (district, nom).
 
-Le pipeline s'arrête si une commune reste sans contour, ou si la somme des communes ne redonne pas la population de leur district.
+Les fokontany sont rattachés à leur commune de la même façon. Deux fokontany homonymes d'une même commune ne peuvent pas être distingués dans les contours. Ils sont donc fusionnés, et leurs P-codes sont joints par `|`.
+
+Le pipeline s'arrête si une unité reste sans contour, si la somme d'un niveau ne redonne pas la population du niveau supérieur, si une région DHS n'est pas reconnue, ou si le total WorldPop s'écarte de plus de 5 % du total de l'ONU.
 
 Les sources régionales utilisent encore le découpage en 22 régions, où Vatovavy-Fitovinany forme une seule région. La séparation en Vatovavy et Fitovinany (2021) n'y apparaît pas encore.
 
@@ -61,6 +76,7 @@ Les sources régionales utilisent encore le découpage en 22 régions, où Vatov
 Le workflow `.github/workflows/mise-a-jour-mensuelle.yml` exécute le pipeline le 1er de chaque mois :
 
 - les graphiques sont recommités seulement s'ils ont changé ;
+- chaque requête est retentée jusqu'à 5 fois en cas de coupure réseau ;
 - les données et le rapport complet sont téléchargeables 90 jours dans l'onglet **Actions** (artefact `donnees-…`) ;
 - un échec (source indisponible, contrôle qualité échoué) déclenche un email de GitHub.
 
@@ -68,6 +84,5 @@ Lancement manuel : onglet **Actions**, puis **Mise à jour mensuelle**, puis **R
 
 ## Pistes suivantes
 
-- Données par fokontany (ADM4, déjà disponibles sur HDX).
-- Extraction des tableaux PDF de l'INSTAT.
+- Extraction des tableaux PDF de l'INSTAT, une fois son site sécurisé.
 - Base de données (DuckDB/PostgreSQL) et tableau de bord interactif.

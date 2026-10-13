@@ -1,4 +1,6 @@
 """Étape 3 : graphiques et rapport de synthèse."""
+from datetime import date
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -66,7 +68,8 @@ def pyramide_ages(pyramide):
 SEUILS_DENSITE = [0, 10, 25, 50, 100, 250, 1_000, 1e9]
 
 
-def _carte(contours, valeurs, seuils, etiquettes, legende, titre, fichier, epaisseur):
+def _carte(contours, valeurs, seuils, etiquettes, legende, titre, fichier, epaisseur,
+          source="Sources : INSTAT / OCHA (HDX), contours geoBoundaries"):
     """Carte choroplèthe : `contours` et `valeurs` sont indexés par la même clé."""
     cmap = ListedColormap(RAMPE_BLEUE[:len(seuils) - 1])
     norm = BoundaryNorm(seuils, cmap.N)
@@ -86,7 +89,7 @@ def _carte(contours, valeurs, seuils, etiquettes, legende, titre, fichier, epais
     cb.outline.set_visible(False)
     cb.set_label(legende)
     ax.set_title(titre, loc="left", fontweight="bold")
-    fig.text(0.05, 0.06, "Sources : INSTAT / OCHA (HDX), contours geoBoundaries", color=DISCRET, fontsize=8)
+    fig.text(0.05, 0.06, source, color=DISCRET, fontsize=8)
     return _sauver(fig, fichier)
 
 
@@ -130,7 +133,65 @@ def tendances(series):
     return _sauver(fig, "tendances.png")
 
 
-def rapport(series, niveaux, annee):
+def projections(series, proj):
+    """Population observée puis projetée (ONU), et structure par âge."""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+    observee = series["population"].dropna() / 1e6
+    futur = proj.loc[proj.index >= observee.index.max(), "population"] / 1e6
+    ax1.plot(observee.index, observee.values, color=BLEU, linewidth=2, label="Estimations")
+    ax1.plot(futur.index, futur.values, color=BLEU, linewidth=2, linestyle=(0, (4, 3)), label="Projection ONU")
+    for annee in (observee.index.max(), futur.index.max()):
+        v = (observee if annee in observee.index else futur)[annee]
+        ax1.plot(annee, v, "o", color=BLEU, markersize=6, markeredgecolor=FOND, markeredgewidth=2)
+        ax1.annotate(f"{v:.1f} M ({annee})", (annee, v), xytext=(-10, 10), textcoords="offset points",
+                     ha="right", fontweight="bold", bbox={"facecolor": FOND, "edgecolor": "none", "pad": 1})
+    ax1.set_title("Population (millions)", loc="left", fontsize=10)
+    ax1.legend(frameon=False, loc="upper left")
+
+    for col, couleur, nom in (("part_0_14_pct", BLEU, "0-14 ans"), ("part_65_plus_pct", ORANGE, "65 ans et plus")):
+        v = proj[col].dropna()
+        ax2.plot(v.index, v.values, color=couleur, linewidth=2, label=nom)
+        ax2.annotate(f"{nom} : {v.iloc[-1]:.0f} %", (v.index[-1], v.iloc[-1]), xytext=(-4, 8),
+                     textcoords="offset points", ha="right", color=ENCRE_2)
+    ax2.axvline(observee.index.max(), color=GRILLE, linewidth=1)
+    ax2.set_ylim(0, None)
+    ax2.set_title("Part de la population (%)", loc="left", fontsize=10)
+    ax2.legend(frameon=False, loc="center left")
+    for ax in (ax1, ax2):
+        ax.grid(axis="y", color=GRILLE, linewidth=0.6)
+        ax.set_axisbelow(True)
+    fig.suptitle("Projections démographiques jusqu'en 2050", x=0.01, ha="left", fontweight="bold")
+    fig.text(0.01, -0.03, "Source : ONU, World Population Prospects (via Banque mondiale)",
+             color=DISCRET, fontsize=8)
+    fig.tight_layout()
+    return _sauver(fig, "projections.png")
+
+
+def carte_fecondite(dhs, contours):
+    seuils = [0, 3, 3.5, 4, 4.5, 5, 6, 10]
+    return _carte(contours, dhs.set_index("cle")["fecondite_isf"], seuils,
+                  [f"{s:g}".replace(".", ",") for s in seuils[:-1]], "Enfants par femme",
+                  f"Indice synthétique de fécondité par région ({dhs.attrs['enquete']})",
+                  "carte_fecondite_regions.png", 1, source="Source : enquête DHS, contours geoBoundaries")
+
+
+def croissance_worldpop(estimations, debut, fin):
+    """Croissance annuelle moyenne entre deux années, par unité."""
+    large = estimations.pivot(index="cle", columns="annee", values="population")
+    return ((large[fin] / large[debut]) ** (1 / (fin - debut)) - 1) * 100
+
+
+def carte_croissance(estimations, contours, debut, fin):
+    seuils = [-100, 0, 1, 2, 2.5, 3, 4, 100]
+    etiquettes = ["< 0"] + [f"{s:g}".replace(".", ",") for s in seuils[1:-1]]
+    return _carte(contours, croissance_worldpop(estimations, debut, fin), seuils, etiquettes,
+                  "% par an", f"Croissance démographique estimée par district, {debut}-{fin}",
+                  "carte_croissance_districts.png", 0.4,
+                  source="Source : estimations WorldPop (grille 1 km), contours geoBoundaries")
+
+
+def rapport(donnees, annee, annee_courante):
+    series, niveaux = donnees["series"], donnees["niveaux"]
     def val(col, fmt):
         """Dernière valeur disponible de l'indicateur, avec son année."""
         v = series[col].dropna()
@@ -195,22 +256,79 @@ def rapport(series, niveaux, annee):
     tableau("Les 10 plus denses", com.nlargest(10, "densite"), colonnes)
     tableau("Les 10 moins denses", com.nsmallest(10, "densite"), colonnes)
 
+    fk = niveaux["fokontany"]["unites"]
+    lignes += ["", f"## Fokontany ({annee}, {len(fk)} fokontany)", "",
+               f"Population médiane : {nombre(fk['population'].median())} habitants ; "
+               f"{(fk['population'] < 500).sum()} fokontany comptent moins de 500 habitants. "
+               "Tableau complet : `data/traite/fokontany.csv`."]
+    colonnes = {"nom": "Fokontany", "commune": "Commune", "district": "District"}
+    tableau("Les 10 plus peuplés", fk.head(10), colonnes)
+
+    # Projections ONU
+    proj = donnees["projections"]
+    lignes += ["", "## Projections de l'ONU", "",
+               "| Année | Population | 0-14 ans | 65 ans et plus |", "|---|---:|---:|---:|"]
+    for a in (annee_courante, 2030, 2040, 2050):
+        if a in proj.index:
+            r = proj.loc[a]
+            lignes.append(f"| {a} | {nombre(r['population'])} | {r['part_0_14_pct']:.1f} % "
+                          f"| {r['part_65_plus_pct']:.1f} % |")
+
+    # Enquête DHS
+    dhs = donnees["dhs"]
+    noms = {"fecondite_isf": "ISF", "mortalite_infantile_pour_mille": "Mortalité infantile (‰)",
+            "contraception_moderne_pct": "Contraception moderne (%)",
+            "accouchement_etablissement_pct": "Accouchement en établissement (%)",
+            "retard_croissance_pct": "Retard de croissance (%)",
+            "alphabetisation_femmes_pct": "Femmes alphabétisées (%)"}
+    noms = {c: n for c, n in noms.items() if c in dhs}
+    lignes += ["", f"## Santé et fécondité par région ({dhs.attrs['enquete']})", "",
+               "Mortalité infantile : décès avant 1 an pour 1 000 naissances (10 ans précédant l'enquête). "
+               "Tableau complet : `data/traite/dhs_regions.csv`.", "",
+               "| Région | " + " | ".join(noms.values()) + " |", "|---|" + "---:|" * len(noms)]
+    for _, r in dhs.sort_values("fecondite_isf", ascending=False).iterrows():
+        lignes.append(f"| {r['nom']} | " + " | ".join(f"{r[c]:g}".replace(".", ",") for c in noms) + " |")
+
+    # WorldPop
+    wp = donnees["worldpop"]
+    large = wp["regions"].pivot(index="cle", columns="annee", values="population")
+    croissance = croissance_worldpop(wp["regions"], annee, annee_courante)
+    lignes += ["", f"## Estimations WorldPop par région ({annee}-2030)", "",
+               "Estimations modélisées sur une grille de 1 km (images satellite, bâti), ajustées aux "
+               "totaux nationaux de l'ONU. Elles complètent le recensement de 2018 pour les années "
+               "récentes, avec une incertitude plus forte à l'échelle des communes. Tableaux complets : "
+               "`data/traite/worldpop_*.csv`.", "",
+               f"| Région | RGPH {annee} | WorldPop {annee} | WorldPop {annee_courante} | WorldPop 2030 "
+               f"| Croissance {annee}-{annee_courante} |", "|---|---:|---:|---:|---:|---:|"]
+    for _, r in reg.iterrows():
+        lignes.append(f"| {r['nom']} | {nombre(r['population'])} | {nombre(large.loc[r['cle'], annee])} "
+                      f"| {nombre(large.loc[r['cle'], annee_courante])} | {nombre(large.loc[r['cle'], 2030])} "
+                      f"| {croissance[r['cle']]:.1f} %/an |")
+
     lignes += ["", "![Pyramide des âges](pyramide_ages.png)", "",
                "![Carte des régions](carte_population_regions.png)", "",
                "![Carte des districts](carte_densite_districts.png)", "",
                "![Carte des communes](carte_densite_communes.png)", "",
-               "![Tendances](tendances.png)", ""]
+               "![Fécondité par région](carte_fecondite_regions.png)", "",
+               "![Croissance par district](carte_croissance_districts.png)", "",
+               "![Tendances](tendances.png)", "",
+               "![Projections](projections.png)", ""]
     chemin = DOSSIER_SORTIES / "rapport.md"
     chemin.write_text("\n".join(lignes), encoding="utf-8")
     print("  -> sorties/rapport.md")
     return chemin
 
 
-def tout_visualiser(series, pyramide, niveaux):
+def tout_visualiser(donnees):
+    niveaux = donnees["niveaux"]
     annee = niveaux["regions"]["population"]["annee"].max()
-    pyramide_ages(pyramide)
+    annee_courante = min(date.today().year, int(donnees["worldpop"]["regions"]["annee"].max()))
+    pyramide_ages(donnees["pyramide"])
     carte_regions(niveaux["regions"], annee)
     carte_densite("districts", niveaux["districts"], annee, epaisseur=0.4)
     carte_densite("communes", niveaux["communes"], annee, epaisseur=0.1)
-    tendances(series)
-    rapport(series, niveaux, annee)
+    carte_fecondite(donnees["dhs"], niveaux["regions"]["contours"])
+    carte_croissance(donnees["worldpop"]["districts"], niveaux["districts"]["contours"], annee, annee_courante)
+    tendances(donnees["series"])
+    projections(donnees["series"], donnees["projections"])
+    rapport(donnees, annee, annee_courante)

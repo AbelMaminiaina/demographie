@@ -18,10 +18,11 @@ NIVEAUX = {
     "regions": {"code": "ADM1", "attendus": 22},
     "districts": {"code": "ADM2", "attendus": 119},  # dont 6 arrondissements d'Antananarivo
     "communes": {"code": "ADM3", "attendus": 1579},
+    "fokontany": {"code": "ADM4", "attendus": 17465},
 }
 
 # Niveau parent de chaque découpage (pour les contrôles d'emboîtement)
-PARENTS = {"districts": "regions", "communes": "districts"}
+PARENTS = {"districts": "regions", "communes": "districts", "fokontany": "communes"}
 
 # Indicateurs nationaux (code Banque mondiale -> nom de colonne)
 INDICATEURS = {
@@ -35,3 +36,29 @@ INDICATEURS = {
     "SP.URB.TOTL.IN.ZS": "urbanisation_pct",
     "SP.POP.DPND": "ratio_dependance",
 }
+
+# Projections démographiques de l'ONU (WPP), republiées par la Banque mondiale
+# (base 40 « Population estimates and projections ») : pas de jeton d'accès requis.
+SOURCE_PROJECTIONS = 40
+INDICATEURS_PROJECTIONS = {
+    "SP.POP.TOTL": "population",
+    "SP.POP.0014.TO.ZS": "part_0_14_pct",
+    "SP.POP.65UP.TO.ZS": "part_65_plus_pct",
+}
+
+# Enquêtes démographiques et de santé (DHS) : indicateurs régionaux de la dernière enquête
+DHS_URL = "https://api.dhsprogram.com/rest/dhs"
+DHS_PAYS = "MD"
+INDICATEURS_DHS = {
+    "FE_FRTR_W_TFR": "fecondite_isf",
+    "FE_AAFB_W_M2B": "age_median_premiere_naissance",
+    "FP_CUSM_W_MOD": "contraception_moderne_pct",
+    "RH_DELP_C_DHF": "accouchement_etablissement_pct",
+    "CM_ECMR_C_IMR": "mortalite_infantile_pour_mille",
+    "CM_ECMR_C_U5M": "mortalite_moins_5_ans_pour_mille",
+    "CN_NUTS_C_HA2": "retard_croissance_pct",
+    "ED_LITR_W_LIT": "alphabetisation_femmes_pct",
+}
+
+# WorldPop : estimations de population sur grille de 1 km, 2015-2030 (version R2025A)
+WORLDPOP_URL = "https://hub.worldpop.org/rest/data/pop/G2_CN_POP_R25A_1km"

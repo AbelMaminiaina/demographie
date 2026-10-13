@@ -3,14 +3,20 @@ import json
 import re
 import unicodedata
 
+import numpy as np
 import pandas as pd
+import rasterio
+from rasterio.features import rasterize
 
-from config import DOSSIER_BRUT, DOSSIER_TRAITE, INDICATEURS, NIVEAUX, PARENTS
+from config import (DOSSIER_BRUT, DOSSIER_TRAITE, INDICATEURS, INDICATEURS_DHS,
+                    INDICATEURS_PROJECTIONS, NIVEAUX, PARENTS)
 from geometrie import boite, contient, point_interieur, superficie_km2
 
 # Variantes d'orthographe connues -> forme normalisée de référence
 ALIAS_NOMS = {
     "matsiatraambony": "hautematsiatra",
+    "vakinankarata": "vakinankaratra",      # DHS
+    "anamoroniimania": "amoronimania",      # DHS
 }
 
 
@@ -24,14 +30,18 @@ def cle_nom(nom):
     return ALIAS_NOMS.get(cle, cle)
 
 
-def indicateurs_nationaux():
-    with open(DOSSIER_BRUT / "banque_mondiale.json", encoding="utf-8") as f:
+def _lire_banque_mondiale(fichier):
+    with open(DOSSIER_BRUT / fichier, encoding="utf-8") as f:
         brut = pd.DataFrame(json.load(f))
-    df = pd.DataFrame({
+    return pd.DataFrame({
         "code": brut["indicator"].str["id"],
         "annee": brut["date"].astype(int),
         "valeur": brut["value"],
     }).dropna()
+
+
+def indicateurs_nationaux():
+    df = _lire_banque_mondiale("banque_mondiale.json")
 
     series = (df[df["code"].isin(INDICATEURS)]
               .pivot(index="annee", columns="code", values="valeur")
@@ -54,19 +64,27 @@ def population(niveau):
     # La dernière colonne « T_TL » correspond à 2018 (année du RGPH-3).
     df = df.rename(columns={"T_TL": "T_TL_2018"})
     identifiants = {f"{code}_PCODE": "pcode", f"{code}_EN": "nom"}
-    if code in ("ADM2", "ADM3"):
-        identifiants |= {"ADM1_PCODE": "region_pcode", "ADM1_EN": "region"}
-    if code == "ADM3":
-        identifiants |= {"ADM2_PCODE": "district_pcode", "ADM2_EN": "district"}
+    for parent, colonne in (("ADM1", "region"), ("ADM2", "district"), ("ADM3", "commune")):
+        if parent < code:
+            identifiants |= {f"{parent}_PCODE": f"{colonne}_pcode", f"{parent}_EN": colonne}
     long = df.melt(id_vars=list(identifiants),
                    value_vars=[c for c in df.columns if c.startswith("T_TL_")],
                    var_name="annee", value_name="population")
     long["annee"] = long["annee"].str[-4:].astype(int)
     long = long.rename(columns=identifiants)
-    # Clé de jointure avec les contours ; les noms de communes se répètent d'un district à l'autre.
+    # Clé de jointure avec les contours : les noms de communes se répètent d'un district
+    # à l'autre, et ceux des fokontany d'une commune à l'autre.
     long["cle"] = long["nom"].map(cle_nom)
-    if niveau == "communes":
+    if code in ("ADM3", "ADM4"):
         long["cle"] = long["district"].map(cle_nom) + "/" + long["cle"]
+    if code == "ADM4":
+        long["cle"] = (long["district"].map(cle_nom) + "/" + long["commune"].map(cle_nom)
+                       + "/" + long["nom"].map(cle_nom))
+        # Deux fokontany homonymes d'une même commune ne peuvent pas être distingués dans
+        # les contours (qui n'ont pas de P-code) : on les fusionne.
+        colonnes = [c for c in long.columns if c not in ("pcode", "population")]
+        long = (long.groupby(colonnes, as_index=False)
+                .agg(pcode=("pcode", "|".join), population=("population", "sum")))
     return long.sort_values(["annee", "pcode"]).reset_index(drop=True)
 
 
@@ -75,26 +93,34 @@ def _lire_contours(niveau):
         return json.load(f)["features"]
 
 
-def rattacher_contours(niveau, cles_connues, contours_districts=None):
+def _fusionner(geo1, geo2):
+    polys = [g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]] for g in (geo1, geo2)]
+    return {"type": "MultiPolygon", "coordinates": polys[0] + polys[1]}
+
+
+def rattacher_contours(niveau, cles_connues, contours_parent=None, cles_fusionnees=()):
     """Associe chaque contour geoBoundaries à une clé de la table de population.
 
-    Les contours de communes n'indiquent pas leur district : on le retrouve en cherchant
-    le district qui contient un point intérieur de la commune.
+    Les contours de communes et de fokontany n'indiquent pas leur unité parente : on la
+    retrouve en cherchant le contour parent qui contient un point intérieur de l'unité.
     """
     rattaches, erreurs = {}, []
-    if niveau == "communes":
-        districts = [(cle, geo, boite(geo)) for cle, geo in contours_districts.items()]
+    if contours_parent is not None:
+        parents = [(cle, geo, boite(geo)) for cle, geo in contours_parent.items()]
     for feat in _lire_contours(niveau):
         cle = cle_nom(feat["properties"]["shapeName"])
-        if niveau == "communes":
+        if contours_parent is not None:
             x, y = point_interieur(feat["geometry"])
-            candidats = [f"{d}/{cle}" for d, geo, b in districts
+            candidats = [f"{c}/{cle}" for c, geo, b in parents
                          if b[0] <= x <= b[2] and b[1] <= y <= b[3] and contient(geo, (x, y))]
             # Les contours simplifiés se chevauchent parfois aux frontières.
             valides = [c for c in candidats if c in cles_connues]
             cle = valides[0] if valides else (candidats[0] if candidats else f"?/{cle}")
         if cle in rattaches:
-            erreurs.append(f"contour en double : {cle}")
+            if cle not in cles_fusionnees:
+                erreurs.append(f"contour en double : {cle}")
+            rattaches[cle] = _fusionner(rattaches[cle], feat["geometry"])
+            continue
         rattaches[cle] = feat["geometry"]
     sans_contour = sorted(set(cles_connues) - set(rattaches))
     sans_population = sorted(set(rattaches) - set(cles_connues))
@@ -120,10 +146,10 @@ def controles(series, pyramide, niveaux):
     erreurs = []
     for niveau, donnees in niveaux.items():
         df = donnees["population"]
-        n, attendus = df["pcode"].nunique(), NIVEAUX[niveau]["attendus"]
+        n, attendus = df["pcode"].str.split("|").explode().nunique(), NIVEAUX[niveau]["attendus"]
         if n != attendus:
             erreurs.append(f"{n} {niveau} trouvés au lieu de {attendus}")
-        if df["cle"].nunique() != n:
+        if df["cle"].nunique() != df["pcode"].nunique():
             erreurs.append(f"noms de {niveau} en double après normalisation")
         if df["population"].isna().any() or (df["population"] <= 0).any():
             erreurs.append(f"population manquante ou nulle ({niveau})")
@@ -147,28 +173,121 @@ def controles(series, pyramide, niveaux):
     print("  Contrôles qualité : OK")
 
 
+def projections():
+    """Projections ONU (WPP) annuelles jusqu'en 2050."""
+    df = _lire_banque_mondiale("projections_onu.json")
+    return (df.pivot(index="annee", columns="code", values="valeur")
+            .rename(columns=INDICATEURS_PROJECTIONS).sort_index())
+
+
+def dhs(regions):
+    """Indicateurs DHS de la dernière enquête, une ligne par région (22)."""
+    with open(DOSSIER_BRUT / "dhs.json", encoding="utf-8") as f:
+        brut = json.load(f)
+    df = pd.DataFrame(brut["donnees"])
+    # « Province » sans préfixe, « ..Région », « ....sous-région » : on garde les régions.
+    df = df[df["CharacteristicLabel"].str.match(r"^\.\.[^.]")]
+    df = df[df["IsPreferred"] == 1].copy()
+    df["cle"] = df["CharacteristicLabel"].str.lstrip(".").map(cle_nom)
+    if df.duplicated(["cle", "IndicatorId"]).any():
+        raise ValueError("DHS : plusieurs valeurs pour un même indicateur et une même région")
+    table = (df.pivot(index="cle", columns="IndicatorId", values="Value")
+             .rename(columns=INDICATEURS_DHS))
+    ref = regions.drop_duplicates("cle").set_index("cle")[["pcode", "nom"]]
+    inconnues = sorted(set(table.index) - set(ref.index))
+    manquantes = sorted(set(ref.index) - set(table.index))
+    if inconnues or manquantes:
+        raise ValueError(f"DHS : régions non reconnues {inconnues}, régions manquantes {manquantes}")
+    table = ref.join(table).reset_index()
+    enquete = brut["enquete"]
+    table.attrs["enquete"] = f"{enquete['SurveyType']} {enquete['SurveyYear']}"
+    return table[["cle", "pcode", "nom", *[c for c in INDICATEURS_DHS.values() if c in table]]]
+
+
+def worldpop(niveaux, series_projetees):
+    """Somme des pixels WorldPop par commune et par année, agrégée aux niveaux supérieurs."""
+    contours = niveaux["communes"]["contours"]
+    cles = list(contours)
+    fichiers = sorted((DOSSIER_BRUT / "worldpop").glob("worldpop_*.tif"))
+    if not fichiers:
+        raise ValueError("WorldPop : aucune grille téléchargée")
+    zones, lignes, hors_communes = None, [], {}
+    for fichier in fichiers:
+        annee = int(fichier.stem.split("_")[1])
+        with rasterio.open(fichier) as src:
+            grille = src.read(1, masked=True).filled(0).astype("float64")
+            if zones is None:  # toutes les années partagent la même grille
+                zones = rasterize(((g, i + 1) for i, g in enumerate(contours.values())),
+                                  out_shape=src.shape, transform=src.transform, fill=0, dtype="int32")
+        sommes = np.bincount(zones.ravel(), weights=grille.ravel(), minlength=len(cles) + 1)
+        hors_communes[annee] = sommes[0] / sommes.sum()
+        lignes.append(pd.DataFrame({"cle": cles, "annee": annee, "population": sommes[1:]}))
+    communes = pd.concat(lignes, ignore_index=True)
+
+    # Contrôle : écart au total national de l'ONU et part de la population hors contours
+    total = communes.groupby("annee")["population"].sum() / (1 - pd.Series(hors_communes))
+    onu = series_projetees["population"].reindex(total.index)
+    ecart = (total / onu - 1).abs()
+    if (ecart > 0.05).any() or max(hors_communes.values()) > 0.02:
+        raise ValueError(f"WorldPop : écart à l'ONU {ecart.max():.1%}, "
+                         f"hors communes {max(hors_communes.values()):.1%}")
+
+    parents = niveaux["communes"]["unites"].set_index("cle")[["district_pcode", "region_pcode"]]
+    communes = communes.join(parents, on="cle")
+    resultats = {"communes": communes.drop(columns=["district_pcode", "region_pcode"])}
+    for niveau, colonne in (("districts", "district_pcode"), ("regions", "region_pcode")):
+        cle_par_pcode = niveaux[niveau]["unites"].set_index("pcode")["cle"]
+        agrege = communes.groupby([colonne, "annee"], as_index=False)["population"].sum()
+        agrege["cle"] = agrege[colonne].map(cle_par_pcode)
+        resultats[niveau] = agrege[["cle", "annee", "population"]]
+    return resultats
+
+
 def tout_nettoyer():
-    """Renvoie les séries nationales, la pyramide et, par niveau administratif,
-    un dictionnaire {population (format long), unites (dernière année), contours}."""
+    """Renvoie un dictionnaire avec :
+    - series, pyramide : indicateurs nationaux (Banque mondiale) ;
+    - projections : projections ONU jusqu'en 2050 ;
+    - niveaux : par découpage, {population (format long), unites (2018), contours} ;
+    - dhs : indicateurs régionaux de la dernière enquête DHS ;
+    - worldpop : estimations annuelles 2015-2030 par région, district et commune.
+    """
     DOSSIER_TRAITE.mkdir(parents=True, exist_ok=True)
     series, pyramide = indicateurs_nationaux()
+    proj = projections()
     niveaux = {niveau: {"population": population(niveau)} for niveau in NIVEAUX}
     controles(series, pyramide, niveaux)
 
     for niveau, donnees in niveaux.items():
+        parent = PARENTS.get(niveau)
+        df = donnees["population"]
         donnees["contours"] = rattacher_contours(
-            niveau, set(donnees["population"]["cle"]),
-            niveaux["districts"].get("contours"))
-        donnees["unites"] = table_unites(donnees["population"], donnees["contours"])
+            niveau, set(df["cle"]),
+            niveaux[parent]["contours"] if niveau in ("communes", "fokontany") else None,
+            set(df.loc[df["pcode"].str.contains("|", regex=False), "cle"]))
+        donnees["unites"] = table_unites(df, donnees["contours"])
     print("  Rattachement des contours : OK")
+
+    table_dhs = dhs(niveaux["regions"]["population"])
+    print(f"  DHS : {table_dhs.attrs['enquete']}, {len(table_dhs)} régions")
+    estimations = worldpop(niveaux, proj)
+    print(f"  WorldPop : {estimations['communes']['annee'].min()}-"
+          f"{estimations['communes']['annee'].max()}, contrôle du total national OK")
 
     series.to_csv(DOSSIER_TRAITE / "indicateurs_nationaux.csv")
     pyramide.to_csv(DOSSIER_TRAITE / "pyramide_ages.csv", index=False)
+    proj.to_csv(DOSSIER_TRAITE / "projections_onu.csv")
+    table_dhs.drop(columns="cle").to_csv(DOSSIER_TRAITE / "dhs_regions.csv", index=False)
     for niveau, donnees in niveaux.items():
         donnees["population"].drop(columns="cle").to_csv(
             DOSSIER_TRAITE / f"population_{niveau}.csv", index=False)
-        donnees["unites"].drop(columns="cle").round(2).to_csv(
-            DOSSIER_TRAITE / f"{niveau}.csv", index=False)
+        unites = donnees["unites"]
+        unites.drop(columns="cle").round(2).to_csv(DOSSIER_TRAITE / f"{niveau}.csv", index=False)
+        if niveau in estimations:
+            large = (estimations[niveau].pivot(index="cle", columns="annee", values="population")
+                     .round().astype(int).add_prefix("wp_"))
+            unites[["cle", "pcode", "nom"]].join(large, on="cle").drop(columns="cle").to_csv(
+                DOSSIER_TRAITE / f"worldpop_{niveau}.csv", index=False)
     print(f"  -> {len(series)} années d'indicateurs, "
-          + ", ".join(f"{d['population']['pcode'].nunique()} {n}" for n, d in niveaux.items()))
-    return series, pyramide, niveaux
+          + ", ".join(f"{len(d['unites'])} {n}" for n, d in niveaux.items()))
+    return {"series": series, "pyramide": pyramide, "projections": proj, "niveaux": niveaux,
+            "dhs": table_dhs, "worldpop": estimations}
