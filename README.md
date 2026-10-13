@@ -26,9 +26,11 @@ La page est un fichier HTML autonome (`sorties/tableau_de_bord/index.html`), ré
 |---|---|
 | ![Population par région](sorties/carte_population_regions.png) | ![Densité par district](sorties/carte_densite_districts.png) |
 
-| Densité par commune | Pyramide des âges |
+| Écart estimation HDX / recensement | Densité par commune (estimation) |
 |---|---|
-| ![Densité par commune](sorties/carte_densite_communes.png) | ![Pyramide des âges](sorties/pyramide_ages.png) |
+| ![Écart estimation / recensement](sorties/carte_ecart_estimation_districts.png) | ![Densité par commune](sorties/carte_densite_communes.png) |
+
+![Pyramide des âges](sorties/pyramide_ages.png)
 
 | Fécondité par région (DHS) | Croissance estimée par district (WorldPop) |
 |---|---|
@@ -66,6 +68,7 @@ Le **[catalogue des données](DONNEES.md)** détaille, pour chaque source, le pr
 
 | Source | Producteur | Contenu | Licence |
 |---|---|---|---|
+| Recensement RGPH-3 (PDF officiel, copie UNFPA) | INSTAT | Population 2018 par région, district et commune, par sexe et milieu | Publication officielle, citation obligatoire |
 | Banque mondiale | ONU, offices statistiques, Banque mondiale | Séries nationales 1960-2025, pyramide des âges | CC BY 4.0 |
 | ONU, World Population Prospects (via la Banque mondiale) | Division de la population de l'ONU | Projections jusqu'en 2050 | CC BY 3.0 IGO |
 | HDX `cod-ps-mdg` | INSTAT et BNGRC, diffusé par OCHA | Population 2009-2018 des régions, districts, communes et fokontany | CC BY 3.0 IGO |
@@ -73,9 +76,9 @@ Le **[catalogue des données](DONNEES.md)** détaille, pour chaque source, le pr
 | DHS Program | INSTAT et ICF | Santé et fécondité par région (2021) | Données publiques, citation obligatoire |
 | WorldPop R2025A | Université de Southampton | Estimations 2015-2030 sur grille de 1 km | CC BY 4.0 |
 
-**Attention :** les populations « 2018 » par territoire ne sont pas les résultats du recensement RGPH-3. Ce sont des estimations INSTAT/BNGRC calculées à partir des données de 2009, avec un taux de croissance uniforme. Leur total (26,7 millions) dépasse d'environ un million celui du recensement de 2018.
+Les cartes des régions et des districts utilisent le **recensement RGPH-3 de 2018** (25 674 196 habitants). Les populations par commune et par fokontany viennent des estimations INSTAT/BNGRC diffusées sur HDX. Ces estimations sont calculées à partir des données de 2009 avec un taux de croissance uniforme, et dépassent le recensement de 4 % au total, avec des écarts de −34 % à +47 % selon les districts. Le recensement compte 1 727 communes, contre 1 579 dans le découpage HDX qui sert aux cartes.
 
-Le site de l'INSTAT n'est pas collecté automatiquement, car il semble compromis (voir le catalogue).
+Le PDF du recensement est récupéré depuis la copie de l'UNFPA, car le site de l'INSTAT semble compromis (voir le catalogue).
 
 ## Harmonisation des noms
 

@@ -20,6 +20,8 @@ DISCRET = "#898781"
 GRILLE = "#e1e0d9"
 BLEU = "#2a78d6"     # hommes / série unique
 ORANGE = "#eb6834"   # femmes
+# Palette divergente (bleu <-> rouge, gris neutre au centre)
+DIVERGENTE = ["#1c5cab", "#5598e7", "#b7d3f6", "#f0efec", "#f3b9b8", "#e46e6d", "#b92f2f"]
 RAMPE_BLEUE = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
 
 plt.rcParams.update({
@@ -69,9 +71,9 @@ SEUILS_DENSITE = [0, 10, 25, 50, 100, 250, 1_000, 1e9]
 
 
 def _carte(contours, valeurs, seuils, etiquettes, legende, titre, fichier, epaisseur,
-          source="Sources : estimations INSTAT/BNGRC 2018 (OCHA, HDX), contours geoBoundaries"):
+          source="Sources : estimations INSTAT/BNGRC 2018 (OCHA, HDX), contours geoBoundaries", couleurs=None):
     """Carte choroplèthe : `contours` et `valeurs` sont indexés par la même clé."""
-    cmap = ListedColormap(RAMPE_BLEUE[:len(seuils) - 1])
+    cmap = ListedColormap((couleurs or RAMPE_BLEUE)[:len(seuils) - 1])
     norm = BoundaryNorm(seuils, cmap.N)
 
     fig, ax = plt.subplots(figsize=(7, 9))
@@ -93,19 +95,29 @@ def _carte(contours, valeurs, seuils, etiquettes, legende, titre, fichier, epais
     return _sauver(fig, fichier)
 
 
-def carte_regions(donnees, annee):
-    pop = donnees["unites"].set_index("cle")["population"]
+def carte_regions(rgph_regions, contours):
+    pop = rgph_regions.set_index("cle")["population"]
     seuils = [0, 400_000, 600_000, 800_000, 1_000_000, 1_400_000, 2_000_000, 5_000_000]
-    return _carte(donnees["contours"], pop, seuils, [f"{s / 1e6:.1f} M" for s in seuils[:-1]],
-                  "Population", f"Population par région, {annee}", "carte_population_regions.png", 1)
+    return _carte(contours, pop, seuils, [f"{s / 1e6:.1f} M" for s in seuils[:-1]],
+                  "Population", "Population par région, recensement de 2018", "carte_population_regions.png", 1,
+                  source="Source : INSTAT, recensement RGPH-3 (2018), contours geoBoundaries")
 
 
-def carte_densite(niveau, donnees, annee, epaisseur):
+def carte_densite(niveau, contours, densites, titre, epaisseur, source):
     etiquettes = [f"{s:,}".replace(",", " ") for s in SEUILS_DENSITE[:-1]]
-    titre = {"districts": "district", "communes": "commune"}[niveau]
-    return _carte(donnees["contours"], donnees["unites"].set_index("cle")["densite"], SEUILS_DENSITE,
-                  etiquettes, "Habitants par km²", f"Densité de population par {titre}, {annee}",
-                  f"carte_densite_{niveau}.png", epaisseur)
+    return _carte(contours, densites, SEUILS_DENSITE, etiquettes, "Habitants par km²", titre,
+                  f"carte_densite_{niveau}.png", epaisseur, source=source)
+
+
+def carte_ecart(rgph_districts, contours):
+    """Écart entre l'estimation 2018 diffusée sur HDX et le recensement, par district."""
+    seuils = [-100, -15, -7.5, -2.5, 2.5, 7.5, 15, 100]
+    etiquettes = ["", "−15 %", "−7,5 %", "−2,5 %", "+2,5 %", "+7,5 %", "+15 %"]
+    cmap_vals = rgph_districts.set_index("cle")["ecart_estimation_pct"]
+    return _carte(contours, cmap_vals, seuils, etiquettes, "Estimation HDX par rapport au recensement",
+                  "Écart entre l'estimation de 2018 et le recensement, par district",
+                  "carte_ecart_estimation_districts.png", 0.4,
+                  source="Sources : INSTAT/BNGRC via OCHA (HDX) et INSTAT, RGPH-3 (2018)", couleurs=DIVERGENTE)
 
 
 def tendances(series):
@@ -213,13 +225,23 @@ def rapport(donnees, annee, annee_courante):
         f"| Espérance de vie | {val('esperance_vie', '{:.1f} ans')} |",
         f"| Population urbaine | {val('urbanisation_pct', '{:.1f} %')} |",
         f"| Ratio de dépendance | {val('ratio_dependance', '{:.1f}')} |", "",
-        f"## Population par région ({annee}, estimations INSTAT/BNGRC)", "",
-        "| Région | Population | Part | Densité (hab/km²) |", "|---|---:|---:|---:|",
+        "## Recensement RGPH-3 de 2018 par région", "",
+        "Population résidente recensée par l'INSTAT (résultats globaux, décembre 2020). La dernière colonne "
+        "compare l'estimation 2018 diffusée sur HDX, calculée à partir des données de 2009, au recensement.", "",
+        "| Région | Population | Part | Urbaine | Hommes pour 100 femmes | Densité (hab/km²) "
+        "| Estimation HDX | Écart |", "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    reg = niveaux["regions"]["unites"]
+    rg = donnees["rgph3"]
+    reg = rg["regions"].sort_values("population", ascending=False)
     for _, r in reg.iterrows():
-        lignes.append(f"| {r['nom']} | {nombre(r['population'])} | "
-                      f"{r['population'] / reg['population'].sum():.1%} | {nombre(r['densite'])} |")
+        lignes.append(f"| {r['nom']} | {nombre(r['population'])} | {r['population'] / reg['population'].sum():.1%} "
+                      f"| {r['part_urbaine_pct']:.1f} % | {r['rapport_masculinite']:.1f} | {nombre(r['densite_officielle'])} "
+                      f"| {nombre(r['estimation_hdx_2018'])} | {r['ecart_estimation_pct']:+.1f} % |")
+    lignes.append(f"| **Madagascar** | **{nombre(reg['population'].sum())}** | 100 % "
+                  f"| {100 * reg['urbain'].sum() / reg['population'].sum():.1f} % "
+                  f"| {100 * reg['hommes'].sum() / reg['femmes'].sum():.1f} | | "
+                  f"{nombre(reg['estimation_hdx_2018'].sum())} "
+                  f"| {100 * (reg['estimation_hdx_2018'].sum() / reg['population'].sum() - 1):+.1f} % |")
 
     def tableau(titre, df, colonnes):
         lignes.extend(["", f"### {titre}", "",
@@ -230,17 +252,46 @@ def rapport(donnees, annee, annee_courante):
                           + f" | {nombre(r['population'])} | {nombre(r['densite'])} |")
 
     dist = niveaux["districts"]["unites"]
-    lignes += ["", f"## Districts ({annee}, {len(dist)} districts)", "",
+    dist = rg["districts"].sort_values("population", ascending=False)
+    lignes += ["", f"## Districts ({annee}, recensement RGPH-3)", "",
+               "Antananarivo Renivohitra est détaillé par arrondissement. Tableau complet : "
+               "`data/traite/recensement/rgph3_districts.csv`."]
+    colonnes = {"nom": "District", "region": "Région"}
+    tableau("Les 10 plus peuplés", dist.head(10), colonnes)
+    tableau("Les 10 plus denses", dist.nlargest(10, "densite"), colonnes)
+    ecarts = dist.reindex(dist["ecart_estimation_pct"].abs().sort_values(ascending=False).index).head(10)
+    lignes += ["", "### Les 10 plus grands écarts entre estimation HDX et recensement", "",
+               "| District | Région | Recensement | Estimation HDX | Écart |", "|---|---|---:|---:|---:|"]
+    for _, r in ecarts.iterrows():
+        lignes.append(f"| {r['nom']} | {r['region']} | {nombre(r['population'])} | "
+                      f"{nombre(r['estimation_hdx_2018'])} | {r['ecart_estimation_pct']:+.1f} % |")
+
+    dist = niveaux["districts"]["unites"]
+    lignes += ["", f"## Districts ({annee}, estimations INSTAT/BNGRC diffusées sur HDX)", "",
                "Antananarivo Renivohitra est découpé en ses 6 arrondissements. "
                "Tableau complet : `data/traite/territoires/districts.csv`."]
     colonnes = {"nom": "District", "region": "Région"}
     tableau("Les 10 plus peuplés", dist.head(10), colonnes)
     tableau("Les 10 plus denses", dist.nlargest(10, "densite"), colonnes)
 
+    rc = rg["communes"]
+    reliees = rc["correspondance"].value_counts()
+    lignes += ["", f"## Communes au recensement RGPH-3 ({len(rc)} communes et arrondissements)", "",
+               f"Le recensement compte {len(rc)} communes, contre {len(niveaux['communes']['unites'])} dans le "
+               f"découpage HDX utilisé pour les cartes. {reliees.get('exacte', 0)} communes sont reliées par leur nom, "
+               f"{reliees.get('approchée', 0)} par un nom proche (variante d'orthographe) et "
+               f"{reliees.get('aucune', 0)} n'ont pas de correspondance, le plus souvent parce qu'elles ont été "
+               f"créées depuis. Tableau complet : `data/traite/recensement/rgph3_communes.csv`.", "",
+               "### Les 10 plus peuplées", "",
+               "| Commune | District | Population | Urbaine |", "|---|---|---:|---:|"]
+    for _, r in rc.nlargest(10, "population").iterrows():
+        lignes.append(f"| {r['nom']} | {r['district_rgph']} | {nombre(r['population'])} | {r['part_urbaine_pct']:.0f} % |")
+
     com = niveaux["communes"]["unites"]
+    lignes += ["", f"## Communes ({annee}, estimations INSTAT/BNGRC diffusées sur HDX)"]
     classes = (com.groupby(pd.cut(com["densite"], SEUILS_DENSITE, right=False), observed=False)
                .agg(communes=("pcode", "size"), population=("population", "sum")))
-    lignes += ["", f"## Communes ({annee}, {len(com)} communes)", "",
+    lignes += ["",
                f"Population médiane : {nombre(com['population'].median())} habitants. "
                "Tableau complet : `data/traite/territoires/communes.csv`.", "",
                "### Répartition par densité", "",
@@ -308,6 +359,7 @@ def rapport(donnees, annee, annee_courante):
     lignes += ["", "![Pyramide des âges](pyramide_ages.png)", "",
                "![Carte des régions](carte_population_regions.png)", "",
                "![Carte des districts](carte_densite_districts.png)", "",
+               "![Écart estimation / recensement](carte_ecart_estimation_districts.png)", "",
                "![Carte des communes](carte_densite_communes.png)", "",
                "![Fécondité par région](carte_fecondite_regions.png)", "",
                "![Croissance par district](carte_croissance_districts.png)", "",
@@ -324,9 +376,14 @@ def tout_visualiser(donnees):
     annee = niveaux["regions"]["population"]["annee"].max()
     annee_courante = min(date.today().year, int(donnees["worldpop"]["regions"]["annee"].max()))
     pyramide_ages(donnees["pyramide"])
-    carte_regions(niveaux["regions"], annee)
-    carte_densite("districts", niveaux["districts"], annee, epaisseur=0.4)
-    carte_densite("communes", niveaux["communes"], annee, epaisseur=0.1)
+    rg = donnees["rgph3"]
+    carte_regions(rg["regions"], niveaux["regions"]["contours"])
+    carte_densite("districts", niveaux["districts"]["contours"], rg["districts"].set_index("cle")["densite"],
+                  "Densité de population par district, recensement de 2018", 0.4, "Source : INSTAT, recensement RGPH-3 (2018), contours geoBoundaries")
+    carte_densite("communes", niveaux["communes"]["contours"], niveaux["communes"]["unites"].set_index("cle")["densite"],
+                  f"Densité de population par commune, estimation {annee}", 0.1,
+                  "Source : estimations INSTAT/BNGRC 2018 (OCHA, HDX), contours geoBoundaries")
+    carte_ecart(rg["districts"], niveaux["districts"]["contours"])
     carte_fecondite(donnees["dhs"], niveaux["regions"]["contours"])
     carte_croissance(donnees["worldpop"]["districts"], niveaux["districts"]["contours"], annee, annee_courante)
     tendances(donnees["series"])

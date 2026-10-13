@@ -13,7 +13,7 @@ from urllib3.util.retry import Retry
 
 from config import (BANQUE_MONDIALE_URL, DHS_PAYS, DHS_URL, DOSSIER_BRUT, GEOBOUNDARIES_URL,
                     HDX_DATASET, HDX_URL, INDICATEURS, INDICATEURS_DHS,
-                    INDICATEURS_PROJECTIONS, NIVEAUX, PAYS, SOURCE_PROJECTIONS, WORLDPOP_URL, brut)
+                    INDICATEURS_PROJECTIONS, NIVEAUX, PAYS, RGPH3_URL, SOURCE_PROJECTIONS, WORLDPOP_URL, brut)
 
 TIMEOUT = 60
 
@@ -124,6 +124,20 @@ def worldpop():
     print(f"  -> data/brut/worldpop/ ({len(r.json()['data'])} années)")
 
 
+def rgph3():
+    """Résultats globaux du RGPH-3, tome 2 (PDF de l'INSTAT, copie de l'UNFPA Madagascar)."""
+    print("RGPH-3 (résultats globaux, tome 2)...")
+    fichier = brut("rgph3")
+    if fichier.exists():  # publication de décembre 2020, définitive
+        _consigner(fichier, "INSTAT, RGPH-3 résultats globaux tome 2 (copie UNFPA)", RGPH3_URL, telecharge=False)
+        return fichier
+    r = SESSION.get(RGPH3_URL, timeout=300)
+    r.raise_for_status()
+    if not r.content.startswith(b"%PDF"):
+        raise RuntimeError("RGPH-3 : le fichier téléchargé n'est pas un PDF")
+    return _ecrire(fichier, r.content, "INSTAT, RGPH-3 résultats globaux tome 2 (copie UNFPA)", RGPH3_URL)
+
+
 def instat_population(niveau):
     """Population par unité administrative (estimations INSTAT/BNGRC diffusées par OCHA sur HDX)."""
     code = NIVEAUX[niveau]["code"].lower()
@@ -158,6 +172,7 @@ def tout_collecter():
     projections_onu()
     dhs()
     worldpop()
+    rgph3()
     for niveau in NIVEAUX:
         instat_population(niveau)
         contours(niveau)

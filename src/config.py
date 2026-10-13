@@ -15,6 +15,7 @@ BRUT = {
     "contours": "geoboundaries/contours_{niveau}.geojson",
     "dhs": "dhs/indicateurs_regions.json",
     "worldpop": "worldpop/population_{annee}_1km.tif",
+    "rgph3": "instat_rgph3/resultats_globaux_tome2.pdf",
     "journal": "journal_collecte.json",
 }
 # Données traitées : un dossier par thème, fichiers CSV prêts à l'emploi.
@@ -26,6 +27,7 @@ TRAITE = {
     "series": "territoires/{niveau}_series_2009_2018.csv",
     "dhs": "sante/dhs_regions.csv",
     "worldpop": "estimations/worldpop_{niveau}.csv",
+    "rgph3": "recensement/rgph3_{niveau}.csv",
 }
 
 
@@ -94,3 +96,8 @@ INDICATEURS_DHS = {
 
 # WorldPop : estimations de population sur grille de 1 km, 2015-2030 (version R2025A)
 WORLDPOP_URL = "https://hub.worldpop.org/rest/data/pop/G2_CN_POP_R25A_1km"
+
+# Recensement RGPH-3 (2018) : tome 2 des résultats globaux de l'INSTAT, copie hébergée par
+# l'UNFPA Madagascar (le site de l'INSTAT est écarté, voir DONNEES.md).
+RGPH3_URL = "https://madagascar.unfpa.org/sites/default/files/pub-pdf/resultat_globaux_rgph3_tome_02.pdf"
+RGPH3_TOTAL = 25_674_196   # population résidente publiée par l'INSTAT

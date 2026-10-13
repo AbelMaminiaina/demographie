@@ -10,6 +10,7 @@ Les fichiers de `data/` ne sont pas versionnés dans git : ils sont recréés pa
 |---|---|---|---|---|---|---|
 | [Indicateurs du développement](#banque-mondiale--indicateurs-nationaux) | ONU (WPP), offices statistiques, Banque mondiale | Banque mondiale | Population, fécondité, mortalité, espérance de vie, urbanisation, effectifs par âge et sexe | 1960-2025 | Pays | CC BY 4.0 |
 | [Projections de population](#onu--projections-de-population) | Division de la population de l'ONU (World Population Prospects) | Banque mondiale (base 40) | Population et structure par âge projetées | 1960-2050 | Pays | CC BY 3.0 IGO (ONU) |
+| [Recensement RGPH-3](#instat--recensement-rgph-3-2018) | INSTAT | UNFPA Madagascar (copie du PDF officiel) | Population recensée par sexe et milieu (urbain, rural) | 2018 | Régions, districts, communes | Publication officielle, citation obligatoire |
 | [Population par unité administrative](#instat--population-par-unité-administrative-2009-2018) | INSTAT et BNGRC | OCHA, sur HDX (`cod-ps-mdg`) | Population des régions, districts, communes et fokontany | 2009-2018 | Régions à fokontany | CC BY 3.0 IGO |
 | [Contours administratifs](#geoboundaries--contours-administratifs) | OpenStreetMap (régions) ; BNGRC et OCHA (districts à fokontany) | geoBoundaries (William & Mary) | Limites des 4 niveaux | 2017 (régions), 2020 (autres) | Régions à fokontany | ODbL 1.0 (régions) ; CC BY 3.0 IGO (autres) |
 | [Enquête démographique et de santé](#dhs--enquête-démographique-et-de-santé-2021) | INSTAT, avec l'appui d'ICF (programme DHS) | API du programme DHS | 8 indicateurs de santé et de fécondité | 2021 | Régions | Données agrégées publiques, citation obligatoire |
@@ -47,6 +48,30 @@ Les dernières années manquent parfois : la Banque mondiale publie certains ind
 - **Contenu :** population totale (`SP.POP.TOTL`), part des 0-14 ans (`SP.POP.0014.TO.ZS`) et des 65 ans et plus (`SP.POP.65UP.TO.ZS`), de 1960 à 2050. Après la dernière année observée, ce sont des projections.
 - **Licence :** Creative Commons Attribution 3.0 IGO (conditions de l'ONU pour les World Population Prospects).
 - **Fichier brut :** `data/brut/onu_wpp/projections_population.json`.
+
+### INSTAT : recensement RGPH-3 (2018)
+
+- **Producteur :** Institut national de la statistique (INSTAT), Commission centrale de l'enquête et du recensement (CCER).
+- **Publication :** « Résultats globaux du recensement général de la population et de l'habitation de 2018 de Madagascar (RGPH-3) », tome 2, décembre 2020 (226 pages).
+- **Accès :** copie du PDF hébergée par l'UNFPA Madagascar, `https://madagascar.unfpa.org/sites/default/files/pub-pdf/resultat_globaux_rgph3_tome_02.pdf`. Le PNUD en héberge une autre copie. Le site de l'INSTAT, qui publie aussi ce document, est écarté (voir plus bas).
+- **Conditions :** publication officielle ; toute réutilisation doit citer l'INSTAT.
+- **Fichier brut :** `data/brut/instat_rgph3/resultats_globaux_tome2.pdf`.
+- **Tableaux extraits** (`src/rgph3.py`) :
+  - tableau 8 : population résidente par sexe, poids démographique, rapport de masculinité, part des femmes et densité, pour les 22 régions et 114 districts ;
+  - tableau 10 : population par milieu (urbain, rural) et par sexe, pour les 1 727 communes et arrondissements.
+- **Contrôles de l'extraction :**
+  - le total national lu doit être 25 674 196 ;
+  - les districts des deux tableaux doivent concorder un à un ;
+  - chaque district doit être la somme de ses communes ;
+  - urbain + rural doit égaler le total sur chaque ligne ;
+  - les totaux régionaux recalculés doivent égaler ceux publiés.
+
+  Les totaux urbain (4 942 902) et rural (20 731 294) obtenus sont ceux publiés par l'INSTAT.
+- **Correspondance avec les autres sources :**
+  - les 114 districts du recensement couvrent exactement les 119 districts HDX. Antananarivo Renivohitra y est détaillé par ses 6 arrondissements, et « Toliara-I » correspond à « Toliary-I » ;
+  - les communes sont reliées par leur nom dans chaque district : 1 474 exactement, 39 par un nom proche (variantes d'orthographe) et 214 sans correspondance. Le recensement compte 1 727 communes contre 1 579 dans le découpage HDX ; les communes créées depuis n'ont pas de contour ;
+  - dans 99 districts sur 114, le découpage communal diffère. Le chiffre d'une commune reliée peut alors ne pas couvrir exactement le territoire dessiné (colonne `decoupage_identique`).
+- **Différence avec les estimations HDX :** au niveau national, l'estimation 2018 diffusée sur HDX dépasse le recensement de 4,0 %. Les écarts vont de −34 % (Morombe) à +47 % (Besalampy) selon les districts.
 
 ### INSTAT : population par unité administrative (2009-2018)
 
@@ -111,7 +136,7 @@ Quand l'API donne plusieurs périodes de référence pour un même indicateur, s
 
 ### Source écartée : site de l'INSTAT
 
-Le site [instat.mg](https://www.instat.mg) publie les résultats du RGPH-3 en PDF. En octobre 2026, sa page d'accueil contenait des dizaines de liens cachés vers des sites de jeux d'argent, signe d'une compromission. Il n'est pas collecté automatiquement, parce qu'un script ne doit pas suivre ces liens. Les résultats du RGPH-3 pourront être ajoutés quand le site sera sécurisé.
+Le site [instat.mg](https://www.instat.mg) publie les résultats du RGPH-3 en PDF. En octobre 2026, sa page d'accueil contenait des dizaines de liens cachés vers des sites de jeux d'argent, signe d'une compromission. Il n'est pas collecté automatiquement, parce qu'un script ne doit pas suivre ces liens. Le même document officiel est récupéré depuis la copie de l'UNFPA Madagascar.
 
 ## Classement des fichiers
 
@@ -125,6 +150,8 @@ data/
 │   │   └── indicateurs_nationaux.json
 │   ├── onu_wpp/
 │   │   └── projections_population.json
+│   ├── instat_rgph3/
+│   │   └── resultats_globaux_tome2.pdf
 │   ├── instat_hdx/
 │   │   └── population_adm1_2018.csv … population_adm4_2018.csv
 │   ├── geoboundaries/
@@ -138,7 +165,9 @@ data/
     │   ├── indicateurs_annuels.csv
     │   ├── pyramide_ages.csv
     │   └── projections_onu.csv
-    ├── territoires/                    Population et densité par unité administrative
+    ├── recensement/                    Résultats du RGPH-3 (2018)
+    │   └── rgph3_regions.csv, rgph3_districts.csv, rgph3_communes.csv
+    ├── territoires/                    Estimations HDX : population et densité par unité administrative
     │   ├── regions.csv, districts.csv, communes.csv, fokontany.csv
     │   └── <niveau>_series_2009_2018.csv
     ├── sante/
@@ -185,6 +214,36 @@ Une ligne par année, groupe d'âge et sexe.
 ### `national/projections_onu.csv`
 Une ligne par année (1960-2050) : `annee`, `population`, `part_0_14_pct`, `part_65_plus_pct`.
 
+### `recensement/rgph3_regions.csv` et `recensement/rgph3_districts.csv`
+Une ligne par région (22) ou par district (119, Antananarivo Renivohitra étant détaillé par arrondissement).
+
+| Colonne | Contenu |
+|---|---|
+| `pcode`, `nom` | Code et nom de l'unité (découpage HDX) |
+| `region_pcode`, `region` | Région de rattachement (districts) |
+| `hommes`, `femmes`, `population` | Population résidente recensée |
+| `urbain`, `rural` | Population par milieu de résidence |
+| `densite_officielle` | Densité publiée par l'INSTAT (hab/km² ; vide pour les arrondissements) |
+| `part_urbaine_pct` | Part de la population urbaine (%) |
+| `rapport_masculinite` | Hommes pour 100 femmes |
+| `femmes_pct` | Part des femmes (%) |
+| `superficie_km2`, `densite` | Superficie calculée à partir des contours, et densité correspondante |
+| `estimation_hdx_2018` | Estimation 2018 diffusée sur HDX |
+| `ecart_estimation_pct` | Écart de l'estimation HDX par rapport au recensement (%) |
+
+### `recensement/rgph3_communes.csv`
+Une ligne par commune ou arrondissement du recensement (1 727).
+
+| Colonne | Contenu |
+|---|---|
+| `nom`, `district_rgph` | Nom de la commune et de son district, tels qu'imprimés dans le recensement |
+| `district_pcode`, `region_pcode`, `region` | Rattachement dans le découpage HDX |
+| `hommes`, `femmes`, `population`, `urbain`, `rural` | Population recensée |
+| `part_urbaine_pct` | Part de la population urbaine (%) |
+| `pcode_hdx` | Code de la commune HDX correspondante, vide si aucune |
+| `correspondance` | `exacte`, `approchée` (variante d'orthographe) ou `aucune` |
+| `decoupage_identique` | Vrai si le district a exactement les mêmes communes dans les deux sources |
+
 ### `territoires/<niveau>.csv`
 Une ligne par unité, pour 2018 (estimation INSTAT/BNGRC).
 
@@ -209,6 +268,7 @@ Une ligne par région, district ou commune : `pcode`, `nom`, puis `wp_2015` à `
 
 ## Traitements
 
+- **Recensement :** les tableaux sont lus dans le PDF à partir de la position des caractères, car le tableau des communes est imprimé à l'horizontale. Les districts et les communes sont reliés par leur nom (voir la fiche RGPH-3).
 - **Noms :** pour relier les sources, les noms sont normalisés : sans accents, apostrophes, tirets ni espaces, avec les chiffres conservés. Les variantes d'orthographe connues sont listées dans `ALIAS_NOMS` (`src/nettoyage.py`), par exemple « Matsiatra Ambony » pour « Haute Matsiatra », ou « Vakinankarata » (orthographe DHS) pour « Vakinankaratra ».
 - **Rattachement des contours :** les communes et les fokontany sont rattachés à leur unité parente en cherchant le contour parent qui contient un point intérieur de l'unité (`src/geometrie.py`), puis par le couple (unité parente, nom).
 - **Superficies :** calculées sur les contours simplifiés, en projection équirectangulaire locale. La superficie totale obtenue (591 000 km²) est proche de la superficie officielle de Madagascar (587 000 km²).
@@ -219,6 +279,7 @@ Une ligne par région, district ou commune : `pcode`, `nom`, puis `wp_2015` à `
   - la somme de chaque niveau égale à son niveau parent, à 0,5 % près ;
   - un contour pour chaque unité ;
   - les 22 régions DHS reconnues ;
+  - les contrôles d'extraction du recensement (voir la fiche RGPH-3) ;
   - la pyramide des âges cohérente avec la population totale, à 1 % près ;
   - le total WorldPop proche de celui de l'ONU, à 5 % près, avec moins de 2 % de la population hors des contours.
 
@@ -226,6 +287,7 @@ Une ligne par région, district ou commune : `pcode`, `nom`, puis `wp_2015` à `
 
 Toute réutilisation des fichiers de ce projet doit mentionner les sources d'origine :
 
+- INSTAT, *Résultats globaux du recensement général de la population et de l'habitation de 2018 de Madagascar (RGPH-3)*, tome 2, décembre 2020.
 - Banque mondiale, *World Development Indicators* et *Health Nutrition and Population Statistics* (CC BY 4.0).
 - Nations unies, Division de la population, *World Population Prospects* (CC BY 3.0 IGO).
 - INSTAT et BNGRC, *Madagascar - Subnational Population Statistics*, diffusé par OCHA sur HDX (CC BY 3.0 IGO).

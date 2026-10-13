@@ -64,6 +64,9 @@ def _niveaux(donnees):
     annees_wp = sorted(int(a) for a in wp["regions"]["annee"].unique())
     index = {n: {p: i for i, p in enumerate(niveaux[n]["unites"]["pcode"])} for n in TOLERANCES}
     dhs_par_cle = dhs.set_index("cle")[[c for c in INDICATEURS_DHS.values() if c in dhs]]
+    rgph = donnees["rgph3"]
+    rg_par_cle = {n: rgph[n].set_index("cle") for n in ("regions", "districts")}
+    rg_communes = rgph["communes"].dropna(subset=["cle_hdx"]).set_index("cle_hdx")
 
     resultat = {}
     for niveau in TOLERANCES:
@@ -78,6 +81,15 @@ def _niveaux(donnees):
                 ligne["r"] = index["regions"][u["region_pcode"]]
             if niveau == "communes":
                 ligne["di"] = index["districts"][u["district_pcode"]]
+            if niveau in rg_par_cle:
+                r = rg_par_cle[niveau].loc[u["cle"]]
+                ligne["rg"] = {"p": int(r["population"]), "u": round(float(r["part_urbaine_pct"]), 1),
+                               "rm": round(float(r["rapport_masculinite"]), 1), "d": round(float(r["densite"]), 1),
+                               "e": round(float(r["ecart_estimation_pct"]), 1)}
+            elif u["cle"] in rg_communes.index:
+                r = rg_communes.loc[u["cle"]]
+                ligne["rg"] = {"p": int(r["population"]), "u": round(float(r["part_urbaine_pct"]), 1),
+                               "c": r["correspondance"], "id": bool(r["decoupage_identique"])}
             if niveau == "regions":
                 ligne["dhs"] = {c: (None if v != v else float(v)) for c, v in dhs_par_cle.loc[u["cle"]].items()}
             lignes.append(ligne)
@@ -102,7 +114,9 @@ def generer(donnees):
     contenu = {
         "meta": {"collecte": collecte, "annee_ref": int(donnees["niveaux"]["regions"]["population"]["annee"].max()),
                  "annees_wp": annees_wp, "enquete_dhs": donnees["dhs"].attrs.get("enquete", "DHS"),
-                 "noms_dhs": {c: n for c, n in NOMS_DHS.items() if c in donnees["dhs"]}},
+                 "noms_dhs": {c: n for c, n in NOMS_DHS.items() if c in donnees["dhs"]},
+                 "rgph_total": int(donnees["rgph3"]["regions"]["population"].sum()),
+                 "rgph_communes": len(donnees["rgph3"]["communes"])},
         **_national(donnees),
         "niveaux": niveaux,
         "fokontany": fokontany,

@@ -1,4 +1,5 @@
 """Étape 2 : mise en forme et harmonisation des données brutes."""
+import difflib
 import json
 import re
 import unicodedata
@@ -9,14 +10,17 @@ import rasterio
 from rasterio.features import rasterize
 
 from config import (DOSSIER_TRAITE, INDICATEURS, INDICATEURS_DHS, INDICATEURS_PROJECTIONS,
-                    NIVEAUX, PARENTS, brut, traite)
+                    NIVEAUX, PARENTS, RGPH3_TOTAL, brut, traite)
 from geometrie import boite, contient, point_interieur, superficie_km2
+import rgph3
 
 # Variantes d'orthographe connues -> forme normalisée de référence
 ALIAS_NOMS = {
     "matsiatraambony": "hautematsiatra",
     "vakinankarata": "vakinankaratra",      # DHS
     "anamoroniimania": "amoronimania",      # DHS
+    "toliarai": "toliaryi",                 # RGPH-3
+    "toliaraii": "toliaryii",               # RGPH-3
 }
 
 
@@ -246,13 +250,128 @@ def worldpop(niveaux, series_projetees):
     return resultats
 
 
+COLONNES_RGPH = ["hommes", "femmes", "population", "urbain", "rural"]
+
+
+def _chiffres(ligne):
+    return {c: ligne[c] for c in COLONNES_RGPH}
+
+
+def _completer(df, superficies, estimations):
+    """Ajoute les indicateurs dérivés et l'écart avec l'estimation INSTAT/BNGRC de HDX."""
+    df["part_urbaine_pct"] = 100 * df["urbain"] / df["population"]
+    df["rapport_masculinite"] = 100 * df["hommes"] / df["femmes"]
+    df["femmes_pct"] = 100 * df["femmes"] / df["population"]
+    df["superficie_km2"] = df["cle"].map(superficies)
+    df["densite"] = df["population"] / df["superficie_km2"]
+    df["estimation_hdx_2018"] = df["cle"].map(estimations)
+    df["ecart_estimation_pct"] = 100 * (df["estimation_hdx_2018"] / df["population"] - 1)
+    return df
+
+
+def recensement(niveaux):
+    """Résultats du RGPH-3 (2018) par région, district et commune.
+
+    Les districts du recensement sont reliés aux districts HDX par leur nom ; Antananarivo
+    Renivohitra est détaillé par arrondissement (ce sont des districts dans HDX). Les communes
+    sont reliées par leur nom à l'intérieur de chaque district, d'abord exactement puis de façon
+    approchée ; les communes créées depuis le découpage HDX restent sans correspondance.
+    """
+    extrait = rgph3.extraire(brut("rgph3"))
+    erreurs = []
+    if extrait["national"] is None or extrait["national"]["population"] != RGPH3_TOTAL:
+        erreurs.append(f"total national lu : {extrait['national']}")
+    districts_pdf, blocs = extrait["districts"], extrait["blocs_communes"]
+    if [d["population"] for d in districts_pdf] != [b["total"]["population"] for b in blocs]:
+        erreurs.append("les districts des tableaux 8 et 10 ne concordent pas")
+    for d, b in zip(districts_pdf, blocs):
+        lignes = [b["total"], *b["communes"]]
+        if sum(c["population"] for c in b["communes"]) != b["total"]["population"]:
+            erreurs.append(f"communes de {d['nom']} : somme différente du total du district")
+        if any(c["urbain"] + c["rural"] != c["population"] for c in lignes):
+            erreurs.append(f"{d['nom']} : urbain + rural différent du total")
+    if erreurs:
+        raise ValueError("RGPH-3 : extraction incohérente :\n- " + "\n- ".join(erreurs))
+
+    unites_d = niveaux["districts"]["unites"].set_index("cle")
+    unites_c = niveaux["communes"]["unites"]
+    lignes_d, lignes_c = [], []
+    for d, bloc in zip(districts_pdf, blocs):
+        cle_d = cle_nom(d["nom"])
+        arrondissements = cle_d == "antananarivorenivohitra"
+        if not arrondissements:
+            if cle_d not in unites_d.index:
+                raise ValueError(f"RGPH-3 : district sans correspondance « {d['nom']} »")
+            lignes_d.append({"cle": cle_d, **_chiffres(bloc["total"]), "densite_officielle": d["densite"]})
+        # Communes de HDX disponibles dans ce district, par nom normalisé
+        candidats = {}
+        for cle in unites_c["cle"]:
+            dist, com = cle.split("/", 1)
+            if dist == cle_d or (arrondissements and dist == com and "arrondissement" in com):
+                candidats[com] = cle
+        restants = dict(candidats)
+        for c in bloc["communes"]:
+            cle_c, correspondance = cle_nom(c["nom"]), "aucune"
+            if arrondissements:
+                lignes_d.append({"cle": cle_c, **_chiffres(c), "densite_officielle": float("nan")})
+            if cle_c in restants:
+                correspondance = "exacte"
+            else:
+                proche = difflib.get_close_matches(cle_c, list(restants), n=1, cutoff=0.8)
+                if proche:
+                    cle_c, correspondance = proche[0], "approchée"
+            cle_hdx = restants.pop(cle_c) if correspondance != "aucune" else None
+            lignes_c.append({"nom": c["nom"], "district_rgph": d["nom"], **_chiffres(c),
+                             "cle_hdx": cle_hdx, "correspondance": correspondance})
+        for ligne in lignes_c[len(lignes_c) - len(bloc["communes"]):]:
+            ligne["decoupage_identique"] = not restants and all(
+                l["correspondance"] != "aucune" for l in lignes_c[len(lignes_c) - len(bloc["communes"]):])
+
+    # Districts : rattachement aux codes HDX et contrôle de couverture
+    dist = pd.DataFrame(lignes_d)
+    if set(dist["cle"]) != set(unites_d.index) or dist["cle"].duplicated().any():
+        raise ValueError("RGPH-3 : les districts ne couvrent pas exactement les 119 districts HDX")
+    dist = unites_d[["pcode", "nom", "region_pcode", "region"]].join(dist.set_index("cle")).reset_index()
+    dist = _completer(dist, unites_d["superficie_km2"], unites_d["population"])
+
+    # Régions : somme des districts, comparée aux totaux régionaux publiés
+    unites_r = niveaux["regions"]["unites"].set_index("pcode")
+    reg = dist.groupby("region_pcode")[COLONNES_RGPH].sum()
+    if sorted(reg["population"]) != sorted(r["population"] for r in extrait["regions"]):
+        raise ValueError("RGPH-3 : les totaux régionaux recalculés diffèrent des totaux publiés")
+    densites_publiees = {r["population"]: r["densite"] for r in extrait["regions"]}
+    reg = unites_r[["cle", "nom"]].join(reg).reset_index()
+    reg["densite_officielle"] = reg["population"].map(densites_publiees)
+    reg = _completer(reg, niveaux["regions"]["unites"].set_index("cle")["superficie_km2"],
+                     niveaux["regions"]["unites"].set_index("cle")["population"])
+
+    # Communes : codes HDX quand la correspondance existe
+    com = pd.DataFrame(lignes_c)
+    infos_hdx = unites_c.set_index("cle")[["pcode", "district_pcode", "region_pcode", "region"]]
+    com = com.join(infos_hdx.rename(columns={"pcode": "pcode_hdx"}), on="cle_hdx")
+    district_par_nom = dist.set_index("cle")[["pcode", "region_pcode", "region"]]
+    for i, ligne in com[com["district_pcode"].isna()].iterrows():
+        cle_d = cle_nom(ligne["district_rgph"])
+        if cle_d == "antananarivorenivohitra":
+            cle_d = cle_nom(ligne["nom"])
+        if cle_d in district_par_nom.index:
+            com.loc[i, ["district_pcode", "region_pcode", "region"]] = district_par_nom.loc[cle_d].values
+    com["part_urbaine_pct"] = 100 * com["urbain"] / com["population"]
+    com = com[["nom", "district_rgph", "district_pcode", "region_pcode", "region", *COLONNES_RGPH,
+               "part_urbaine_pct", "pcode_hdx", "cle_hdx", "correspondance", "decoupage_identique"]]
+    if com["population"].sum() != RGPH3_TOTAL:
+        raise ValueError("RGPH-3 : la somme des communes diffère du total national")
+    return {"regions": reg, "districts": dist, "communes": com}
+
+
 def tout_nettoyer():
     """Renvoie un dictionnaire avec :
     - series, pyramide : indicateurs nationaux (Banque mondiale) ;
     - projections : projections ONU jusqu'en 2050 ;
     - niveaux : par découpage, {population (format long), unites (2018), contours} ;
     - dhs : indicateurs régionaux de la dernière enquête DHS ;
-    - worldpop : estimations annuelles 2015-2030 par région, district et commune.
+    - worldpop : estimations annuelles 2015-2030 par région, district et commune ;
+    - rgph3 : résultats du recensement de 2018 par région, district et commune.
     """
     DOSSIER_TRAITE.mkdir(parents=True, exist_ok=True)
     series, pyramide = indicateurs_nationaux()
@@ -275,11 +394,19 @@ def tout_nettoyer():
     estimations = worldpop(niveaux, proj)
     print(f"  WorldPop : {estimations['communes']['annee'].min()}-"
           f"{estimations['communes']['annee'].max()}, contrôle du total national OK")
+    rgph = recensement(niveaux)
+    reliees = rgph["communes"]["correspondance"].value_counts()
+    print(f"  RGPH-3 : {len(rgph['districts'])} districts, {len(rgph['communes'])} communes "
+          f"({reliees.get('exacte', 0)} reliées exactement, {reliees.get('approchée', 0)} approximativement, "
+          f"{reliees.get('aucune', 0)} sans correspondance)")
 
     series.to_csv(traite("indicateurs"))
     pyramide.to_csv(traite("pyramide"), index=False)
     proj.to_csv(traite("projections"))
     table_dhs.drop(columns="cle").to_csv(traite("dhs"), index=False)
+    for niveau, table in rgph.items():
+        table.drop(columns=[c for c in ("cle", "cle_hdx") if c in table]).round(2).to_csv(
+            traite("rgph3", niveau=niveau), index=False)
     for niveau, donnees in niveaux.items():
         donnees["population"].drop(columns="cle").to_csv(
             traite("series", niveau=niveau), index=False)
@@ -293,4 +420,4 @@ def tout_nettoyer():
     print(f"  -> {len(series)} années d'indicateurs, "
           + ", ".join(f"{len(d['unites'])} {n}" for n, d in niveaux.items()))
     return {"series": series, "pyramide": pyramide, "projections": proj, "niveaux": niveaux,
-            "dhs": table_dhs, "worldpop": estimations}
+            "dhs": table_dhs, "worldpop": estimations, "rgph3": rgph}

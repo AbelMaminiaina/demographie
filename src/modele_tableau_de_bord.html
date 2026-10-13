@@ -24,6 +24,7 @@
   --femme: #eb6834;
   --vide: #eceeec;
   --q1: #cde2fb; --q2: #9ec5f4; --q3: #6da7ec; --q4: #3987e5; --q5: #256abf; --q6: #184f95; --q7: #0d366b;
+  --d1: #1c5cab; --d2: #5598e7; --d3: #b7d3f6; --d4: #f0efec; --d5: #f3b9b8; --d6: #e46e6d; --d7: #b92f2f;
   --selection: #13201d;
   --police: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   --police-chiffres: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
@@ -35,6 +36,7 @@
     --trait: #2a3431; --trait-fort: #3c4844; --accent: #5598e7; --accent-doux: #1b2c3f;
     --homme: #3987e5; --femme: #d95926; --vide: #222b29;
     --q1: #12304f; --q2: #104281; --q3: #184f95; --q4: #256abf; --q5: #3987e5; --q6: #6da7ec; --q7: #b7d3f6;
+    --d1: #9ec5f4; --d2: #3987e5; --d3: #184f95; --d4: #383835; --d5: #7a2626; --d6: #c94a4a; --d7: #f09a99;
     --selection: #ffffff;
     color-scheme: dark;
   }
@@ -44,6 +46,7 @@
   --trait: #2a3431; --trait-fort: #3c4844; --accent: #5598e7; --accent-doux: #1b2c3f;
   --homme: #3987e5; --femme: #d95926; --vide: #222b29;
   --q1: #12304f; --q2: #104281; --q3: #184f95; --q4: #256abf; --q5: #3987e5; --q6: #6da7ec; --q7: #b7d3f6;
+  --d1: #9ec5f4; --d2: #3987e5; --d3: #184f95; --d4: #383835; --d5: #7a2626; --d6: #c94a4a; --d7: #f09a99;
   --selection: #ffffff;
   color-scheme: dark;
 }
@@ -260,7 +263,7 @@ footer a { color: var(--accent); }
   </section>
 
   <footer>
-    <span>Sources : estimations INSTAT/BNGRC 2018, base 2009 (via OCHA/HDX) · Banque mondiale · ONU, World Population Prospects · enquête DHS · WorldPop (R2025A) · contours geoBoundaries.</span>
+    <span>Sources : recensement RGPH-3 2018 (INSTAT, résultats globaux) · estimations INSTAT/BNGRC 2018, base 2009 (via OCHA/HDX) · Banque mondiale · ONU, World Population Prospects · enquête DHS · WorldPop (R2025A) · contours geoBoundaries.</span>
     <span>Les chiffres WorldPop sont des estimations modélisées : fiables par région ou district, plus incertaines par commune.</span>
     <span>Détail des sources, licences et méthodes : <a href="https://github.com/AbelMaminiaina/demographie/blob/main/DONNEES.md">catalogue des données</a>. Page générée automatiquement chaque mois par le dépôt <a href="https://github.com/AbelMaminiaina/demographie">AbelMaminiaina/demographie</a>.</span>
   </footer>
@@ -284,10 +287,18 @@ const couleur = nom => getComputedStyle(document.documentElement).getPropertyVal
 const rampe = () => [1, 2, 3, 4, 5, 6, 7].map(i => couleur(`--q${i}`));
 
 // ---------- Indicateurs de la carte ----------
+const NOTE_RGPH = "Recensement général de la population et de l'habitation (RGPH-3), INSTAT, 2018. Disponible par région et par district.";
 const INDICATEURS = [
-  { id: "p", nom: `Population ${REF} (INSTAT)`, val: u => u.p, fmt: v => entier(v), court: v => compact(v),
+  { id: "rg", nom: "Population 2018 (recensement)", recensement: true, val: u => u.rg ? u.rg.p : null, fmt: v => entier(v), court: v => compact(v), note: NOTE_RGPH },
+  { id: "rgd", nom: "Densité 2018, recensement (hab/km²)", recensement: true, val: u => u.rg ? u.rg.d : null, fmt: v => fmt(v, v < 10 ? 1 : 0), note: NOTE_RGPH },
+  { id: "rgu", nom: "Population urbaine, recensement (%)", recensement: true, val: u => u.rg ? u.rg.u : null, fmt: v => `${fmt(v, 1)} %`, note: NOTE_RGPH },
+  { id: "rgm", nom: "Hommes pour 100 femmes, recensement", recensement: true, val: u => u.rg ? u.rg.rm : null, fmt: v => fmt(v, 1), note: NOTE_RGPH },
+  { id: "rge", nom: "Écart estimation HDX / recensement (%)", recensement: true, divergent: true, val: u => u.rg ? u.rg.e : null,
+    fmt: v => `${v > 0 ? "+" : ""}${fmt(v, 1)} %`,
+    note: "Écart entre l'estimation 2018 diffusée sur HDX (calculée à partir des données de 2009) et le recensement. Positif : l'estimation dépasse le recensement." },
+  { id: "p", nom: `Population ${REF} (estimation HDX)`, val: u => u.p, fmt: v => entier(v), court: v => compact(v),
     note: `Estimation ${REF} de l'INSTAT et du BNGRC, projetée depuis les données de 2009 (diffusion OCHA). Ce ne sont pas les résultats du recensement RGPH-3.` },
-  { id: "d", nom: `Densité ${REF} (hab/km²)`, val: u => u.d, fmt: v => fmt(v, v < 10 ? 1 : 0),
+  { id: "d", nom: `Densité ${REF}, estimation HDX (hab/km²)`, val: u => u.d, fmt: v => fmt(v, v < 10 ? 1 : 0),
     note: "Habitants par km², superficie calculée à partir des contours." },
   { id: "wp", nom: "Population estimée (WorldPop)", annee: true, val: u => u.wp[ANNEES_WP.indexOf(etat.annee)], fmt: v => entier(v), court: v => compact(v),
     note: "Estimation WorldPop sur grille de 1 km, ajustée aux totaux de l'ONU." },
@@ -303,7 +314,7 @@ function croissance(u, annee) {
   return (Math.pow(b / a, 1 / (annee - REF)) - 1) * 100;
 }
 
-const etat = { niveau: "regions", indicateur: "p", annee: ANNEE_COURANTE, choix: null, fkRepere: null, tri: { col: "v", sens: -1 } };
+const etat = { niveau: "regions", indicateur: "rg", annee: ANNEE_COURANTE, choix: null, fkRepere: null, tri: { col: "v", sens: -1 } };
 
 // ---------- Lecture et écriture de l'état mémorisé ----------
 try {
@@ -391,7 +402,9 @@ function zoomerSur(niveau, i) {
 
 const indicateurCourant = () => INDICATEURS.find(i => i.id === etat.indicateur);
 
-function echelleCouleurs(valeurs) {
+const SEUILS_ECART = [-15, -7.5, -2.5, 2.5, 7.5, 15];
+function echelleCouleurs(valeurs, ind) {
+  if (ind.divergent) return d3.scaleThreshold().domain(SEUILS_ECART).range([1, 2, 3, 4, 5, 6, 7].map(i => couleur(`--d${i}`)));
   const v = valeurs.filter(x => x != null && !Number.isNaN(x));
   const n = Math.min(7, new Set(v).size);
   const couleurs = rampe();
@@ -402,7 +415,7 @@ function echelleCouleurs(valeurs) {
 function dessinerCarte() {
   const niveau = etat.niveau, ind = indicateurCourant();
   const unites = D.niveaux[niveau].unites;
-  const echelle = echelleCouleurs(unites.map(ind.val));
+  const echelle = echelleCouleurs(unites.map(ind.val), ind);
   const vide = couleur("--vide");
   coucheUnites.selectAll("path.unite")
     .data(D.niveaux[niveau].geo.features, f => `${niveau}-${f.properties.i}`)
@@ -431,8 +444,19 @@ function parentTexte(niveau, u) {
 }
 
 function legende(echelle, ind) {
-  const bornes = [d3.min(echelle.domain()), ...echelle.quantiles(), d3.max(echelle.domain())];
   const conteneur = d3.select("#legende").html("");
+  if (ind.divergent) {
+    const libelles = ["< −15", "−15", "−7,5", "−2,5", "+2,5", "+7,5", "+15"];
+    echelle.range().forEach((c, i) => {
+      const d = conteneur.append("div");
+      d.append("span").attr("class", "case").style("background", c);
+      d.append("span").attr("class", "borne").text(libelles[i]);
+    });
+    document.getElementById("note-indicateur").textContent =
+      `${ind.note} Gris : écart inférieur à 2,5 %. Glisser pour déplacer la carte, molette ou boutons pour zoomer.`;
+    return;
+  }
+  const bornes = [d3.min(echelle.domain()), ...echelle.quantiles(), d3.max(echelle.domain())];
   echelle.range().forEach((c, i) => {
     const d = conteneur.append("div");
     d.append("span").attr("class", "case").style("background", c);
@@ -449,13 +473,14 @@ function legende(echelle, ind) {
 const selectIndicateur = document.getElementById("indicateur");
 function remplirIndicateurs() {
   selectIndicateur.innerHTML = "";
-  const groupes = [["Population et estimations", INDICATEURS.filter(i => !i.dhs)],
+  const groupes = [["Recensement 2018 (régions et districts)", INDICATEURS.filter(i => i.recensement)],
+                   ["Estimations", INDICATEURS.filter(i => !i.dhs && !i.recensement)],
                    [`Santé et fécondité (${D.meta.enquete_dhs}, régions)`, INDICATEURS.filter(i => i.dhs)]];
   for (const [nom, liste] of groupes) {
     const g = document.createElement("optgroup"); g.label = nom;
     for (const i of liste) {
       const o = new Option(i.nom, i.id);
-      o.disabled = i.dhs && etat.niveau !== "regions";
+      o.disabled = indisponible(i, etat.niveau);
       g.append(o);
     }
     selectIndicateur.append(g);
@@ -464,9 +489,12 @@ function remplirIndicateurs() {
 }
 selectIndicateur.onchange = () => { etat.indicateur = selectIndicateur.value; memoriser(); majCommandes(); dessinerCarte(); classement(); };
 document.querySelectorAll(".onglets button").forEach(b => b.onclick = () => changerNiveau(b.dataset.niveau));
+function indisponible(ind, niveau) {
+  return (ind.dhs && niveau !== "regions") || (ind.recensement && niveau === "communes");
+}
 function changerNiveau(niveau) {
   etat.niveau = niveau;
-  if (indicateurCourant().dhs && niveau !== "regions") etat.indicateur = "p";
+  if (indisponible(indicateurCourant(), niveau)) etat.indicateur = niveau === "communes" ? "p" : "rg";
   memoriser(); majCommandes(); dessinerCarte(); classement();
 }
 const curseur = document.getElementById("annee");
@@ -482,7 +510,7 @@ function majCommandes() {
 // ---------- Sélection et fiche ----------
 function choisir(niveau, i, recentrer, fkRepere = null) {
   etat.choix = { niveau, i }; etat.fkRepere = fkRepere;
-  if (niveau !== etat.niveau) { etat.niveau = niveau; if (indicateurCourant().dhs && niveau !== "regions") etat.indicateur = "p"; majCommandes(); }
+  if (niveau !== etat.niveau) { etat.niveau = niveau; if (indisponible(indicateurCourant(), niveau)) etat.indicateur = niveau === "communes" ? "p" : "rg"; majCommandes(); }
   dessinerCarte(); classement(); fiche();
   if (recentrer) zoomerSur(niveau, i);
 }
@@ -508,16 +536,36 @@ function fiche() {
   el.append("span").attr("class", "etiquette").html(`${type} <span class="malgache">· ${malgache}</span>`);
   el.append("h2").style("font-size", "1.4rem").text(u.n);
 
-  const total = d3.sum(D.niveaux.regions.unites, r => r.p);
   const cles = el.append("div").attr("class", "chiffres-cles");
   const iEst = ANNEES_WP.indexOf(ANNEE_COURANTE);
-  for (const [v, l] of [[entier(u.p), `habitants en ${REF}`], [fmt(u.d, u.d < 10 ? 1 : 0), "hab/km²"],
-                         [entier(u.s), "km²"], [entier(u.wp[iEst]), `estimés en ${ANNEE_COURANTE}`],
-                         [`${fmt(croissance(u, ANNEE_COURANTE), 1)} %`, `par an depuis ${REF}`],
-                         [`${fmt(100 * u.p / total, u.p / total < 0.01 ? 2 : 1)} %`, "de la population"]]) {
+  const recense = niveau !== "communes" && u.rg;
+  const chiffres = recense
+    ? [[entier(u.rg.p), "habitants recensés en 2018"], [fmt(u.rg.d, u.rg.d < 10 ? 1 : 0), "hab/km² (recensement)"],
+       [`${fmt(u.rg.u, 1)} %`, "population urbaine"], [fmt(u.rg.rm, 1), "hommes pour 100 femmes"],
+       [entier(u.s), "km²"], [entier(u.wp[iEst]), `estimés en ${ANNEE_COURANTE} (WorldPop)`]]
+    : [[entier(u.p), `habitants en ${REF} (estimation HDX)`], [fmt(u.d, u.d < 10 ? 1 : 0), "hab/km²"],
+       [entier(u.s), "km²"], [entier(u.wp[iEst]), `estimés en ${ANNEE_COURANTE} (WorldPop)`],
+       [`${fmt(croissance(u, ANNEE_COURANTE), 1)} %`, `par an depuis ${REF}`], [entier(D.fokontany[i] ? D.fokontany[i].length : 0), "fokontany"]];
+  for (const [v, l] of chiffres) {
     const d = cles.append("div");
     d.append("span").attr("class", "chiffre").text(v);
     d.append("small").text(l);
+  }
+  if (recense) {
+    el.append("p").attr("class", "note").style("margin", 0).html(
+      `Estimation 2018 diffusée sur HDX : <span class="tab">${entier(u.p)}</span>, soit ${u.rg.e > 0 ? "+" : ""}${fmt(u.rg.e, 1)} % par rapport au recensement.`);
+  }
+  if (niveau === "communes") {
+    const b = el.append("div").attr("class", "bloc");
+    b.append("span").attr("class", "etiquette").text("Recensement 2018 (RGPH-3)");
+    if (u.rg) {
+      b.append("p").style("margin", 0).html(`<span class="chiffre">${entier(u.rg.p)}</span> habitants recensés, dont ${fmt(u.rg.u, 0)} % en milieu urbain.`);
+      if (!u.rg.id) b.append("p").attr("class", "note").style("margin", 0)
+        .text("Le découpage communal de ce district a changé depuis le tracé utilisé ici : le chiffre du recensement peut ne pas couvrir exactement le même territoire.");
+    } else {
+      b.append("p").attr("class", "note").style("margin", 0)
+        .text("Pas de correspondance dans le recensement : la commune a pu être divisée ou renommée depuis le découpage utilisé pour la carte.");
+    }
   }
 
   const bloc = el.append("div").attr("class", "bloc");
@@ -565,26 +613,26 @@ function ficheNationale(el) {
   el.append("span").attr("class", "etiquette").text("Vue d'ensemble");
   el.append("h2").style("font-size", "1.4rem").text("Madagascar");
   const cles = el.append("div").attr("class", "chiffres-cles");
-  const total = d3.sum(D.niveaux.regions.unites, r => r.p);
+  const total = D.meta.rgph_total;
   const est = d3.sum(D.niveaux.regions.unites, r => r.wp[ANNEES_WP.indexOf(ANNEE_COURANTE)]);
-  for (const [v, l] of [[entier(total), `habitants en ${REF}`], [entier(est), `estimés en ${ANNEE_COURANTE}`],
-                         [fmt(total / d3.sum(D.niveaux.regions.unites, r => r.s), 0), "hab/km² en " + REF],
-                         [D.niveaux.regions.unites.length, "régions"], [entier(D.niveaux.communes.unites.length), "communes"],
+  for (const [v, l] of [[entier(total), "habitants recensés en 2018"], [entier(est), `estimés en ${ANNEE_COURANTE} (WorldPop)`],
+                         [fmt(total / d3.sum(D.niveaux.regions.unites, r => r.s), 0), "hab/km² en 2018"],
+                         [D.niveaux.regions.unites.length, "régions"], [entier(D.meta.rgph_communes), "communes au recensement"],
                          [entier(d3.sum(D.fokontany, f => f.length)), "fokontany"]]) {
     const d = cles.append("div");
     d.append("span").attr("class", "chiffre").text(v);
     d.append("small").text(l);
   }
   const bloc = el.append("div").attr("class", "bloc");
-  bloc.append("span").attr("class", "etiquette").text("Les plus peuplées en " + REF);
-  const top = D.niveaux.regions.unites.map((u, i) => [u, i]).sort((a, b) => b[0].p - a[0].p).slice(0, 5);
+  bloc.append("span").attr("class", "etiquette").text("Les régions les plus peuplées au recensement");
+  const top = D.niveaux.regions.unites.map((u, i) => [u, i]).sort((a, b) => b[0].rg.p - a[0].rg.p).slice(0, 5);
   const ul = bloc.append("ul").attr("class", "liste-fk");
-  const max = top[0][0].p;
+  const max = top[0][0].rg.p;
   top.forEach(([u, i]) => {
     const li = ul.append("li").style("cursor", "pointer").on("click", () => choisir("regions", i, true));
     li.append("span").text(u.n);
-    li.append("span").attr("class", "tab").text(entier(u.p));
-    li.append("span").attr("class", "barre").style("width", `${100 * u.p / max}%`);
+    li.append("span").attr("class", "tab").text(entier(u.rg.p));
+    li.append("span").attr("class", "barre").style("width", `${100 * u.rg.p / max}%`);
   });
   el.append("p").attr("class", "note").style("margin", 0)
     .text("Cliquez sur la carte, dans le classement ou cherchez un lieu pour afficher sa fiche.");
@@ -596,7 +644,8 @@ function courbeEvolution(conteneur, u) {
     .attr("aria-label", `Population estimée de ${u.n}`);
   const pts = ANNEES_WP.map((a, j) => [a, u.wp[j]]);
   const x = d3.scaleLinear().domain(d3.extent(ANNEES_WP)).range([m.g, L - m.d]);
-  const y = d3.scaleLinear().domain([0, d3.max([...pts.map(p => p[1]), u.p]) * 1.08]).nice(4).range([H - m.b, m.h]);
+  const ref = u.rg ? u.rg.p : u.p, refNom = u.rg ? "recensement" : "estimation HDX";
+  const y = d3.scaleLinear().domain([0, d3.max([...pts.map(p => p[1]), ref]) * 1.08]).nice(4).range([H - m.b, m.h]);
   svg.append("g").attr("class", "grille").selectAll("line").data(y.ticks(4)).join("line")
     .attr("x1", m.g).attr("x2", L - m.d).attr("y1", y).attr("y2", y);
   svg.append("g").attr("class", "axe").attr("transform", `translate(${m.g},0)`).call(d3.axisLeft(y).ticks(4).tickFormat(compact).tickSize(0)).call(g => g.select(".domain").remove());
@@ -605,8 +654,8 @@ function courbeEvolution(conteneur, u) {
   svg.append("path").attr("d", d3.area().x(p => x(p[0])).y0(H - m.b).y1(p => y(p[1]))(passe)).attr("fill", "var(--accent-doux)");
   svg.append("path").attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1]))(passe)).attr("fill", "none").attr("stroke", "var(--accent)").attr("stroke-width", 2);
   svg.append("path").attr("d", d3.line().x(p => x(p[0])).y(p => y(p[1]))(futur)).attr("fill", "none").attr("stroke", "var(--accent)").attr("stroke-width", 2).attr("stroke-dasharray", "4 3");
-  svg.append("circle").attr("cx", x(REF)).attr("cy", y(u.p)).attr("r", 4.5).attr("fill", "var(--femme)").attr("stroke", "var(--surface)").attr("stroke-width", 2);
-  svg.append("text").attr("x", x(REF) + 7).attr("y", y(u.p) - 7).attr("fill", "var(--encre-2)").attr("font-size", 11).text("INSTAT");
+  svg.append("circle").attr("cx", x(REF)).attr("cy", y(ref)).attr("r", 4.5).attr("fill", "var(--femme)").attr("stroke", "var(--surface)").attr("stroke-width", 2);
+  svg.append("text").attr("x", x(REF) + 7).attr("y", y(ref) - 7).attr("fill", "var(--encre-2)").attr("font-size", 11).text(refNom);
   const repere = svg.append("g").style("display", "none");
   repere.append("line").attr("y1", m.h).attr("y2", H - m.b).attr("stroke", "var(--trait-fort)");
   repere.append("circle").attr("r", 4).attr("fill", "var(--accent)").attr("stroke", "var(--surface)").attr("stroke-width", 2);
@@ -617,7 +666,7 @@ function courbeEvolution(conteneur, u) {
       if (!p) return;
       repere.style("display", null).attr("transform", `translate(${x(a)},0)`);
       repere.select("circle").attr("cy", y(p[1]));
-      montrerBulle(evt, `<strong>${a}</strong><span class="tab">${entier(p[1])}</span> habitants (WorldPop)${a === REF ? `<br>INSTAT : <span class="tab">${entier(u.p)}</span>` : ""}`);
+      montrerBulle(evt, `<strong>${a}</strong><span class="tab">${entier(p[1])}</span> habitants (WorldPop)${a === REF ? `<br>${u.rg ? `Recensement : <span class="tab">${entier(u.rg.p)}</span><br>` : ""}Estimation HDX : <span class="tab">${entier(u.p)}</span>` : ""}`);
     })
     .on("mouseleave", () => { repere.style("display", "none"); cacherBulle(); });
 }
