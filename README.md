@@ -10,7 +10,9 @@ Pipeline qui télécharge, nettoie et visualise les données démographiques de 
 |---|---|
 | ![Population par région](sorties/carte_population_regions.png) | ![Densité par district](sorties/carte_densite_districts.png) |
 
-![Pyramide des âges](sorties/pyramide_ages.png)
+| Densité par commune | Pyramide des âges |
+|---|---|
+| ![Densité par commune](sorties/carte_densite_communes.png) | ![Pyramide des âges](sorties/pyramide_ages.png) |
 
 Les graphiques sont régénérés à chaque exécution du pipeline.
 
@@ -38,8 +40,8 @@ python src/pipeline.py --sans-collecte  # réutilise les données déjà téléc
 ## Sources
 
 - **Banque mondiale** (API WDI + Santé/Population) : séries nationales depuis 1960 et effectifs par âge et sexe.
-- **HDX / OCHA** (`cod-ps-mdg`) : population par région (22) et par district (119, dont les 6 arrondissements d'Antananarivo) d'après le RGPH-3 de 2018.
-- **geoBoundaries** : contours simplifiés des régions et des districts. Ils servent aussi au calcul des superficies et des densités.
+- **HDX / OCHA** (`cod-ps-mdg`) : population par région (22), par district (119, dont les 6 arrondissements d'Antananarivo) et par commune (1 579) d'après le RGPH-3 de 2018.
+- **geoBoundaries** : contours simplifiés des régions, des districts et des communes. Ils servent aussi au calcul des superficies et des densités.
 
 Les années 2009-2017 des fichiers HDX ne sont pas des observations : elles sont rétropolées depuis 2018 avec un taux national unique (2,72 %/an). Elles ne permettent donc pas de comparer la croissance entre régions ou districts.
 
@@ -47,6 +49,10 @@ Les années 2009-2017 des fichiers HDX ne sont pas des observations : elles sont
 
 Les sources écrivent les noms différemment (« Haute Matsiatra » / « Matsiatra Ambony », « Amoron I Mania » / « Amoron'i Mania »).
 `nettoyage.cle_nom()` normalise les noms en gardant les chiffres, ce qui distingue « 2e Arrondissement » de « 3e Arrondissement ». Une nouvelle variante s'ajoute dans `ALIAS_NOMS`.
+
+Beaucoup de communes portent le même nom dans des districts différents, et les contours geoBoundaries n'indiquent pas le district. `nettoyage.rattacher_contours()` le retrouve en cherchant le district qui contient un point intérieur de chaque commune (`src/geometrie.py`), puis relie la commune par le couple (district, nom).
+
+Le pipeline s'arrête si une commune reste sans contour, ou si la somme des communes ne redonne pas la population de leur district.
 
 Les sources régionales utilisent encore le découpage en 22 régions, où Vatovavy-Fitovinany forme une seule région. La séparation en Vatovavy et Fitovinany (2021) n'y apparaît pas encore.
 
@@ -62,6 +68,6 @@ Lancement manuel : onglet **Actions**, puis **Mise à jour mensuelle**, puis **R
 
 ## Pistes suivantes
 
-- Données par commune et par fokontany (ADM3 et ADM4, déjà disponibles sur HDX).
+- Données par fokontany (ADM4, déjà disponibles sur HDX).
 - Extraction des tableaux PDF de l'INSTAT.
 - Base de données (DuckDB/PostgreSQL) et tableau de bord interactif.

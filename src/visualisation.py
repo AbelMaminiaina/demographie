@@ -1,16 +1,14 @@
 """Étape 3 : graphiques et rapport de synthèse."""
-import json
-import math
-
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.patches import Polygon
+import pandas as pd
 
-from config import DOSSIER_BRUT, DOSSIER_SORTIES, DOSSIER_TRAITE
-from nettoyage import cle_nom
+from config import DOSSIER_SORTIES
+from geometrie import anneaux
 
 # Palette de référence (thème clair)
 FOND = "#fcfcfb"
@@ -65,53 +63,20 @@ def pyramide_ages(pyramide):
     return _sauver(fig, "pyramide_ages.png")
 
 
-def _anneaux(geometrie):
-    polys = geometrie["coordinates"] if geometrie["type"] == "MultiPolygon" else [geometrie["coordinates"]]
-    return [poly[0] for poly in polys]  # contour extérieur uniquement
+SEUILS_DENSITE = [0, 10, 25, 50, 100, 250, 1_000, 1e9]
 
 
-def _superficie_km2(geometrie):
-    """Superficie approchée (projection équirectangulaire locale, formule du lacet)."""
-    total = 0.0
-    for anneau in _anneaux(geometrie):
-        lat0 = math.radians(sum(p[1] for p in anneau) / len(anneau))
-        xy = [(lon * 111.32 * math.cos(lat0), lat * 110.57) for lon, lat, *_ in anneau]
-        total += abs(sum(x1 * y2 - x2 * y1 for (x1, y1), (x2, y2) in zip(xy, xy[1:] + xy[:1]))) / 2
-    return total
-
-
-def contours(niveau):
-    """Contours geoBoundaries indexés par clé de nom normalisée."""
-    with open(DOSSIER_BRUT / f"{niveau}.geojson", encoding="utf-8") as f:
-        return {cle_nom(feat["properties"]["shapeName"]): feat for feat in json.load(f)["features"]}
-
-
-def densites(districts):
-    """Population, superficie et densité par district (année la plus récente)."""
-    geo = contours("districts")
-    annee = districts["annee"].max()
-    df = (districts[districts["annee"] == annee].set_index("cle")[["nom", "region", "population"]]
-          .assign(superficie_km2=lambda d: [_superficie_km2(geo[c]["geometry"]) for c in d.index]))
-    df["densite"] = df["population"] / df["superficie_km2"]
-    return df.sort_values("population", ascending=False)
-
-
-def _carte(niveau, valeurs, seuils, etiquettes, legende, titre, fichier):
-    """Carte choroplèthe : `valeurs` est une série indexée par clé de nom normalisée."""
-    geo = contours(niveau)
-    manquantes = sorted(set(geo) ^ set(valeurs.index))
-    if manquantes:
-        raise ValueError(f"{niveau} sans correspondance entre population et contours : {manquantes}")
-
+def _carte(contours, valeurs, seuils, etiquettes, legende, titre, fichier, epaisseur):
+    """Carte choroplèthe : `contours` et `valeurs` sont indexés par la même clé."""
     cmap = ListedColormap(RAMPE_BLEUE[:len(seuils) - 1])
     norm = BoundaryNorm(seuils, cmap.N)
-    epaisseur = 1 if niveau == "regions" else 0.4
 
     fig, ax = plt.subplots(figsize=(7, 9))
-    for cle, feat in geo.items():
+    for cle, geometrie in contours.items():
         couleur = cmap(norm(valeurs[cle]))
-        for anneau in _anneaux(feat["geometry"]):
-            ax.add_patch(Polygon(anneau, facecolor=couleur, edgecolor=FOND, linewidth=epaisseur))
+        for anneau in anneaux(geometrie):
+            ax.add_patch(Polygon([p[:2] for p in anneau], facecolor=couleur,
+                                 edgecolor=FOND, linewidth=epaisseur))
     ax.autoscale_view()
     ax.set_aspect("equal")
     ax.axis("off")
@@ -125,19 +90,19 @@ def _carte(niveau, valeurs, seuils, etiquettes, legende, titre, fichier):
     return _sauver(fig, fichier)
 
 
-def carte_regions(regions):
-    annee = regions["annee"].max()
-    pop = regions[regions["annee"] == annee].set_index("cle")["population"]
+def carte_regions(donnees, annee):
+    pop = donnees["unites"].set_index("cle")["population"]
     seuils = [0, 400_000, 600_000, 800_000, 1_000_000, 1_400_000, 2_000_000, 5_000_000]
-    return _carte("regions", pop, seuils, [f"{s / 1e6:.1f} M" for s in seuils[:-1]],
-                  "Population", f"Population par région, {annee}", "carte_population_regions.png")
+    return _carte(donnees["contours"], pop, seuils, [f"{s / 1e6:.1f} M" for s in seuils[:-1]],
+                  "Population", f"Population par région, {annee}", "carte_population_regions.png", 1)
 
 
-def carte_districts(dens, annee):
-    seuils = [0, 10, 25, 50, 100, 250, 1_000, 1e9]
-    etiquettes = [f"{s:,}".replace(",", " ") for s in seuils[:-1]]
-    return _carte("districts", dens["densite"], seuils, etiquettes, "Habitants par km²",
-                  f"Densité de population par district, {annee}", "carte_densite_districts.png")
+def carte_densite(niveau, donnees, annee, epaisseur):
+    etiquettes = [f"{s:,}".replace(",", " ") for s in SEUILS_DENSITE[:-1]]
+    titre = {"districts": "district", "communes": "commune"}[niveau]
+    return _carte(donnees["contours"], donnees["unites"].set_index("cle")["densite"], SEUILS_DENSITE,
+                  etiquettes, "Habitants par km²", f"Densité de population par {titre}, {annee}",
+                  f"carte_densite_{niveau}.png", epaisseur)
 
 
 def tendances(series):
@@ -165,14 +130,14 @@ def tendances(series):
     return _sauver(fig, "tendances.png")
 
 
-def rapport(series, regions, dens):
-    annee_reg = regions["annee"].max()
-    reg = regions[regions["annee"] == annee_reg].sort_values("population", ascending=False)
-
+def rapport(series, niveaux, annee):
     def val(col, fmt):
         """Dernière valeur disponible de l'indicateur, avec son année."""
-        s = series[col].dropna()
-        return "n.d. | – " if s.empty else f"{fmt.format(s.iloc[-1])} | {s.index[-1]}"
+        v = series[col].dropna()
+        return "n.d. | – " if v.empty else f"{fmt.format(v.iloc[-1])} | {v.index[-1]}"
+
+    def nombre(x):
+        return f"{x:,.0f}".replace(",", " ")
 
     lignes = [
         "# Synthèse démographique de Madagascar", "",
@@ -187,30 +152,53 @@ def rapport(series, regions, dens):
         f"| Espérance de vie | {val('esperance_vie', '{:.1f} ans')} |",
         f"| Population urbaine | {val('urbanisation_pct', '{:.1f} %')} |",
         f"| Ratio de dépendance | {val('ratio_dependance', '{:.1f}')} |", "",
-        f"## Population par région ({annee_reg}, RGPH-3)", "",
-        "| Région | Population | Part |", "|---|---:|---:|",
+        f"## Population par région ({annee}, RGPH-3)", "",
+        "| Région | Population | Part | Densité (hab/km²) |", "|---|---:|---:|---:|",
     ]
-    total = reg["population"].sum()
+    reg = niveaux["regions"]["unites"]
     for _, r in reg.iterrows():
-        lignes.append(f"| {r['nom']} | {r['population']:,.0f} | {r['population'] / total:.1%} |"
-                      .replace(",", " "))
+        lignes.append(f"| {r['nom']} | {nombre(r['population'])} | "
+                      f"{r['population'] / reg['population'].sum():.1%} | {nombre(r['densite'])} |")
 
-    def tableau(titre, df):
+    def tableau(titre, df, colonnes):
         lignes.extend(["", f"### {titre}", "",
-                       "| District | Région | Population | Densité (hab/km²) |",
-                       "|---|---|---:|---:|"])
+                       "| " + " | ".join(colonnes.values()) + " | Population | Densité (hab/km²) |",
+                       "|" + "---|" * len(colonnes) + "---:|---:|"])
         for _, r in df.iterrows():
-            lignes.append(f"| {r['nom']} | {r['region']} | {r['population']:,.0f} | {r['densite']:,.0f} |"
-                          .replace(",", " "))
+            lignes.append("| " + " | ".join(str(r[c]) for c in colonnes)
+                          + f" | {nombre(r['population'])} | {nombre(r['densite'])} |")
 
-    lignes += ["", f"## Districts ({annee_reg}, {len(dens)} districts)", "",
-               "Le tableau complet est dans `data/traite/districts.csv`. Antananarivo Renivohitra "
-               "y est découpé en ses 6 arrondissements."]
-    tableau("Les 10 plus peuplés", dens.head(10))
-    tableau("Les 10 plus denses", dens.nlargest(10, "densite"))
+    dist = niveaux["districts"]["unites"]
+    lignes += ["", f"## Districts ({annee}, {len(dist)} districts)", "",
+               "Antananarivo Renivohitra est découpé en ses 6 arrondissements. "
+               "Tableau complet : `data/traite/districts.csv`."]
+    colonnes = {"nom": "District", "region": "Région"}
+    tableau("Les 10 plus peuplés", dist.head(10), colonnes)
+    tableau("Les 10 plus denses", dist.nlargest(10, "densite"), colonnes)
+
+    com = niveaux["communes"]["unites"]
+    classes = (com.groupby(pd.cut(com["densite"], SEUILS_DENSITE, right=False), observed=False)
+               .agg(communes=("pcode", "size"), population=("population", "sum")))
+    lignes += ["", f"## Communes ({annee}, {len(com)} communes)", "",
+               f"Population médiane : {nombre(com['population'].median())} habitants. "
+               "Tableau complet : `data/traite/communes.csv`.", "",
+               "### Répartition par densité", "",
+               "| Habitants par km² | Communes | Population | Part de la population |",
+               "|---|---:|---:|---:|"]
+    for intervalle, r in classes.iterrows():
+        borne = (f"{nombre(intervalle.left)} et plus" if intervalle.right > 1e8
+                 else f"{nombre(intervalle.left)} à {nombre(intervalle.right)}")
+        lignes.append(f"| {borne} | {r['communes']} | {nombre(r['population'])} "
+                      f"| {r['population'] / com['population'].sum():.1%} |")
+    colonnes = {"nom": "Commune", "district": "District", "region": "Région"}
+    tableau("Les 10 plus peuplées", com.head(10), colonnes)
+    tableau("Les 10 plus denses", com.nlargest(10, "densite"), colonnes)
+    tableau("Les 10 moins denses", com.nsmallest(10, "densite"), colonnes)
+
     lignes += ["", "![Pyramide des âges](pyramide_ages.png)", "",
                "![Carte des régions](carte_population_regions.png)", "",
                "![Carte des districts](carte_densite_districts.png)", "",
+               "![Carte des communes](carte_densite_communes.png)", "",
                "![Tendances](tendances.png)", ""]
     chemin = DOSSIER_SORTIES / "rapport.md"
     chemin.write_text("\n".join(lignes), encoding="utf-8")
@@ -218,11 +206,11 @@ def rapport(series, regions, dens):
     return chemin
 
 
-def tout_visualiser(series, pyramide, regions, districts):
-    dens = densites(districts)
-    dens.round(2).to_csv(DOSSIER_TRAITE / "districts.csv", index_label="cle")
+def tout_visualiser(series, pyramide, niveaux):
+    annee = niveaux["regions"]["population"]["annee"].max()
     pyramide_ages(pyramide)
-    carte_regions(regions)
-    carte_districts(dens, districts["annee"].max())
+    carte_regions(niveaux["regions"], annee)
+    carte_densite("districts", niveaux["districts"], annee, epaisseur=0.4)
+    carte_densite("communes", niveaux["communes"], annee, epaisseur=0.1)
     tendances(series)
-    rapport(series, regions, dens)
+    rapport(series, niveaux, annee)

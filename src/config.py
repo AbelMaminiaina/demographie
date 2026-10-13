@@ -17,7 +17,11 @@ GEOBOUNDARIES_URL = "https://www.geoboundaries.org/api/current/gbOpen/MDG/{nivea
 NIVEAUX = {
     "regions": {"code": "ADM1", "attendus": 22},
     "districts": {"code": "ADM2", "attendus": 119},  # dont 6 arrondissements d'Antananarivo
+    "communes": {"code": "ADM3", "attendus": 1579},
 }
+
+# Niveau parent de chaque découpage (pour les contrôles d'emboîtement)
+PARENTS = {"districts": "regions", "communes": "districts"}
 
 # Indicateurs nationaux (code Banque mondiale -> nom de colonne)
 INDICATEURS = {
