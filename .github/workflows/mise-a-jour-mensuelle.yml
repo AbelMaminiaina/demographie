@@ -15,7 +15,7 @@ concurrency:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
 
@@ -26,6 +26,17 @@ jobs:
 
       - name: Installer les dépendances
         run: pip install -r requirements.txt
+
+      # Les grilles WorldPop (environ 940 Mo) et le PDF du recensement sont des versions
+      # publiées qui ne changent pas : on les garde d'un mois à l'autre.
+      - name: Restaurer les fichiers volumineux déjà téléchargés
+        uses: actions/cache@v6
+        with:
+          path: |
+            data/brut/worldpop
+            data/brut/worldpop_100m
+            data/brut/instat_rgph3
+          key: donnees-fixes-worldpop-r2025a-rgph3
 
       - name: Exécuter le pipeline
         run: python src/pipeline.py
@@ -38,6 +49,9 @@ jobs:
           path: |
             data/
             sorties/
+            !data/brut/worldpop/
+            !data/brut/worldpop_100m/
+            !data/brut/instat_rgph3/
           retention-days: 90
           if-no-files-found: ignore
 

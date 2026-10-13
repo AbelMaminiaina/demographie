@@ -59,6 +59,11 @@ def _national(donnees):
     }
 
 
+def annee_courante_wp100(wp100):
+    annees = sorted(int(c.split("_")[1]) for c in wp100.columns if c.startswith("wp100_"))
+    return min(date.today().year, annees[-1])
+
+
 def _niveaux(donnees):
     niveaux, wp, dhs = donnees["niveaux"], donnees["worldpop"], donnees["dhs"]
     annees_wp = sorted(int(a) for a in wp["regions"]["annee"].unique())
@@ -97,13 +102,18 @@ def _niveaux(donnees):
                             "geometry": simplifier(niveaux[niveau]["contours"][u["cle"]], TOLERANCES[niveau])})
         resultat[niveau] = {"unites": lignes, "geo": {"type": "FeatureCollection", "features": entites}}
 
-    # Fokontany regroupés par commune : [nom, estimation HDX, densité, estimation calée sur le recensement]
+    # Fokontany regroupés par commune : [nom, estimation HDX, densité, estimation calée sur le recensement,
+    # WorldPop 100 m en 2018, l'année en cours et 2030]
     cales = donnees["fokontany_cales"].set_index("cle")["population_calee"]
+    wp100 = donnees["worldpop_100m"].set_index("cle")
+    annee_wp100 = annee_courante_wp100(wp100)
+    colonnes_wp100 = [f"wp100_{a}" for a in (2018, annee_wp100, 2030)]
     fk = [[] for _ in range(len(niveaux["communes"]["unites"]))]
     for _, f in niveaux["fokontany"]["unites"].iterrows():
         cale = cales.get(f["cle"])
         fk[index["communes"][f["commune_pcode"].split("|")[0]]].append(
-            [f["nom"], int(f["population"]), round(float(f["densite"])), None if cale != cale else int(cale)])
+            [f["nom"], int(f["population"]), round(float(f["densite"])), None if cale != cale else int(cale),
+             *[int(wp100.loc[f["cle"], c]) for c in colonnes_wp100]])
     return resultat, fk, annees_wp
 
 
@@ -118,7 +128,8 @@ def generer(donnees):
                  "annees_wp": annees_wp, "enquete_dhs": donnees["dhs"].attrs.get("enquete", "DHS"),
                  "noms_dhs": {c: n for c, n in NOMS_DHS.items() if c in donnees["dhs"]},
                  "rgph_total": int(donnees["rgph3"]["regions"]["population"].sum()),
-                 "rgph_communes": len(donnees["rgph3"]["communes"])},
+                 "rgph_communes": len(donnees["rgph3"]["communes"]),
+                 "annee_wp100": annee_courante_wp100(donnees["worldpop_100m"])},
         **_national(donnees),
         "niveaux": niveaux,
         "fokontany": fokontany,

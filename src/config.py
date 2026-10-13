@@ -15,6 +15,7 @@ BRUT = {
     "contours": "geoboundaries/contours_{niveau}.geojson",
     "dhs": "dhs/indicateurs_regions.json",
     "worldpop": "worldpop/population_{annee}_1km.tif",
+    "worldpop_100m": "worldpop_100m/population_{annee}_100m.tif",
     "rgph3": "instat_rgph3/resultats_globaux_tome2.pdf",
     "journal": "journal_collecte.json",
 }
@@ -27,6 +28,7 @@ TRAITE = {
     "series": "territoires/{niveau}_series_2009_2018.csv",
     "dhs": "sante/dhs_regions.csv",
     "worldpop": "estimations/worldpop_{niveau}.csv",
+    "worldpop_100m": "estimations/worldpop_100m_fokontany.csv",
     "rgph3": "recensement/rgph3_{niveau}.csv",
     "fokontany_cales": "recensement/fokontany_estimation_calee_rgph3.csv",
 }
@@ -97,6 +99,8 @@ INDICATEURS_DHS = {
 
 # WorldPop : estimations de population sur grille de 1 km, 2015-2030 (version R2025A)
 WORLDPOP_URL = "https://hub.worldpop.org/rest/data/pop/G2_CN_POP_R25A_1km"
+# Même jeu à 100 m (environ 55 Mo par année), agrégé par fokontany
+WORLDPOP_100M_URL = "https://hub.worldpop.org/rest/data/pop/G2_CN_POP_R25A_100m"
 
 # Recensement RGPH-3 (2018) : tome 2 des résultats globaux de l'INSTAT, copie hébergée par
 # l'UNFPA Madagascar (le site de l'INSTAT est écarté, voir DONNEES.md).

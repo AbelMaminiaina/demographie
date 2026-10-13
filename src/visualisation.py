@@ -336,6 +336,26 @@ def rapport(donnees, annee, annee_courante):
         lignes.append(f"| {r['nom']} | {r['commune']} | {r['district']} | {nombre(r['population_calee'])} "
                       f"| {nombre(r['estimation_hdx_2018'])} |")
 
+    # WorldPop 100 m par fokontany
+    wp100 = donnees["worldpop_100m"]
+    annees_100m = sorted(int(c.split("_")[1]) for c in wp100.columns if c.startswith("wp100_"))
+    an = min(annee_courante, annees_100m[-1])
+    wp100 = wp100.assign(croissance=((wp100[f"wp100_{an}"] / wp100["wp100_2018"].clip(lower=1)) ** (1 / (an - 2018)) - 1) * 100)
+    lignes += ["", f"## Fokontany : estimations WorldPop à 100 m ({annees_100m[0]}-{annees_100m[-1]})", "",
+               "Grilles WorldPop à 100 m (R2025A), sommées par fokontany : chaque carré de 100 m est affecté au "
+               "fokontany qui contient son centre. Ce sont des estimations modélisées, à utiliser avec prudence pour "
+               "les petits fokontany. Tableau complet : `data/traite/estimations/worldpop_100m_fokontany.csv`.", "",
+               f"- Population estimée en {an} : {nombre(wp100[f'wp100_{an}'].sum())} habitants ; "
+               f"médiane par fokontany : {nombre(wp100[f'wp100_{an}'].median())}.",
+               f"- En 2030 : {nombre(wp100['wp100_2030'].sum())} habitants.",
+               f"- {(wp100[f'wp100_{an}'] == 0).sum()} fokontany, trop petits pour contenir le centre d'un carré de 100 m, ont 0 habitant.", "",
+               f"### Les 10 plus peuplés en {an}", "",
+               f"| Fokontany | Commune | District | 2018 | {an} | 2030 | Croissance 2018-{an} |",
+               "|---|---|---|---:|---:|---:|---:|"]
+    for _, r in wp100.nlargest(10, f"wp100_{an}").iterrows():
+        lignes.append(f"| {r['nom']} | {r['commune']} | {r['district']} | {nombre(r['wp100_2018'])} | "
+                      f"{nombre(r[f'wp100_{an}'])} | {nombre(r['wp100_2030'])} | {r['croissance']:+.1f} %/an |")
+
     # Projections ONU
     proj = donnees["projections"]
     lignes += ["", "## Projections de l'ONU", "",

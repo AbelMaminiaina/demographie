@@ -74,7 +74,7 @@ Le **[catalogue des données](DONNEES.md)** détaille, pour chaque source, le pr
 | HDX `cod-ps-mdg` | INSTAT et BNGRC, diffusé par OCHA | Population 2009-2018 des régions, districts, communes et fokontany | CC BY 3.0 IGO |
 | geoBoundaries | OpenStreetMap (régions) ; BNGRC et OCHA (autres niveaux) | Contours administratifs | ODbL 1.0 ; CC BY 3.0 IGO |
 | DHS Program | INSTAT et ICF | Santé et fécondité par région (2021) | Données publiques, citation obligatoire |
-| WorldPop R2025A | Université de Southampton | Estimations 2015-2030 sur grille de 1 km | CC BY 4.0 |
+| WorldPop R2025A | Université de Southampton | Estimations 2015-2030 sur grilles de 1 km (communes, districts, régions) et de 100 m (fokontany) | CC BY 4.0 |
 
 Les cartes des régions et des districts utilisent le **recensement RGPH-3 de 2018** (25 674 196 habitants). Les populations par commune et par fokontany viennent des estimations INSTAT/BNGRC diffusées sur HDX. Pour les fokontany, une estimation calée sur le recensement est aussi produite : la population recensée de chaque commune est répartie entre ses fokontany (`data/traite/recensement/fokontany_estimation_calee_rgph3.csv`). Ces estimations sont calculées à partir des données de 2009 avec un taux de croissance uniforme, et dépassent le recensement de 4 % au total, avec des écarts de −34 % à +47 % selon les districts. Le recensement compte 1 727 communes, contre 1 579 dans le découpage HDX qui sert aux cartes.
 

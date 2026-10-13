@@ -593,24 +593,38 @@ function fiche() {
 
   if (niveau === "communes") {
     const fk = D.fokontany[i];
-    // Estimation calée sur le recensement quand la commune y est reliée, sinon estimation HDX
+    // Deux vues : 2018 (calée sur le recensement si possible, sinon HDX) ou WorldPop 100 m récent
     const calee = fk.length && fk[0][3] != null;
-    const valeur = f => calee ? f[3] : f[1];
+    const AN = D.meta.annee_wp100;
+    const vues = {
+      "2018": { titre: calee ? "2018, calée sur le recensement" : `${REF}, estimation HDX`, val: f => calee ? f[3] : f[1],
+                note: calee ? "La population recensée de la commune est répartie entre ses fokontany selon leur poids dans l'estimation HDX : le total est exact, la répartition est estimée."
+                            : "Cette commune n'a pas d'équivalent dans le recensement : les chiffres sont ceux de l'estimation HDX." },
+      wp: { titre: `${AN}, WorldPop 100 m`, val: f => f[5],
+            note: `Estimation WorldPop sur grille de 100 m, sommée par fokontany. Survolez un nom pour voir 2018 et 2030.` },
+    };
+    if (!(etat.vueFk in vues)) etat.vueFk = "2018";
     const b = el.append("div").attr("class", "bloc");
-    b.append("span").attr("class", "etiquette").text(
-      `${fk.length} fokontany · ${calee ? "estimation 2018 calée sur le recensement" : `estimation HDX ${REF}`}`);
-    const max = d3.max(fk, valeur);
+    const tete = b.append("div").style("display", "flex").style("flex-wrap", "wrap").style("gap", "8px")
+      .style("align-items", "center").style("justify-content", "space-between");
+    tete.append("span").attr("class", "etiquette").text(`${fk.length} fokontany`);
+    const choix = tete.append("div").attr("class", "onglets").attr("role", "group").attr("aria-label", "Source des chiffres");
+    for (const [cle, v] of Object.entries(vues)) {
+      choix.append("button").attr("type", "button").attr("aria-pressed", etat.vueFk === cle).style("font-size", "0.8rem")
+        .text(cle === "wp" ? `WorldPop ${AN}` : "2018").on("click", () => { etat.vueFk = cle; fiche(); });
+    }
+    const vue = vues[etat.vueFk], valeur = vue.val;
+    b.append("small").attr("class", "note").style("margin", 0).text(`Population ${vue.titre}`);
+    const max = d3.max(fk, valeur) || 1;
     const ul = b.append("ul").attr("class", "liste-fk");
     fk.slice().sort((a, b2) => valeur(b2) - valeur(a)).forEach(f => {
       const li = ul.append("li").classed("repere", f[0] === etat.fkRepere)
-        .attr("title", calee ? `Estimation HDX : ${entier(f[1])}` : null);
+        .attr("title", `Estimation HDX ${REF} : ${entier(f[1])}${f[3] != null ? ` · calée : ${entier(f[3])}` : ""} · WorldPop 2018 : ${entier(f[4])}, ${AN} : ${entier(f[5])}, 2030 : ${entier(f[6])}`);
       li.append("span").text(f[0]);
       li.append("span").attr("class", "tab").text(entier(valeur(f)));
       li.append("span").attr("class", "barre").style("width", `${100 * valeur(f) / max}%`);
     });
-    b.append("small").attr("class", "note").style("margin", 0).text(calee
-      ? "La population recensée de la commune est répartie entre ses fokontany selon leur poids dans l'estimation HDX : le total est exact, la répartition est estimée."
-      : "Cette commune n'a pas d'équivalent dans le recensement : les chiffres sont ceux de l'estimation HDX.");
+    b.append("small").attr("class", "note").style("margin", 0).text(vue.note);
     // Fait défiler la liste seule jusqu'au fokontany cherché, sans déplacer la page.
     const repere = ul.select("li.repere").node();
     if (repere) ul.node().scrollTop = repere.offsetTop - ul.node().offsetTop - 40;

@@ -13,7 +13,8 @@ from urllib3.util.retry import Retry
 
 from config import (BANQUE_MONDIALE_URL, DHS_PAYS, DHS_URL, DOSSIER_BRUT, GEOBOUNDARIES_URL,
                     HDX_DATASET, HDX_URL, INDICATEURS, INDICATEURS_DHS,
-                    INDICATEURS_PROJECTIONS, NIVEAUX, PAYS, RGPH3_URL, SOURCE_PROJECTIONS, WORLDPOP_URL, brut)
+                    INDICATEURS_PROJECTIONS, NIVEAUX, PAYS, RGPH3_URL, SOURCE_PROJECTIONS, WORLDPOP_100M_URL,
+                    WORLDPOP_URL, brut)
 
 TIMEOUT = 60
 
@@ -107,21 +108,46 @@ def dhs():
                    f"DHS Program, enquête {enquete['SurveyId']}", r.url)
 
 
-def worldpop():
-    """Grilles de population WorldPop à 1 km, une par année (2015-2030)."""
-    print("WorldPop (grilles 1 km)...")
-    r = SESSION.get(WORLDPOP_URL, params={"iso3": PAYS}, timeout=TIMEOUT)
+def _telecharger_gros_fichier(url, chemin, essais=5):
+    """Téléchargement en flux vers un fichier temporaire, renommé une fois complet.
+
+    Le serveur de WorldPop coupe parfois la connexion en cours de transfert : on recommence.
+    """
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    partiel = chemin.with_suffix(chemin.suffix + ".partiel")
+    for essai in range(1, essais + 1):
+        try:
+            with SESSION.get(url, stream=True, timeout=300) as r:
+                r.raise_for_status()
+                attendu = int(r.headers.get("Content-Length", 0))
+                with open(partiel, "wb") as f:
+                    for bloc in r.iter_content(chunk_size=1 << 20):
+                        f.write(bloc)
+            if attendu and partiel.stat().st_size != attendu:
+                raise requests.ConnectionError(f"fichier incomplet ({partiel.stat().st_size} sur {attendu} octets)")
+            partiel.replace(chemin)
+            return chemin
+        except requests.RequestException as erreur:
+            if essai == essais:
+                raise
+            print(f"  nouvel essai ({essai}/{essais}) : {erreur}")
+
+
+def worldpop(cle="worldpop", url_api=WORLDPOP_URL, libelle="1 km"):
+    """Grilles de population WorldPop, une par année (2015-2030)."""
+    print(f"WorldPop (grilles {libelle})...")
+    r = SESSION.get(url_api, params={"iso3": PAYS}, timeout=TIMEOUT)
     r.raise_for_status()
-    for jeu in r.json()["data"]:
+    jeux = r.json()["data"]
+    for jeu in jeux:
         url = jeu["files"][0]
-        fichier = brut("worldpop", annee=jeu["popyear"])
-        if fichier.exists():  # déjà téléchargé : les versions publiées ne changent pas
-            _consigner(fichier, "WorldPop R2025A", url, telecharge=False)
-            continue
-        tif = SESSION.get(url, timeout=300)
-        tif.raise_for_status()
-        _ecrire(fichier, tif.content, "WorldPop R2025A", url)
-    print(f"  -> data/brut/worldpop/ ({len(r.json()['data'])} années)")
+        fichier = brut(cle, annee=jeu["popyear"])
+        if not fichier.exists():  # les versions publiées ne changent pas : on garde celles déjà là
+            _telecharger_gros_fichier(url, fichier)
+            _consigner(fichier, f"WorldPop R2025A, {libelle}", url)
+        else:
+            _consigner(fichier, f"WorldPop R2025A, {libelle}", url, telecharge=False)
+    print(f"  -> data/brut/{brut(cle, annee='*').parent.name}/ ({len(jeux)} années)")
 
 
 def rgph3():
@@ -172,6 +198,7 @@ def tout_collecter():
     projections_onu()
     dhs()
     worldpop()
+    worldpop("worldpop_100m", WORLDPOP_100M_URL, "100 m")
     rgph3()
     for niveau in NIVEAUX:
         instat_population(niveau)

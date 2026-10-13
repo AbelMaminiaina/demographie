@@ -14,7 +14,7 @@ Les fichiers de `data/` ne sont pas versionnés dans git : ils sont recréés pa
 | [Population par unité administrative](#instat--population-par-unité-administrative-2009-2018) | INSTAT et BNGRC | OCHA, sur HDX (`cod-ps-mdg`) | Population des régions, districts, communes et fokontany | 2009-2018 | Régions à fokontany | CC BY 3.0 IGO |
 | [Contours administratifs](#geoboundaries--contours-administratifs) | OpenStreetMap (régions) ; BNGRC et OCHA (districts à fokontany) | geoBoundaries (William & Mary) | Limites des 4 niveaux | 2017 (régions), 2020 (autres) | Régions à fokontany | ODbL 1.0 (régions) ; CC BY 3.0 IGO (autres) |
 | [Enquête démographique et de santé](#dhs--enquête-démographique-et-de-santé-2021) | INSTAT, avec l'appui d'ICF (programme DHS) | API du programme DHS | 8 indicateurs de santé et de fécondité | 2021 | Régions | Données agrégées publiques, citation obligatoire |
-| [Grilles de population](#worldpop--estimations-sur-grille-de-1-km) | WorldPop (université de Southampton) | WorldPop Hub | Habitants par carré de 1 km | 2015-2030 | Grille, agrégée aux communes, districts et régions | CC BY 4.0 |
+| [Grilles de population](#worldpop--estimations-sur-grille-de-1-km) | WorldPop (université de Southampton) | WorldPop Hub | Habitants par carré de 1 km et de 100 m | 2015-2030 | Grilles, agrégées aux fokontany (100 m) et aux communes, districts et régions (1 km) | CC BY 4.0 |
 
 ## Fiches par source
 
@@ -129,7 +129,7 @@ Particularités relevées :
 
 Quand l'API donne plusieurs périodes de référence pour un même indicateur, seule la valeur marquée « préférée » (`IsPreferred = 1`) est gardée.
 
-### WorldPop : estimations sur grille de 1 km
+### WorldPop : estimations sur grilles de 1 km et de 100 m
 
 - **Producteur :** WorldPop, université de Southampton, projet Global Demographic Data (financement Fondation Bill & Melinda Gates).
 - **Jeu :** « Constrained estimates of 2015-2030 total number of people per grid square », version R2025A v1, résolution de 30 secondes d'arc (environ 1 km), ajusté aux totaux de l'ONU. DOI [10.5258/SOTON/WP00840](https://doi.org/10.5258/SOTON/WP00840).
@@ -137,6 +137,11 @@ Quand l'API donne plusieurs périodes de référence pour un même indicateur, s
 - **Avertissement du producteur :** R2025A est une version alpha, susceptible d'évoluer.
 - **Licence :** Creative Commons Attribution 4.0.
 - **Fichiers bruts :** `data/brut/worldpop/population_<année>_1km.tif`, de 2015 à 2030 (GeoTIFF, WGS84).
+- **Version à 100 m :** même modèle à une résolution de 3 secondes d'arc (environ 100 m), DOI [10.5258/SOTON/WP00839](https://doi.org/10.5258/SOTON/WP00839).
+  - Fichiers : `data/brut/worldpop_100m/population_<année>_100m.tif`, de 2015 à 2030 (environ 55 Mo par année, 16 388 × 8 757 pixels).
+  - Ses totaux nationaux sont identiques à ceux de la grille à 1 km.
+  - Elle est sommée par fokontany : chaque carré est affecté au fokontany qui contient son centre. 0,08 % de la population tombe hors des contours (littoral).
+  - 2 fokontany, plus petits qu'un carré de 100 m, ne reçoivent aucun habitant.
 - **Fiabilité :** bonne par région ou par district, plus faible par commune. Pour 2018, le rapport WorldPop / INSTAT varie de 0,2 à 6 selon les communes, alors que la médiane est proche de 1.
 
 ### Source écartée : site de l'INSTAT
@@ -163,8 +168,10 @@ data/
 │   │   └── contours_regions.geojson … contours_fokontany.geojson
 │   ├── dhs/
 │   │   └── indicateurs_regions.json
-│   └── worldpop/
-│       └── population_2015_1km.tif … population_2030_1km.tif
+│   ├── worldpop/
+│   │   └── population_2015_1km.tif … population_2030_1km.tif
+│   └── worldpop_100m/
+│       └── population_2015_100m.tif … population_2030_100m.tif
 └── traite/                             Fichiers CSV prêts à l'emploi, un dossier par thème
     ├── national/                       Séries pour l'ensemble du pays
     │   ├── indicateurs_annuels.csv
@@ -179,7 +186,8 @@ data/
     ├── sante/
     │   └── dhs_regions.csv
     └── estimations/
-        └── worldpop_regions.csv, worldpop_districts.csv, worldpop_communes.csv
+        ├── worldpop_regions.csv, worldpop_districts.csv, worldpop_communes.csv
+        └── worldpop_100m_fokontany.csv
 
 sorties/                                Résultats publiés
 ├── *.png                               Graphiques (versionnés, affichés dans le README)
@@ -287,12 +295,16 @@ Une ligne par région : `pcode`, `nom` et les 8 indicateurs du [tableau DHS](#dh
 ### `estimations/worldpop_<niveau>.csv`
 Une ligne par région, district ou commune : `pcode`, `nom`, puis `wp_2015` à `wp_2030` (habitants estimés, arrondis à l'unité).
 
+### `estimations/worldpop_100m_fokontany.csv`
+Une ligne par fokontany (17 464) : `pcode`, `nom`, le rattachement (`commune_pcode`, `commune`, `district_pcode`, `district`, `region_pcode`, `region`), `superficie_km2`, puis `wp100_2015` à `wp100_2030` (habitants estimés à partir de la grille à 100 m, arrondis à l'unité).
+
 ## Traitements
 
 - **Recensement :** les tableaux sont lus dans le PDF à partir de la position des caractères, car le tableau des communes est imprimé à l'horizontale. Les districts et les communes sont reliés par leur nom (voir la fiche RGPH-3).
 - **Noms :** pour relier les sources, les noms sont normalisés : sans accents, apostrophes, tirets ni espaces, avec les chiffres conservés. Les variantes d'orthographe connues sont listées dans `ALIAS_NOMS` (`src/nettoyage.py`), par exemple « Matsiatra Ambony » pour « Haute Matsiatra », ou « Vakinankarata » (orthographe DHS) pour « Vakinankaratra ».
 - **Rattachement des contours :** les communes et les fokontany sont rattachés à leur unité parente en cherchant le contour parent qui contient un point intérieur de l'unité (`src/geometrie.py`), puis par le couple (unité parente, nom).
 - **Superficies :** calculées sur les contours simplifiés, en projection équirectangulaire locale. La superficie totale obtenue (591 000 km²) est proche de la superficie officielle de Madagascar (587 000 km²).
+- **WorldPop 100 m :** chaque carré de 100 m est affecté au fokontany qui contient son centre. Les grilles sont lues par bandes de lignes pour limiter la mémoire.
 - **WorldPop :** chaque carré de 1 km est affecté à la commune qui le contient, puis les sommes sont agrégées aux districts et aux régions.
 - **Contrôles qualité :** le pipeline s'arrête si l'une de ces conditions n'est pas remplie :
   - le nombre d'unités attendu à chaque niveau ;
@@ -303,7 +315,8 @@ Une ligne par région, district ou commune : `pcode`, `nom`, puis `wp_2015` à `
   - les contrôles d'extraction du recensement (voir la fiche RGPH-3) ;
   - chaque commune calée retrouve exactement sa population recensée dans la somme de ses fokontany ;
   - la pyramide des âges cohérente avec la population totale, à 1 % près ;
-  - le total WorldPop proche de celui de l'ONU, à 5 % près, avec moins de 2 % de la population hors des contours.
+  - le total WorldPop proche de celui de l'ONU, à 5 % près, avec moins de 2 % de la population hors des contours ;
+  - pour la grille à 100 m : le même total national qu'à 1 km, à 2 % près, et moins de 1 % de la population hors des fokontany.
 
 ## Citer ces données
 
@@ -315,4 +328,4 @@ Toute réutilisation des fichiers de ce projet doit mentionner les sources d'ori
 - INSTAT et BNGRC, *Madagascar - Subnational Population Statistics*, diffusé par OCHA sur HDX (CC BY 3.0 IGO).
 - geoBoundaries (Runfola et al., 2020) ; régions © contributeurs OpenStreetMap (ODbL 1.0) ; districts, communes et fokontany : BNGRC et OCHA (CC BY 3.0 IGO).
 - INSTAT et ICF, *Enquête démographique et de santé de Madagascar 2021* (The DHS Program, API publique).
-- Bondarenko M. et al. (2025), *Constrained estimates of 2015-2030 total number of people per grid square*, WorldPop, université de Southampton, R2025A v1, doi:10.5258/SOTON/WP00840 (CC BY 4.0).
+- Bondarenko M. et al. (2025), *Constrained estimates of 2015-2030 total number of people per grid square*, WorldPop, université de Southampton, R2025A v1, doi:10.5258/SOTON/WP00840 (1 km) et doi:10.5258/SOTON/WP00839 (100 m) (CC BY 4.0).

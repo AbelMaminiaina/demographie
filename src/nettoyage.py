@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.features import rasterize
+from rasterio.windows import Window
 
 from config import (DOSSIER_TRAITE, INDICATEURS, INDICATEURS_DHS, INDICATEURS_PROJECTIONS,
                     NIVEAUX, PARENTS, RGPH3_TOTAL, brut, traite)
@@ -413,6 +414,47 @@ def fokontany_cales(niveaux, rgph):
                "decoupage_identique"]]
 
 
+def worldpop_fokontany(niveaux, estimations_1km, bande=2048):
+    """Somme des pixels WorldPop à 100 m par fokontany et par année.
+
+    Chaque pixel est affecté au fokontany dont le contour contient son centre. Les grilles
+    (16 388 × 8 757 pixels) sont lues par bandes de lignes pour limiter la mémoire.
+    """
+    unites = niveaux["fokontany"]["unites"]
+    contours = niveaux["fokontany"]["contours"]
+    cles = list(unites["cle"])
+    motif = brut("worldpop_100m", annee="*")
+    fichiers = sorted(motif.parent.glob(motif.name))
+    if not fichiers:
+        raise ValueError("WorldPop 100 m : aucune grille téléchargée")
+    zones, colonnes, erreurs = None, {}, []
+    for fichier in fichiers:
+        annee = int(fichier.stem.split("_")[1])
+        with rasterio.open(fichier) as src:
+            if zones is None:  # toutes les années partagent la même grille
+                zones = rasterize(((contours[c], i + 1) for i, c in enumerate(cles)), out_shape=src.shape,
+                                  transform=src.transform, fill=0, dtype="uint16")
+            sommes = np.zeros(len(cles) + 1)
+            for ligne in range(0, src.height, bande):
+                hauteur = min(bande, src.height - ligne)
+                grille = src.read(1, window=Window(0, ligne, src.width, hauteur), masked=True).filled(0)
+                sommes += np.bincount(zones[ligne:ligne + hauteur].ravel(),
+                                      weights=grille.astype("float64").ravel(), minlength=len(cles) + 1)
+        # Contrôles : même total national que la grille à 1 km, presque tout dans un fokontany
+        total_1km = estimations_1km.loc[estimations_1km["annee"] == annee, "population"].sum()
+        hors = sommes[0] / sommes.sum()
+        if hors > 0.01:
+            erreurs.append(f"{annee} : {hors:.1%} de la population hors des fokontany")
+        if total_1km and abs(sommes[1:].sum() / total_1km - 1) > 0.02:
+            erreurs.append(f"{annee} : total {sommes[1:].sum():,.0f} contre {total_1km:,.0f} à 1 km")
+        colonnes[f"wp100_{annee}"] = np.round(sommes[1:]).astype(int)
+    if erreurs:
+        raise ValueError("WorldPop 100 m :\n- " + "\n- ".join(erreurs))
+    resultat = unites[["cle", "pcode", "nom", "commune_pcode", "commune", "district_pcode", "district",
+                       "region_pcode", "region", "superficie_km2"]].reset_index(drop=True)
+    return pd.concat([resultat, pd.DataFrame(colonnes)], axis=1)
+
+
 def tout_nettoyer():
     """Renvoie un dictionnaire avec :
     - series, pyramide : indicateurs nationaux (Banque mondiale) ;
@@ -421,7 +463,8 @@ def tout_nettoyer():
     - dhs : indicateurs régionaux de la dernière enquête DHS ;
     - worldpop : estimations annuelles 2015-2030 par région, district et commune ;
     - rgph3 : résultats du recensement de 2018 par région, district et commune ;
-    - fokontany_cales : population 2018 des fokontany estimée en calant sur le recensement.
+    - fokontany_cales : population 2018 des fokontany estimée en calant sur le recensement ;
+    - worldpop_100m : estimations WorldPop à 100 m par fokontany, 2015-2030.
     """
     DOSSIER_TRAITE.mkdir(parents=True, exist_ok=True)
     series, pyramide = indicateurs_nationaux()
@@ -444,6 +487,9 @@ def tout_nettoyer():
     estimations = worldpop(niveaux, proj)
     print(f"  WorldPop : {estimations['communes']['annee'].min()}-"
           f"{estimations['communes']['annee'].max()}, contrôle du total national OK")
+    wp100 = worldpop_fokontany(niveaux, estimations["communes"])
+    annees_100m = [c for c in wp100.columns if c.startswith("wp100_")]
+    print(f"  WorldPop 100 m : {len(annees_100m)} années pour {len(wp100)} fokontany, contrôles OK")
     rgph = recensement(niveaux)
     reliees = rgph["communes"]["correspondance"].value_counts()
     print(f"  RGPH-3 : {len(rgph['districts'])} districts, {len(rgph['communes'])} communes "
@@ -465,6 +511,7 @@ def tout_nettoyer():
     sortie["population_calee"] = sortie["population_calee"].astype("Int64")
     sortie["population_commune_rgph3"] = sortie["population_commune_rgph3"].astype("Int64")
     sortie.round(2).to_csv(traite("fokontany_cales"), index=False)
+    wp100.drop(columns="cle").round(2).to_csv(traite("worldpop_100m"), index=False)
     for niveau, donnees in niveaux.items():
         donnees["population"].drop(columns="cle").to_csv(
             traite("series", niveau=niveau), index=False)
@@ -478,4 +525,5 @@ def tout_nettoyer():
     print(f"  -> {len(series)} années d'indicateurs, "
           + ", ".join(f"{len(d['unites'])} {n}" for n, d in niveaux.items()))
     return {"series": series, "pyramide": pyramide, "projections": proj, "niveaux": niveaux,
-            "dhs": table_dhs, "worldpop": estimations, "rgph3": rgph, "fokontany_cales": cales}
+            "dhs": table_dhs, "worldpop": estimations, "rgph3": rgph, "fokontany_cales": cales,
+            "worldpop_100m": wp100}
