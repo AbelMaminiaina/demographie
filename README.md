@@ -6,9 +6,11 @@ Pipeline qui télécharge, nettoie et visualise les données démographiques de 
 
 ![Évolution démographique de Madagascar](sorties/tendances.png)
 
-| Pyramide des âges | Population par région |
+| Population par région | Densité par district |
 |---|---|
-| ![Pyramide des âges](sorties/pyramide_ages.png) | ![Population par région](sorties/carte_population_regions.png) |
+| ![Population par région](sorties/carte_population_regions.png) | ![Densité par district](sorties/carte_densite_districts.png) |
+
+![Pyramide des âges](sorties/pyramide_ages.png)
 
 Les graphiques sont régénérés à chaque exécution du pipeline.
 
@@ -36,13 +38,15 @@ python src/pipeline.py --sans-collecte  # réutilise les données déjà téléc
 ## Sources
 
 - **Banque mondiale** (API WDI + Santé/Population) : séries nationales depuis 1960 et effectifs par âge et sexe.
-- **HDX / OCHA** (`cod-ps-mdg`) : population par région 2009-2018, d'après les projections INSTAT et le RGPH-3.
-- **geoBoundaries** : contours simplifiés des 22 régions.
+- **HDX / OCHA** (`cod-ps-mdg`) : population par région (22) et par district (119, dont les 6 arrondissements d'Antananarivo) d'après le RGPH-3 de 2018.
+- **geoBoundaries** : contours simplifiés des régions et des districts. Ils servent aussi au calcul des superficies et des densités.
 
-## Harmonisation des noms de régions
+Les années 2009-2017 des fichiers HDX ne sont pas des observations : elles sont rétropolées depuis 2018 avec un taux national unique (2,72 %/an). Elles ne permettent donc pas de comparer la croissance entre régions ou districts.
+
+## Harmonisation des noms
 
 Les sources écrivent les noms différemment (« Haute Matsiatra » / « Matsiatra Ambony », « Amoron I Mania » / « Amoron'i Mania »).
-`nettoyage.cle_region()` normalise les noms. Une nouvelle variante s'ajoute dans `ALIAS_REGIONS`.
+`nettoyage.cle_nom()` normalise les noms en gardant les chiffres, ce qui distingue « 2e Arrondissement » de « 3e Arrondissement ». Une nouvelle variante s'ajoute dans `ALIAS_NOMS`.
 
 Les sources régionales utilisent encore le découpage en 22 régions, où Vatovavy-Fitovinany forme une seule région. La séparation en Vatovavy et Fitovinany (2021) n'y apparaît pas encore.
 
@@ -58,6 +62,6 @@ Lancement manuel : onglet **Actions**, puis **Mise à jour mensuelle**, puis **R
 
 ## Pistes suivantes
 
-- Données par district et par commune (ADM2 à ADM4, déjà disponibles sur HDX).
+- Données par commune et par fokontany (ADM3 et ADM4, déjà disponibles sur HDX).
 - Extraction des tableaux PDF de l'INSTAT.
 - Base de données (DuckDB/PostgreSQL) et tableau de bord interactif.

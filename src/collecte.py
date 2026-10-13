@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import requests
 
 from config import (BANQUE_MONDIALE_URL, DOSSIER_BRUT, GEOBOUNDARIES_URL,
-                    HDX_DATASET, HDX_URL, INDICATEURS, PAYS)
+                    HDX_DATASET, HDX_URL, INDICATEURS, NIVEAUX, PAYS)
 
 TIMEOUT = 60
 
@@ -45,31 +45,33 @@ def banque_mondiale():
     return _ecrire("banque_mondiale.json", json.dumps(lignes, ensure_ascii=False))
 
 
-def hdx_population_regions():
-    """Population par région (ADM1), projections INSTAT publiées sur HDX."""
-    print("HDX (population par région)...")
+def hdx_population(niveau):
+    """Population par unité administrative, projections INSTAT publiées sur HDX."""
+    code = NIVEAUX[niveau]["code"].lower()
+    print(f"HDX (population par {niveau})...")
     r = requests.get(f"{HDX_URL}/package_show", params={"id": HDX_DATASET}, timeout=TIMEOUT)
     r.raise_for_status()
     ressource = next(x for x in r.json()["result"]["resources"]
-                     if x["name"].endswith("adm1_2018.csv"))
+                     if x["name"].endswith(f"{code}_2018.csv"))
     fichier = requests.get(ressource["url"], timeout=TIMEOUT)
     fichier.raise_for_status()
-    return _ecrire("hdx_population_adm1.csv", fichier.content)
+    return _ecrire(f"hdx_population_{code}.csv", fichier.content)
 
 
-def limites_regions():
-    """Contours simplifiés des régions (geoBoundaries)."""
-    print("geoBoundaries (contours des régions)...")
-    r = requests.get(GEOBOUNDARIES_URL, timeout=TIMEOUT)
+def limites(niveau):
+    """Contours simplifiés des unités administratives (geoBoundaries)."""
+    print(f"geoBoundaries (contours des {niveau})...")
+    r = requests.get(GEOBOUNDARIES_URL.format(niveau=NIVEAUX[niveau]["code"]), timeout=TIMEOUT)
     r.raise_for_status()
     geo = requests.get(r.json()["simplifiedGeometryGeoJSON"], timeout=TIMEOUT)
     geo.raise_for_status()
-    return _ecrire("regions.geojson", geo.content)
+    return _ecrire(f"{niveau}.geojson", geo.content)
 
 
 def tout_collecter():
     banque_mondiale()
-    hdx_population_regions()
-    limites_regions()
+    for niveau in NIVEAUX:
+        hdx_population(niveau)
+        limites(niveau)
     horodatage = datetime.now(timezone.utc).isoformat(timespec="seconds")
     _ecrire("derniere_collecte.txt", horodatage + "\n")

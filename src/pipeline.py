@@ -21,9 +21,9 @@ def main():
         print("[1/3] Collecte")
         tout_collecter()
     print("[2/3] Nettoyage et contrôles")
-    series, pyramide, regions = tout_nettoyer()
+    series, pyramide, regions, districts = tout_nettoyer()
     print("[3/3] Graphiques et rapport")
-    tout_visualiser(series, pyramide, regions)
+    tout_visualiser(series, pyramide, regions, districts)
     print("Terminé.")
 
 

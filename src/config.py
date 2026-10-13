@@ -11,7 +11,13 @@ PAYS = "MDG"
 BANQUE_MONDIALE_URL = "https://api.worldbank.org/v2"
 HDX_URL = "https://data.humdata.org/api/3/action"
 HDX_DATASET = "cod-ps-mdg"
-GEOBOUNDARIES_URL = "https://www.geoboundaries.org/api/current/gbOpen/MDG/ADM1/"
+GEOBOUNDARIES_URL = "https://www.geoboundaries.org/api/current/gbOpen/MDG/{niveau}/"
+
+# Découpages administratifs : code HDX/geoBoundaries et nombre d'unités attendu
+NIVEAUX = {
+    "regions": {"code": "ADM1", "attendus": 22},
+    "districts": {"code": "ADM2", "attendus": 119},  # dont 6 arrondissements d'Antananarivo
+}
 
 # Indicateurs nationaux (code Banque mondiale -> nom de colonne)
 INDICATEURS = {
