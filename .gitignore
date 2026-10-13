@@ -1,4 +1,5 @@
 data/
-sorties/
+sorties/*
+!sorties/*.png
 __pycache__/
 .venv/

@@ -2,6 +2,16 @@
 
 Pipeline qui télécharge, nettoie et visualise les données démographiques de Madagascar.
 
+## Aperçu
+
+![Évolution démographique de Madagascar](sorties/tendances.png)
+
+| Pyramide des âges | Population par région |
+|---|---|
+| ![Pyramide des âges](sorties/pyramide_ages.png) | ![Population par région](sorties/carte_population_regions.png) |
+
+Les graphiques sont régénérés à chaque exécution du pipeline.
+
 ## Installation
 
 ```bash
