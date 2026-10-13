@@ -6,19 +6,48 @@ Pipeline qui télécharge, nettoie et visualise les données démographiques de 
 
 **https://abelmaminiaina.github.io/demographie/**
 
-[![Tableau de bord : vue d'ensemble, population des régions au recensement de 2018](docs/captures/vue_ensemble.png)](https://abelmaminiaina.github.io/demographie/)
+[![Application : vue d'ensemble et population des régions au recensement de 2018](docs/captures/vue_ensemble.png)](https://abelmaminiaina.github.io/demographie/)
 
-[![Tableau de bord : densité estimée par fokontany et fiche du fokontany d'Ambohibao](docs/captures/fokontany.png)](https://abelmaminiaina.github.io/demographie/)
+[![Application en malgache et en thème sombre : densité estimée par fokontany](docs/captures/fokontany.png)](https://abelmaminiaina.github.io/demographie/)
 
-Une carte de Madagascar à quatre niveaux (régions, districts, communes et 17 464 fokontany). Elle propose les résultats du recensement de 2018, les estimations et la croissance WorldPop année par année (grille de 100 m pour les fokontany), la population des fokontany calée sur le recensement, et les indicateurs de santé DHS. Le tableau de bord propose aussi :
+L'application propose une carte de Madagascar à quatre niveaux (régions, districts, communes et 17 464 fokontany) sur un fond de carte réel (routes, noms de lieux). On peut y afficher :
+
+- les résultats du recensement de 2018 ;
+- les estimations et la croissance WorldPop, année par année (grille de 100 m pour les fokontany) ;
+- la population des fokontany calée sur le recensement ;
+- les indicateurs de santé DHS.
+
+Elle offre aussi :
 
 - une recherche jusqu'au fokontany ;
 - une fiche par lieu (évolution 2015-2030, indicateurs DHS de la région, liste des fokontany d'une commune) ;
-- la population de 1960 à 2050 ;
-- une pyramide des âges année par année ;
-- un classement triable.
+- la population de 1960 à 2050 et une pyramide des âges année par année ;
+- la pauvreté et l'emploi d'après les enquêtes EPM, ENEMPSI et ENESI ;
+- un classement triable ;
+- une interface **en français et en malgache**, avec un thème clair, sombre ou automatique.
 
-La page est un fichier HTML autonome (`sorties/tableau_de_bord/index.html`), régénéré par le pipeline et republié chaque mois sur GitHub Pages. Elle s'ouvre aussi directement depuis le disque. Les captures ci-dessus sont dans `docs/captures/`.
+Deux versions sont publiées :
+
+| Version | Adresse | Technique |
+|---|---|---|
+| Application | https://abelmaminiaina.github.io/demographie/ | React, MapLibre, Tailwind (dossier `web/`) |
+| Classique | https://abelmaminiaina.github.io/demographie/classique/ | Page HTML autonome (`sorties/tableau_de_bord/index.html`), lisible même sans serveur |
+
+### Lancer l'application en local
+
+Prérequis : Python 3.13 et Node.js 22.
+
+```bash
+pip install -r requirements.txt
+python src/pipeline.py                  # produit les données, dont sorties/web/donnees/
+cd web
+npm install
+npm run dev                             # http://localhost:5173
+```
+
+`npm run build` construit la version publiée dans `web/dist/`. La version classique s'ouvre directement : `sorties/tableau_de_bord/index.html`.
+
+**Traductions :** les textes sont dans `web/src/i18n/fr.ts` et `web/src/i18n/mg.ts`. La version malgache est une première proposition, à faire relire par un locuteur natif. Un texte absent de `mg.ts` s'affiche en français.
 
 ## Aperçu
 
@@ -64,7 +93,8 @@ python src/pipeline.py --sans-collecte  # réutilise les données déjà téléc
 | 1. Collecte | `src/collecte.py` | `data/brut/<source>/`, `journal_collecte.json` |
 | 2. Nettoyage et contrôles qualité | `src/nettoyage.py` | `data/traite/<thème>/*.csv` |
 | 3. Graphiques et rapport | `src/visualisation.py` | `sorties/` |
-| 4. Tableau de bord | `src/tableau_de_bord.py`, `src/modele_tableau_de_bord.html` | `sorties/tableau_de_bord/` |
+| 4. Tableau de bord, version classique | `src/tableau_de_bord.py`, `src/modele_tableau_de_bord.html` | `sorties/tableau_de_bord/` |
+| 5. Données de l'application web | `src/donnees_web.py` | `sorties/web/donnees/` |
 
 ## Sources des données
 

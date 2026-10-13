@@ -1,0 +1,86 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+/* Mise en page : barre supérieure fixe, bandeau d'indicateurs, carte plein cadre avec fiche à droite,
+   puis sections d'analyse. Les couleurs sont des jetons, redéfinis pour le thème sombre. */
+:root {
+  --fond: #f5f6f4;
+  --surface: #ffffff;
+  --surface-2: #f0f2ef;
+  --encre: #13201d;
+  --encre-2: #4c5955;
+  --discret: #7d8783;
+  --trait: #e0e4e1;
+  --trait-fort: #c4cbc7;
+  --accent: #2a78d6;
+  --accent-doux: #e3eefb;
+  --homme: #2a78d6;
+  --femme: #eb6834;
+  --serie-3: #1baf7a;
+  --vide: #e4e7e5;
+  --selection: #13201d;
+  --q1: #cde2fb; --q2: #9ec5f4; --q3: #6da7ec; --q4: #3987e5; --q5: #256abf; --q6: #184f95; --q7: #0d366b;
+  --d1: #1c5cab; --d2: #5598e7; --d3: #b7d3f6; --d4: #f0efec; --d5: #f3b9b8; --d6: #e46e6d; --d7: #b92f2f;
+  --ombre: 0 1px 2px rgb(16 24 22 / 0.06), 0 8px 24px rgb(16 24 22 / 0.06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fond: #0e1413; --surface: #161e1c; --surface-2: #1c2523; --encre: #eef2f0; --encre-2: #b9c3bf;
+    --discret: #87918d; --trait: #26302d; --trait-fort: #38433f; --accent: #5598e7; --accent-doux: #182b3e;
+    --homme: #3987e5; --femme: #d95926; --serie-3: #199e70; --vide: #232c2a; --selection: #ffffff;
+    --q1: #12304f; --q2: #104281; --q3: #184f95; --q4: #256abf; --q5: #3987e5; --q6: #6da7ec; --q7: #b7d3f6;
+    --d1: #9ec5f4; --d2: #3987e5; --d3: #184f95; --d4: #383835; --d5: #7a2626; --d6: #c94a4a; --d7: #f09a99;
+    --ombre: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --fond: #0e1413; --surface: #161e1c; --surface-2: #1c2523; --encre: #eef2f0; --encre-2: #b9c3bf;
+  --discret: #87918d; --trait: #26302d; --trait-fort: #38433f; --accent: #5598e7; --accent-doux: #182b3e;
+  --homme: #3987e5; --femme: #d95926; --serie-3: #199e70; --vide: #232c2a; --selection: #ffffff;
+  --q1: #12304f; --q2: #104281; --q3: #184f95; --q4: #256abf; --q5: #3987e5; --q6: #6da7ec; --q7: #b7d3f6;
+  --d1: #9ec5f4; --d2: #3987e5; --d3: #184f95; --d4: #383835; --d5: #7a2626; --d6: #c94a4a; --d7: #f09a99;
+  --ombre: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
+  color-scheme: dark;
+}
+
+@theme {
+  --font-sans: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --color-fond: var(--fond);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-encre: var(--encre);
+  --color-encre-2: var(--encre-2);
+  --color-discret: var(--discret);
+  --color-trait: var(--trait);
+  --color-trait-fort: var(--trait-fort);
+  --color-accent: var(--accent);
+  --color-accent-doux: var(--accent-doux);
+}
+
+html { background: var(--fond); }
+body { margin: 0; background: var(--fond); color: var(--encre); font-family: var(--font-sans); font-size: 15px; line-height: 1.5; }
+h1, h2, h3 { text-wrap: balance; }
+.chiffre { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.etiquette { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--discret); font-weight: 600; }
+.carte-ui { background: var(--surface); border: 1px solid var(--trait); border-radius: 14px; box-shadow: var(--ombre); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+/* Contrôle segmenté réutilisé (niveaux, langue, thème) */
+.segments { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--trait); }
+.segments button { border: 0; background: transparent; color: var(--encre-2); padding: 5px 11px; border-radius: 7px; cursor: pointer; font: inherit; font-size: 0.86rem; white-space: nowrap; }
+.segments button[aria-pressed="true"] { background: var(--surface); color: var(--encre); box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); font-weight: 600; }
+
+/* Ajustements de MapLibre aux thèmes */
+.maplibregl-ctrl-group { background: var(--surface) !important; border: 1px solid var(--trait); }
+.maplibregl-ctrl-group button + button { border-top-color: var(--trait) !important; }
+/* Icônes de zoom (sombres par défaut) inversées en thème sombre */
+:root[data-theme="dark"] .maplibregl-ctrl-icon { filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .maplibregl-ctrl-icon { filter: invert(1); } }
+.maplibregl-ctrl-attrib { background: color-mix(in srgb, var(--surface) 80%, transparent) !important; color: var(--encre-2); font-size: 11px; }
+.maplibregl-ctrl-attrib a { color: var(--encre-2) !important; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

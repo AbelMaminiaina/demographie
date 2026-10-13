@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - "src/**"
+      - "web/**"
       - "requirements.txt"
       - ".github/workflows/mise-a-jour-mensuelle.yml"
 
@@ -61,10 +62,29 @@ jobs:
           retention-days: 90
           if-no-files-found: ignore
 
-      - name: Préparer le tableau de bord pour GitHub Pages
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Construire l'application web
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      # Site publié : l'application React à la racine, la page HTML d'origine sous /classique/
+      - name: Assembler le site
+        run: |
+          mkdir -p site/classique
+          cp -r web/dist/. site/
+          cp sorties/tableau_de_bord/index.html site/classique/index.html
+
+      - name: Préparer le site pour GitHub Pages
         uses: actions/upload-pages-artifact@v5
         with:
-          path: sorties/tableau_de_bord
+          path: site
 
       - name: Commiter les graphiques s'ils ont changé
         run: |

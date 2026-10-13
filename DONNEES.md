@@ -237,7 +237,8 @@ data/
 sorties/                                Résultats publiés
 ├── *.png                               Graphiques (versionnés, affichés dans le README)
 ├── rapport.md                          Rapport de synthèse
-└── tableau_de_bord/index.html          Tableau de bord interactif (publié sur GitHub Pages)
+├── tableau_de_bord/index.html          Tableau de bord, version classique (publiée sous /classique/)
+└── web/donnees/                        Données de l'application React (base, attributs et contours par niveau)
 ```
 
 ### Journal de collecte

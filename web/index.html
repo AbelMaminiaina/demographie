@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Démographie de Madagascar</title>
+    <meta name="description" content="Population, densité, croissance, santé, pauvreté et emploi à Madagascar, de la région au fokontany." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M19 3c4 3 6 8 5 13-1 6-4 11-9 13-3-2-4-6-3-10 1-6 3-11 7-16z' fill='%232a78d6'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+    <script>
+      // Thème et langue mémorisés, appliqués avant l'affichage pour éviter un clignotement
+      try {
+        var t = localStorage.getItem("mdg-theme");
+        if (t === "clair") document.documentElement.dataset.theme = "light";
+        if (t === "sombre") document.documentElement.dataset.theme = "dark";
+        var l = localStorage.getItem("mdg-langue");
+        if (l === "mg") document.documentElement.lang = "mg";
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="racine"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

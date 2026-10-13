@@ -3,3 +3,4 @@ sorties/*
 !sorties/*.png
 __pycache__/
 .venv/
+site/
