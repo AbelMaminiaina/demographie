@@ -8,8 +8,8 @@ import pandas as pd
 import rasterio
 from rasterio.features import rasterize
 
-from config import (DOSSIER_BRUT, DOSSIER_TRAITE, INDICATEURS, INDICATEURS_DHS,
-                    INDICATEURS_PROJECTIONS, NIVEAUX, PARENTS)
+from config import (DOSSIER_TRAITE, INDICATEURS, INDICATEURS_DHS, INDICATEURS_PROJECTIONS,
+                    NIVEAUX, PARENTS, brut, traite)
 from geometrie import boite, contient, point_interieur, superficie_km2
 
 # Variantes d'orthographe connues -> forme normalisée de référence
@@ -30,18 +30,18 @@ def cle_nom(nom):
     return ALIAS_NOMS.get(cle, cle)
 
 
-def _lire_banque_mondiale(fichier):
-    with open(DOSSIER_BRUT / fichier, encoding="utf-8") as f:
-        brut = pd.DataFrame(json.load(f))
+def _lire_banque_mondiale(cle):
+    with open(brut(cle), encoding="utf-8") as f:
+        lu = pd.DataFrame(json.load(f))
     return pd.DataFrame({
-        "code": brut["indicator"].str["id"],
-        "annee": brut["date"].astype(int),
-        "valeur": brut["value"],
+        "code": lu["indicator"].str["id"],
+        "annee": lu["date"].astype(int),
+        "valeur": lu["value"],
     }).dropna()
 
 
 def indicateurs_nationaux():
-    df = _lire_banque_mondiale("banque_mondiale.json")
+    df = _lire_banque_mondiale("indicateurs")
 
     series = (df[df["code"].isin(INDICATEURS)]
               .pivot(index="annee", columns="code", values="valeur")
@@ -60,8 +60,9 @@ def indicateurs_nationaux():
 def population(niveau):
     """Population par unité administrative et par année, au format long."""
     code = NIVEAUX[niveau]["code"]
-    df = pd.read_csv(DOSSIER_BRUT / f"hdx_population_{code.lower()}.csv", encoding="utf-8-sig")
-    # La dernière colonne « T_TL » correspond à 2018 (année du RGPH-3).
+    df = pd.read_csv(brut("population", code=code.lower()), encoding="utf-8-sig")
+    # La dernière colonne « T_TL » correspond à 2018. Ce sont des estimations INSTAT/BNGRC
+    # projetées depuis les données de 2009, pas les résultats du recensement RGPH-3.
     df = df.rename(columns={"T_TL": "T_TL_2018"})
     identifiants = {f"{code}_PCODE": "pcode", f"{code}_EN": "nom"}
     for parent, colonne in (("ADM1", "region"), ("ADM2", "district"), ("ADM3", "commune")):
@@ -85,11 +86,12 @@ def population(niveau):
         colonnes = [c for c in long.columns if c not in ("pcode", "population")]
         long = (long.groupby(colonnes, as_index=False)
                 .agg(pcode=("pcode", "|".join), population=("population", "sum")))
+        long = long[["pcode", *[c for c in long.columns if c != "pcode"]]]
     return long.sort_values(["annee", "pcode"]).reset_index(drop=True)
 
 
 def _lire_contours(niveau):
-    with open(DOSSIER_BRUT / f"{niveau}.geojson", encoding="utf-8") as f:
+    with open(brut("contours", niveau=niveau), encoding="utf-8") as f:
         return json.load(f)["features"]
 
 
@@ -134,7 +136,7 @@ def rattacher_contours(niveau, cles_connues, contours_parent=None, cles_fusionne
 
 
 def table_unites(df, contours):
-    """Population, superficie et densité pour l'année la plus récente (2018, RGPH-3)."""
+    """Population, superficie et densité pour l'année la plus récente (estimation 2018)."""
     t = df[df["annee"] == df["annee"].max()].drop(columns="annee").copy()
     t["superficie_km2"] = [superficie_km2(contours[c]) for c in t["cle"]]
     t["densite"] = t["population"] / t["superficie_km2"]
@@ -175,16 +177,16 @@ def controles(series, pyramide, niveaux):
 
 def projections():
     """Projections ONU (WPP) annuelles jusqu'en 2050."""
-    df = _lire_banque_mondiale("projections_onu.json")
+    df = _lire_banque_mondiale("projections")
     return (df.pivot(index="annee", columns="code", values="valeur")
             .rename(columns=INDICATEURS_PROJECTIONS).sort_index())
 
 
 def dhs(regions):
     """Indicateurs DHS de la dernière enquête, une ligne par région (22)."""
-    with open(DOSSIER_BRUT / "dhs.json", encoding="utf-8") as f:
-        brut = json.load(f)
-    df = pd.DataFrame(brut["donnees"])
+    with open(brut("dhs"), encoding="utf-8") as f:
+        lu = json.load(f)
+    df = pd.DataFrame(lu["donnees"])
     # « Province » sans préfixe, « ..Région », « ....sous-région » : on garde les régions.
     df = df[df["CharacteristicLabel"].str.match(r"^\.\.[^.]")]
     df = df[df["IsPreferred"] == 1].copy()
@@ -199,7 +201,7 @@ def dhs(regions):
     if inconnues or manquantes:
         raise ValueError(f"DHS : régions non reconnues {inconnues}, régions manquantes {manquantes}")
     table = ref.join(table).reset_index()
-    enquete = brut["enquete"]
+    enquete = lu["enquete"]
     table.attrs["enquete"] = f"{enquete['SurveyType']} {enquete['SurveyYear']}"
     return table[["cle", "pcode", "nom", *[c for c in INDICATEURS_DHS.values() if c in table]]]
 
@@ -208,7 +210,8 @@ def worldpop(niveaux, series_projetees):
     """Somme des pixels WorldPop par commune et par année, agrégée aux niveaux supérieurs."""
     contours = niveaux["communes"]["contours"]
     cles = list(contours)
-    fichiers = sorted((DOSSIER_BRUT / "worldpop").glob("worldpop_*.tif"))
+    motif = brut("worldpop", annee="*")
+    fichiers = sorted(motif.parent.glob(motif.name))
     if not fichiers:
         raise ValueError("WorldPop : aucune grille téléchargée")
     zones, lignes, hors_communes = None, [], {}
@@ -273,20 +276,20 @@ def tout_nettoyer():
     print(f"  WorldPop : {estimations['communes']['annee'].min()}-"
           f"{estimations['communes']['annee'].max()}, contrôle du total national OK")
 
-    series.to_csv(DOSSIER_TRAITE / "indicateurs_nationaux.csv")
-    pyramide.to_csv(DOSSIER_TRAITE / "pyramide_ages.csv", index=False)
-    proj.to_csv(DOSSIER_TRAITE / "projections_onu.csv")
-    table_dhs.drop(columns="cle").to_csv(DOSSIER_TRAITE / "dhs_regions.csv", index=False)
+    series.to_csv(traite("indicateurs"))
+    pyramide.to_csv(traite("pyramide"), index=False)
+    proj.to_csv(traite("projections"))
+    table_dhs.drop(columns="cle").to_csv(traite("dhs"), index=False)
     for niveau, donnees in niveaux.items():
         donnees["population"].drop(columns="cle").to_csv(
-            DOSSIER_TRAITE / f"population_{niveau}.csv", index=False)
+            traite("series", niveau=niveau), index=False)
         unites = donnees["unites"]
-        unites.drop(columns="cle").round(2).to_csv(DOSSIER_TRAITE / f"{niveau}.csv", index=False)
+        unites.drop(columns="cle").round(2).to_csv(traite("unites", niveau=niveau), index=False)
         if niveau in estimations:
             large = (estimations[niveau].pivot(index="cle", columns="annee", values="population")
                      .round().astype(int).add_prefix("wp_"))
             unites[["cle", "pcode", "nom"]].join(large, on="cle").drop(columns="cle").to_csv(
-                DOSSIER_TRAITE / f"worldpop_{niveau}.csv", index=False)
+                traite("worldpop", niveau=niveau), index=False)
     print(f"  -> {len(series)} années d'indicateurs, "
           + ", ".join(f"{len(d['unites'])} {n}" for n, d in niveaux.items()))
     return {"series": series, "pyramide": pyramide, "projections": proj, "niveaux": niveaux,

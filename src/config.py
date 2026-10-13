@@ -6,6 +6,38 @@ DOSSIER_BRUT = RACINE / "data" / "brut"
 DOSSIER_TRAITE = RACINE / "data" / "traite"
 DOSSIER_SORTIES = RACINE / "sorties"
 
+# Classement des fichiers (décrit dans DONNEES.md).
+# Données brutes : un dossier par source, fichiers tels que téléchargés.
+BRUT = {
+    "indicateurs": "banque_mondiale/indicateurs_nationaux.json",
+    "projections": "onu_wpp/projections_population.json",
+    "population": "instat_hdx/population_{code}_2018.csv",      # code = adm1 ... adm4
+    "contours": "geoboundaries/contours_{niveau}.geojson",
+    "dhs": "dhs/indicateurs_regions.json",
+    "worldpop": "worldpop/population_{annee}_1km.tif",
+    "journal": "journal_collecte.json",
+}
+# Données traitées : un dossier par thème, fichiers CSV prêts à l'emploi.
+TRAITE = {
+    "indicateurs": "national/indicateurs_annuels.csv",
+    "pyramide": "national/pyramide_ages.csv",
+    "projections": "national/projections_onu.csv",
+    "unites": "territoires/{niveau}.csv",
+    "series": "territoires/{niveau}_series_2009_2018.csv",
+    "dhs": "sante/dhs_regions.csv",
+    "worldpop": "estimations/worldpop_{niveau}.csv",
+}
+
+
+def brut(cle, **parametres):
+    return DOSSIER_BRUT / BRUT[cle].format(**parametres)
+
+
+def traite(cle, **parametres):
+    chemin = DOSSIER_TRAITE / TRAITE[cle].format(**parametres)
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    return chemin
+
 PAYS = "MDG"
 
 BANQUE_MONDIALE_URL = "https://api.worldbank.org/v2"

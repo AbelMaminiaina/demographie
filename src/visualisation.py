@@ -69,7 +69,7 @@ SEUILS_DENSITE = [0, 10, 25, 50, 100, 250, 1_000, 1e9]
 
 
 def _carte(contours, valeurs, seuils, etiquettes, legende, titre, fichier, epaisseur,
-          source="Sources : INSTAT / OCHA (HDX), contours geoBoundaries"):
+          source="Sources : estimations INSTAT/BNGRC 2018 (OCHA, HDX), contours geoBoundaries"):
     """Carte choroplèthe : `contours` et `valeurs` sont indexés par la même clé."""
     cmap = ListedColormap(RAMPE_BLEUE[:len(seuils) - 1])
     norm = BoundaryNorm(seuils, cmap.N)
@@ -213,7 +213,7 @@ def rapport(donnees, annee, annee_courante):
         f"| Espérance de vie | {val('esperance_vie', '{:.1f} ans')} |",
         f"| Population urbaine | {val('urbanisation_pct', '{:.1f} %')} |",
         f"| Ratio de dépendance | {val('ratio_dependance', '{:.1f}')} |", "",
-        f"## Population par région ({annee}, RGPH-3)", "",
+        f"## Population par région ({annee}, estimations INSTAT/BNGRC)", "",
         "| Région | Population | Part | Densité (hab/km²) |", "|---|---:|---:|---:|",
     ]
     reg = niveaux["regions"]["unites"]
@@ -232,7 +232,7 @@ def rapport(donnees, annee, annee_courante):
     dist = niveaux["districts"]["unites"]
     lignes += ["", f"## Districts ({annee}, {len(dist)} districts)", "",
                "Antananarivo Renivohitra est découpé en ses 6 arrondissements. "
-               "Tableau complet : `data/traite/districts.csv`."]
+               "Tableau complet : `data/traite/territoires/districts.csv`."]
     colonnes = {"nom": "District", "region": "Région"}
     tableau("Les 10 plus peuplés", dist.head(10), colonnes)
     tableau("Les 10 plus denses", dist.nlargest(10, "densite"), colonnes)
@@ -242,7 +242,7 @@ def rapport(donnees, annee, annee_courante):
                .agg(communes=("pcode", "size"), population=("population", "sum")))
     lignes += ["", f"## Communes ({annee}, {len(com)} communes)", "",
                f"Population médiane : {nombre(com['population'].median())} habitants. "
-               "Tableau complet : `data/traite/communes.csv`.", "",
+               "Tableau complet : `data/traite/territoires/communes.csv`.", "",
                "### Répartition par densité", "",
                "| Habitants par km² | Communes | Population | Part de la population |",
                "|---|---:|---:|---:|"]
@@ -260,7 +260,7 @@ def rapport(donnees, annee, annee_courante):
     lignes += ["", f"## Fokontany ({annee}, {len(fk)} fokontany)", "",
                f"Population médiane : {nombre(fk['population'].median())} habitants ; "
                f"{(fk['population'] < 500).sum()} fokontany comptent moins de 500 habitants. "
-               "Tableau complet : `data/traite/fokontany.csv`."]
+               "Tableau complet : `data/traite/territoires/fokontany.csv`."]
     colonnes = {"nom": "Fokontany", "commune": "Commune", "district": "District"}
     tableau("Les 10 plus peuplés", fk.head(10), colonnes)
 
@@ -284,7 +284,7 @@ def rapport(donnees, annee, annee_courante):
     noms = {c: n for c, n in noms.items() if c in dhs}
     lignes += ["", f"## Santé et fécondité par région ({dhs.attrs['enquete']})", "",
                "Mortalité infantile : décès avant 1 an pour 1 000 naissances (10 ans précédant l'enquête). "
-               "Tableau complet : `data/traite/dhs_regions.csv`.", "",
+               "Tableau complet : `data/traite/sante/dhs_regions.csv`.", "",
                "| Région | " + " | ".join(noms.values()) + " |", "|---|" + "---:|" * len(noms)]
     for _, r in dhs.sort_values("fecondite_isf", ascending=False).iterrows():
         lignes.append(f"| {r['nom']} | " + " | ".join(f"{r[c]:g}".replace(".", ",") for c in noms) + " |")
@@ -295,10 +295,10 @@ def rapport(donnees, annee, annee_courante):
     croissance = croissance_worldpop(wp["regions"], annee, annee_courante)
     lignes += ["", f"## Estimations WorldPop par région ({annee}-2030)", "",
                "Estimations modélisées sur une grille de 1 km (images satellite, bâti), ajustées aux "
-               "totaux nationaux de l'ONU. Elles complètent le recensement de 2018 pour les années "
+               "totaux nationaux de l'ONU. Elles complètent les estimations officielles de 2018 pour les années "
                "récentes, avec une incertitude plus forte à l'échelle des communes. Tableaux complets : "
-               "`data/traite/worldpop_*.csv`.", "",
-               f"| Région | RGPH {annee} | WorldPop {annee} | WorldPop {annee_courante} | WorldPop 2030 "
+               "`data/traite/estimations/worldpop_*.csv`.", "",
+               f"| Région | INSTAT {annee} | WorldPop {annee} | WorldPop {annee_courante} | WorldPop 2030 "
                f"| Croissance {annee}-{annee_courante} |", "|---|---:|---:|---:|---:|---:|"]
     for _, r in reg.iterrows():
         lignes.append(f"| {r['nom']} | {nombre(r['population'])} | {nombre(large.loc[r['cle'], annee])} "

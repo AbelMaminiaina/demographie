@@ -2,7 +2,7 @@
 import json
 from datetime import date
 
-from config import DOSSIER_BRUT, DOSSIER_SORTIES, INDICATEURS_DHS, RACINE
+from config import DOSSIER_SORTIES, INDICATEURS_DHS, RACINE, brut
 from geometrie import simplifier
 
 MODELE = RACINE / "src" / "modele_tableau_de_bord.html"
@@ -96,11 +96,11 @@ def _niveaux(donnees):
 def generer(donnees):
     niveaux, fokontany, annees_wp = _niveaux(donnees)
     try:
-        collecte = (DOSSIER_BRUT / "derniere_collecte.txt").read_text(encoding="utf-8").strip()[:10]
+        collecte = json.loads(brut("journal").read_text(encoding="utf-8"))["fin"][:10]
     except FileNotFoundError:
         collecte = date.today().isoformat()
     contenu = {
-        "meta": {"collecte": collecte, "annee_rgph": int(donnees["niveaux"]["regions"]["population"]["annee"].max()),
+        "meta": {"collecte": collecte, "annee_ref": int(donnees["niveaux"]["regions"]["population"]["annee"].max()),
                  "annees_wp": annees_wp, "enquete_dhs": donnees["dhs"].attrs.get("enquete", "DHS"),
                  "noms_dhs": {c: n for c, n in NOMS_DHS.items() if c in donnees["dhs"]}},
         **_national(donnees),

@@ -55,25 +55,27 @@ python src/pipeline.py --sans-collecte  # réutilise les données déjà téléc
 
 | Étape | Module | Sorties |
 |---|---|---|
-| 1. Collecte | `src/collecte.py` | `data/brut/` |
-| 2. Nettoyage et contrôles qualité | `src/nettoyage.py` | `data/traite/*.csv` |
+| 1. Collecte | `src/collecte.py` | `data/brut/<source>/`, `journal_collecte.json` |
+| 2. Nettoyage et contrôles qualité | `src/nettoyage.py` | `data/traite/<thème>/*.csv` |
 | 3. Graphiques et rapport | `src/visualisation.py` | `sorties/` |
 | 4. Tableau de bord | `src/tableau_de_bord.py`, `src/modele_tableau_de_bord.html` | `sorties/tableau_de_bord/` |
 
-## Sources
+## Sources des données
 
-| Source | Contenu | Accès |
-|---|---|---|
-| **Banque mondiale** (WDI + Santé/Population) | Séries nationales depuis 1960, effectifs par âge et sexe | API publique |
-| **ONU, World Population Prospects** | Projections jusqu'en 2050 (population, structure par âge) | Via la Banque mondiale (base 40) : l'API de l'ONU exige un jeton |
-| **HDX / OCHA** (`cod-ps-mdg`) | Population 2018 (RGPH-3) des 22 régions, 119 districts, 1 579 communes et 17 465 fokontany | API CKAN |
-| **geoBoundaries** | Contours des quatre niveaux, qui servent aussi au calcul des superficies et des densités | API publique |
-| **DHS Program** | Dernière enquête (2021) par région : fécondité, mortalité infantile, contraception, accouchements, malnutrition, alphabétisation | API publique, sans clé |
-| **WorldPop** (R2025A) | Estimations annuelles 2015-2030 sur grille de 1 km, agrégées par commune, district et région | API publique |
+Le **[catalogue des données](DONNEES.md)** détaille, pour chaque source, le producteur, l'adresse, la licence, la méthode et les limites. Il décrit aussi le classement des fichiers et chaque colonne des fichiers produits.
 
-Les années 2009-2017 des fichiers HDX ne sont pas des observations : elles sont rétropolées depuis 2018 avec un taux national unique (2,72 %/an). Pour l'évolution récente par territoire, il faut utiliser les estimations WorldPop. Ce sont des modèles, moins fiables à l'échelle d'une commune qu'à celle d'un district ou d'une région.
+| Source | Producteur | Contenu | Licence |
+|---|---|---|---|
+| Banque mondiale | ONU, offices statistiques, Banque mondiale | Séries nationales 1960-2025, pyramide des âges | CC BY 4.0 |
+| ONU, World Population Prospects (via la Banque mondiale) | Division de la population de l'ONU | Projections jusqu'en 2050 | CC BY 3.0 IGO |
+| HDX `cod-ps-mdg` | INSTAT et BNGRC, diffusé par OCHA | Population 2009-2018 des régions, districts, communes et fokontany | CC BY 3.0 IGO |
+| geoBoundaries | OpenStreetMap (régions) ; BNGRC et OCHA (autres niveaux) | Contours administratifs | ODbL 1.0 ; CC BY 3.0 IGO |
+| DHS Program | INSTAT et ICF | Santé et fécondité par région (2021) | Données publiques, citation obligatoire |
+| WorldPop R2025A | Université de Southampton | Estimations 2015-2030 sur grille de 1 km | CC BY 4.0 |
 
-**INSTAT** (instat.mg) n'est pas collecté automatiquement. En octobre 2026, sa page d'accueil contenait des liens cachés vers des sites de jeux d'argent, signe d'une compromission du site. Un script ne doit pas suivre ces liens.
+**Attention :** les populations « 2018 » par territoire ne sont pas les résultats du recensement RGPH-3. Ce sont des estimations INSTAT/BNGRC calculées à partir des données de 2009, avec un taux de croissance uniforme. Leur total (26,7 millions) dépasse d'environ un million celui du recensement de 2018.
+
+Le site de l'INSTAT n'est pas collecté automatiquement, car il semble compromis (voir le catalogue).
 
 ## Harmonisation des noms
 

@@ -1,4 +1,9 @@
-"""Étape 1 : téléchargement des données brutes depuis les API publiques."""
+"""Étape 1 : téléchargement des données brutes depuis les API publiques.
+
+Chaque fichier est rangé dans le dossier de sa source (voir `config.BRUT`) et inscrit
+dans `data/brut/journal_collecte.json` : adresse d'origine, date, taille et empreinte SHA-256.
+"""
+import hashlib
 import json
 from datetime import datetime, timezone
 
@@ -8,7 +13,7 @@ from urllib3.util.retry import Retry
 
 from config import (BANQUE_MONDIALE_URL, DHS_PAYS, DHS_URL, DOSSIER_BRUT, GEOBOUNDARIES_URL,
                     HDX_DATASET, HDX_URL, INDICATEURS, INDICATEURS_DHS,
-                    INDICATEURS_PROJECTIONS, NIVEAUX, PAYS, SOURCE_PROJECTIONS, WORLDPOP_URL)
+                    INDICATEURS_PROJECTIONS, NIVEAUX, PAYS, SOURCE_PROJECTIONS, WORLDPOP_URL, brut)
 
 TIMEOUT = 60
 
@@ -17,14 +22,33 @@ SESSION = requests.Session()
 SESSION.mount("https://", HTTPAdapter(max_retries=Retry(
     total=5, backoff_factor=2, status_forcelist=(429, 500, 502, 503, 504))))
 
+JOURNAL = []
 
-def _ecrire(nom, contenu):
-    DOSSIER_BRUT.mkdir(parents=True, exist_ok=True)
-    chemin = DOSSIER_BRUT / nom
-    mode = "wb" if isinstance(contenu, bytes) else "w"
-    with open(chemin, mode, **({} if mode == "wb" else {"encoding": "utf-8"})) as f:
-        f.write(contenu)
-    print(f"  -> {chemin.relative_to(DOSSIER_BRUT.parent.parent)}")
+
+def _maintenant():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _consigner(chemin, source, url, telecharge=True):
+    contenu = chemin.read_bytes()
+    JOURNAL.append({
+        "fichier": chemin.relative_to(DOSSIER_BRUT).as_posix(),
+        "source": source,
+        "url": url,
+        "date": _maintenant() if telecharge else "déjà présent (version publiée inchangée)",
+        "octets": len(contenu),
+        "sha256": hashlib.sha256(contenu).hexdigest(),
+    })
+
+
+def _ecrire(chemin, contenu, source, url):
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    if isinstance(contenu, bytes):
+        chemin.write_bytes(contenu)
+    else:
+        chemin.write_text(contenu, encoding="utf-8")
+    _consigner(chemin, source, url)
+    print(f"  -> data/brut/{chemin.relative_to(DOSSIER_BRUT).as_posix()}")
     return chemin
 
 
@@ -52,22 +76,25 @@ def _series_banque_mondiale(codes, **params):
 
 
 def banque_mondiale():
-    """Indicateurs nationaux (séries annuelles) via l'API WDI."""
-    print("Banque mondiale (WDI)...")
+    """Indicateurs nationaux (séries annuelles) via l'API de la Banque mondiale."""
+    print("Banque mondiale (indicateurs nationaux)...")
     lignes = _series_banque_mondiale(list(INDICATEURS) + codes_pyramide())
-    return _ecrire("banque_mondiale.json", json.dumps(lignes, ensure_ascii=False))
+    return _ecrire(brut("indicateurs"), json.dumps(lignes, ensure_ascii=False), "Banque mondiale (WDI, HNP)",
+                   f"{BANQUE_MONDIALE_URL}/country/{PAYS}/indicator/<code>")
 
 
 def projections_onu():
     """Projections de l'ONU (WPP) jusqu'en 2050, via la Banque mondiale."""
-    print("Projections ONU (via Banque mondiale)...")
+    print("ONU, World Population Prospects (via Banque mondiale)...")
     lignes = _series_banque_mondiale(list(INDICATEURS_PROJECTIONS), source=SOURCE_PROJECTIONS)
-    return _ecrire("projections_onu.json", json.dumps(lignes, ensure_ascii=False))
+    return _ecrire(brut("projections"), json.dumps(lignes, ensure_ascii=False),
+                   "ONU, World Population Prospects (base 40 de la Banque mondiale)",
+                   f"{BANQUE_MONDIALE_URL}/country/{PAYS}/indicator/<code>?source={SOURCE_PROJECTIONS}")
 
 
 def dhs():
     """Indicateurs régionaux de la dernière enquête DHS (API publique, sans clé)."""
-    print("DHS (enquêtes démographiques et de santé)...")
+    print("DHS (enquête démographique et de santé)...")
     r = SESSION.get(f"{DHS_URL}/surveys", params={"countryIds": DHS_PAYS, "surveyType": "DHS",
                                                     "f": "json"}, timeout=TIMEOUT)
     r.raise_for_status()
@@ -76,8 +103,8 @@ def dhs():
         "countryIds": DHS_PAYS, "surveyIds": enquete["SurveyId"], "breakdown": "subnational",
         "indicatorIds": ",".join(INDICATEURS_DHS), "f": "json", "perpage": 5000}, timeout=TIMEOUT)
     r.raise_for_status()
-    return _ecrire("dhs.json", json.dumps({"enquete": enquete, "donnees": r.json()["Data"]},
-                                          ensure_ascii=False))
+    return _ecrire(brut("dhs"), json.dumps({"enquete": enquete, "donnees": r.json()["Data"]}, ensure_ascii=False),
+                   f"DHS Program, enquête {enquete['SurveyId']}", r.url)
 
 
 def worldpop():
@@ -85,48 +112,56 @@ def worldpop():
     print("WorldPop (grilles 1 km)...")
     r = SESSION.get(WORLDPOP_URL, params={"iso3": PAYS}, timeout=TIMEOUT)
     r.raise_for_status()
-    dossier = DOSSIER_BRUT / "worldpop"
-    dossier.mkdir(parents=True, exist_ok=True)
     for jeu in r.json()["data"]:
-        fichier = dossier / f"worldpop_{jeu['popyear']}.tif"
-        if fichier.exists():  # les versions publiées ne changent pas
+        url = jeu["files"][0]
+        fichier = brut("worldpop", annee=jeu["popyear"])
+        if fichier.exists():  # déjà téléchargé : les versions publiées ne changent pas
+            _consigner(fichier, "WorldPop R2025A", url, telecharge=False)
             continue
-        tif = SESSION.get(jeu["files"][0], timeout=300)
+        tif = SESSION.get(url, timeout=300)
         tif.raise_for_status()
-        fichier.write_bytes(tif.content)
-    print(f"  -> data/brut/worldpop/ ({len(list(dossier.glob('*.tif')))} années)")
+        _ecrire(fichier, tif.content, "WorldPop R2025A", url)
+    print(f"  -> data/brut/worldpop/ ({len(r.json()['data'])} années)")
 
 
-def hdx_population(niveau):
-    """Population par unité administrative, projections INSTAT publiées sur HDX."""
+def instat_population(niveau):
+    """Population par unité administrative (estimations INSTAT/BNGRC diffusées par OCHA sur HDX)."""
     code = NIVEAUX[niveau]["code"].lower()
-    print(f"HDX (population par {niveau})...")
+    print(f"INSTAT via HDX (population des {niveau})...")
     r = SESSION.get(f"{HDX_URL}/package_show", params={"id": HDX_DATASET}, timeout=TIMEOUT)
     r.raise_for_status()
     ressource = next(x for x in r.json()["result"]["resources"]
                      if x["name"].endswith(f"{code}_2018.csv"))
     fichier = SESSION.get(ressource["url"], timeout=TIMEOUT)
     fichier.raise_for_status()
-    return _ecrire(f"hdx_population_{code}.csv", fichier.content)
+    return _ecrire(brut("population", code=code), fichier.content,
+                   f"INSTAT/BNGRC via OCHA (HDX {HDX_DATASET})", ressource["url"])
 
 
-def limites(niveau):
+def contours(niveau):
     """Contours simplifiés des unités administratives (geoBoundaries)."""
     print(f"geoBoundaries (contours des {niveau})...")
     r = SESSION.get(GEOBOUNDARIES_URL.format(niveau=NIVEAUX[niveau]["code"]), timeout=TIMEOUT)
     r.raise_for_status()
-    geo = SESSION.get(r.json()["simplifiedGeometryGeoJSON"], timeout=TIMEOUT)
+    meta = r.json()
+    geo = SESSION.get(meta["simplifiedGeometryGeoJSON"], timeout=TIMEOUT)
     geo.raise_for_status()
-    return _ecrire(f"{niveau}.geojson", geo.content)
+    return _ecrire(brut("contours", niveau=niveau), geo.content,
+                   f"geoBoundaries ({meta['boundarySource']}, licence {meta['boundaryLicense']})",
+                   meta["simplifiedGeometryGeoJSON"])
 
 
 def tout_collecter():
+    JOURNAL.clear()
+    debut = _maintenant()
     banque_mondiale()
     projections_onu()
     dhs()
     worldpop()
     for niveau in NIVEAUX:
-        hdx_population(niveau)
-        limites(niveau)
-    horodatage = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    _ecrire("derniere_collecte.txt", horodatage + "\n")
+        instat_population(niveau)
+        contours(niveau)
+    chemin = brut("journal")
+    chemin.write_text(json.dumps({"debut": debut, "fin": _maintenant(), "fichiers": JOURNAL},
+                                 ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"  -> data/brut/{chemin.name} ({len(JOURNAL)} fichiers)")
