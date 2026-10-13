@@ -14,7 +14,9 @@ Les fichiers de `data/` ne sont pas versionnés dans git : ils sont recréés pa
 | [Population par unité administrative](#instat--population-par-unité-administrative-2009-2018) | INSTAT et BNGRC | OCHA, sur HDX (`cod-ps-mdg`) | Population des régions, districts, communes et fokontany | 2009-2018 | Régions à fokontany | CC BY 3.0 IGO |
 | [Contours administratifs](#geoboundaries--contours-administratifs) | OpenStreetMap (régions) ; BNGRC et OCHA (districts à fokontany) | geoBoundaries (William & Mary) | Limites des 4 niveaux | 2017 (régions), 2020 (autres) | Régions à fokontany | ODbL 1.0 (régions) ; CC BY 3.0 IGO (autres) |
 | [Enquête démographique et de santé](#dhs--enquête-démographique-et-de-santé-2021) | INSTAT, avec l'appui d'ICF (programme DHS) | API du programme DHS | 8 indicateurs de santé et de fécondité | 2021 | Régions | Données agrégées publiques, citation obligatoire |
-| [Grilles de population](#worldpop--estimations-sur-grille-de-1-km) | WorldPop (université de Southampton) | WorldPop Hub | Habitants par carré de 1 km et de 100 m | 2015-2030 | Grilles, agrégées aux fokontany (100 m) et aux communes, districts et régions (1 km) | CC BY 4.0 |
+| [Emploi (ENEMPSI, ENESI, EPM)](#oit--emploi-daprès-les-enquêtes-enempsi-enesi-et-epm) | INSTAT (enquêtes) ; OIT (calcul des indicateurs) | OIT, ILOSTAT (API SDMX) | Activité, emploi, chômage, informalité, jeunes NEET, emploi par secteur et par statut | 2001-2022 | Pays | CC BY 4.0 (OIT) |
+| [Pauvreté (EPM)](#banque-mondiale--pauvreté-daprès-les-enquêtes-epm) | INSTAT (enquêtes) ; Banque mondiale (calcul) | Banque mondiale, Poverty and Inequality Platform (API) | Taux et écart de pauvreté à 3 seuils, indice de Gini | 1980-2021 | Pays | CC BY 4.0 |
+| [Grilles de population](#worldpop--estimations-sur-grilles-de-1-km-et-de-100-m) | WorldPop (université de Southampton) | WorldPop Hub | Habitants par carré de 1 km et de 100 m | 2015-2030 | Grilles, agrégées aux fokontany (100 m) et aux communes, districts et régions (1 km) | CC BY 4.0 |
 
 ## Fiches par source
 
@@ -144,6 +146,42 @@ Quand l'API donne plusieurs périodes de référence pour un même indicateur, s
   - 2 fokontany, plus petits qu'un carré de 100 m, ne reçoivent aucun habitant.
 - **Fiabilité :** bonne par région ou par district, plus faible par commune. Pour 2018, le rapport WorldPop / INSTAT varie de 0,2 à 6 selon les communes, alors que la médiane est proche de 1.
 
+### OIT : emploi d'après les enquêtes ENEMPSI, ENESI et EPM
+
+- **Producteurs :** l'INSTAT réalise les enquêtes ; l'OIT calcule les indicateurs à partir de leurs microdonnées, selon des définitions harmonisées entre pays.
+- **Enquêtes couvertes :** Enquête nationale sur l'emploi et le secteur informel (ENEMPSI 2012), Enquête nationale sur l'emploi et le secteur informel (ENESI 2015), Enquêtes périodiques auprès des ménages (EPM 2001, 2003, 2005, 2010 et 2022).
+- **Accès :** API SDMX publique de l'OIT, sans clé, `https://sdmx.ilo.org/rest/data/ILO,<indicateur>,1.0/MDG....`. Le serveur refuse par intermittence les requêtes rapprochées (erreur 403) : la collecte espace ses appels et recommence en cas de refus.
+- **Licence :** Creative Commons Attribution 4.0 (données de l'OIT).
+- **Fichiers bruts :** `data/brut/oit_ilostat/<indicateur>.csv`, un par indicateur.
+
+| Indicateur OIT | Contenu | Colonne |
+|---|---|---|
+| `DF_EAP_DWAP_SEX_AGE_RT` | Taux d'activité, par sexe et âge (%) | `taux_activite_pct` |
+| `DF_EMP_DWAP_SEX_AGE_RT` | Taux d'emploi, par sexe et âge (%) | `taux_emploi_pct` |
+| `DF_UNE_DEAP_SEX_AGE_RT` | Taux de chômage, par sexe et âge (%) | `taux_chomage_pct` |
+| `DF_EMP_NIFL_SEX_RT` | Part de l'emploi informel, par sexe (%) | `emploi_informel_pct` |
+| `DF_EIP_NEET_SEX_RT` | Jeunes de 15-24 ans ni en emploi, ni en études, ni en formation (%) | `jeunes_neet_pct` |
+| `DF_EMP_TEMP_SEX_ECO_NB` | Emploi par secteur d'activité (milliers) | `emploi_par_secteur_milliers` |
+| `DF_EMP_TEMP_SEX_STE_NB` | Emploi par statut : salariés, indépendants… (milliers) | `emploi_par_statut_milliers` |
+
+- **Traitement :** seules les observations issues d'enquêtes sont gardées (types « HS » pour les EPM et « LFS » pour les enquêtes emploi). Les estimations officielles et les recensements republiés par l'OIT sont écartés, ainsi que l'enquête emploi des grandes villes de 2000-2001, qui ne couvre pas tout le pays.
+- **Rupture de série :** l'OIT signale une méthode révisée pour l'EPM 2022. Le passage aux normes internationales de 2013, qui ne comptent plus la production pour sa propre consommation comme un emploi, explique probablement la baisse du taux d'activité (92,6 % en 2012, 75,0 % en 2022) et la hausse de la part des salariés (11 % en 2012, 31 % en 2022). Les chiffres de 2022 ne sont pas directement comparables à ceux de 2012 et 2015 (colonne `rupture_de_serie`).
+- **Différence avec les rapports de l'INSTAT :** les définitions de l'OIT peuvent donner des chiffres différents de ceux publiés par l'INSTAT. Par exemple, le chômage de 2012 vaut 0,6 % chez l'OIT, contre 1,3 % dans le rapport de l'ENEMPSI.
+
+### Banque mondiale : pauvreté d'après les enquêtes EPM
+
+- **Producteurs :** l'INSTAT réalise les enquêtes auprès des ménages ; la Banque mondiale calcule les indicateurs de pauvreté à partir de la consommation qu'elles mesurent.
+- **Enquêtes couvertes :** EPM 1993, 1997, 1999, 2001, 2005, 2010 et 2021, ENSOMD 2012 et une enquête budget de 1980 (EB).
+- **Accès :** API publique de la Poverty and Inequality Platform, `https://api.worldbank.org/pip/v1/pip?country=MDG&year=all&povline=<seuil>`.
+- **Seuils :** 3,00 $, 4,20 $ et 8,30 $ par jour et par personne, en parité de pouvoir d'achat 2021 (seuils internationaux de la Banque mondiale).
+- **Licence :** Creative Commons Attribution 4.0.
+- **Fichier brut :** `data/brut/banque_mondiale_pip/pauvrete_madagascar.json`.
+- **Seuil national :** le rapport de l'EPM 2021-2022 de l'INSTAT donne un taux de pauvreté de 77 % selon le seuil national. Ce chiffre n'est publié que dans le rapport PDF, sur le site de l'INSTAT, et n'est pas collecté.
+
+### Microdonnées des enquêtes
+
+Les microdonnées (réponses individuelles anonymisées) de l'EPM 2021-2022 et de l'ENEMPSI 2012 sont diffusées sur des catalogues qui demandent une inscription et l'acceptation de conditions d'utilisation : la plateforme de l'INSTAT (microdata.instat.mg) et le catalogue de l'OIT. Le pipeline ne les télécharge pas automatiquement. Les indicateurs de l'OIT et de la Banque mondiale en sont tirés.
+
 ### Source écartée : site de l'INSTAT
 
 Le site [instat.mg](https://www.instat.mg) publie les résultats du RGPH-3 en PDF. En octobre 2026, sa page d'accueil contenait des dizaines de liens cachés vers des sites de jeux d'argent, signe d'une compromission. Il n'est pas collecté automatiquement, parce qu'un script ne doit pas suivre ces liens. Le même document officiel est récupéré depuis la copie de l'UNFPA Madagascar.
@@ -166,6 +204,10 @@ data/
 │   │   └── population_adm1_2018.csv … population_adm4_2018.csv
 │   ├── geoboundaries/
 │   │   └── contours_regions.geojson … contours_fokontany.geojson
+│   ├── oit_ilostat/
+│   │   └── DF_EAP_DWAP_SEX_AGE_RT.csv … (un fichier par indicateur d'emploi)
+│   ├── banque_mondiale_pip/
+│   │   └── pauvrete_madagascar.json
 │   ├── dhs/
 │   │   └── indicateurs_regions.json
 │   ├── worldpop/
@@ -185,6 +227,9 @@ data/
     │   └── <niveau>_series_2009_2018.csv
     ├── sante/
     │   └── dhs_regions.csv
+    ├── enquetes/                       Emploi (OIT) et pauvreté (Banque mondiale) d'après les enquêtes
+    │   ├── emploi_oit.csv, emploi_synthese.csv
+    │   └── pauvrete_epm.csv
     └── estimations/
         ├── worldpop_regions.csv, worldpop_districts.csv, worldpop_communes.csv
         └── worldpop_100m_fokontany.csv
@@ -289,6 +334,24 @@ Une ligne par unité, pour 2018 (estimation INSTAT/BNGRC).
 ### `territoires/<niveau>_series_2009_2018.csv`
 Mêmes identifiants, plus `annee` (2009-2018) et `population`. Les années 2010 à 2018 sont calculées à partir de 2009 avec un taux uniforme : elles ne permettent pas de comparer la croissance entre territoires.
 
+### `enquetes/emploi_oit.csv`
+Une ligne par observation de l'OIT issue d'une enquête.
+
+| Colonne | Contenu |
+|---|---|
+| `indicateur`, `libelle` | Nom de l'indicateur (voir la fiche OIT) |
+| `annee`, `enquete` | Année et nom court de l'enquête (`ENEMPSI 2012`, `ENESI 2015`, `EPM 2022`…) |
+| `sexe` | `ensemble`, `hommes` ou `femmes` |
+| `ventilation` | Code de l'OIT : tranche d'âge (`AGE_…`), secteur (`ECO_…`) ou statut (`STE_…`) ; vide si aucune |
+| `valeur` | Valeur (en % pour les taux, en milliers pour les effectifs) |
+| `note`, `source_oit` | Notes méthodologiques et libellé de la source donnés par l'OIT |
+
+### `enquetes/emploi_synthese.csv`
+Une ligne par enquête, pour l'ensemble des deux sexes et les 15 ans et plus : `annee`, `enquete`, `rupture_de_serie`, `taux_activite_pct`, `taux_emploi_pct`, `taux_chomage_pct`, `emploi_informel_pct`, `jeunes_neet_pct`, `emploi_total_milliers`, `part_agriculture_pct`, `part_salaries_pct`.
+
+### `enquetes/pauvrete_epm.csv`
+Une ligne par enquête : `annee`, `enquete`, `mesure_du_bien_etre` (consommation), `couverture`, `gini`, `consommation_moyenne_dollars_jour`, puis le taux de pauvreté (`pauvrete_<seuil>_dollars_pct`) et l'écart de pauvreté (`ecart_pauvrete_<seuil>_dollars_pct`) pour chaque seuil (3,00, 4,20 et 8,30 dollars).
+
 ### `sante/dhs_regions.csv`
 Une ligne par région : `pcode`, `nom` et les 8 indicateurs du [tableau DHS](#dhs--enquête-démographique-et-de-santé-2021).
 
@@ -323,6 +386,8 @@ Une ligne par fokontany (17 464) : `pcode`, `nom`, le rattachement (`commune_pco
 Toute réutilisation des fichiers de ce projet doit mentionner les sources d'origine :
 
 - INSTAT, *Résultats globaux du recensement général de la population et de l'habitation de 2018 de Madagascar (RGPH-3)*, tome 2, décembre 2020.
+- Organisation internationale du travail, ILOSTAT (indicateurs tirés des enquêtes ENEMPSI 2012, ENESI 2015 et EPM de l'INSTAT), CC BY 4.0.
+- Banque mondiale, *Poverty and Inequality Platform* (indicateurs tirés des enquêtes EPM de l'INSTAT), CC BY 4.0.
 - Banque mondiale, *World Development Indicators* et *Health Nutrition and Population Statistics* (CC BY 4.0).
 - Nations unies, Division de la population, *World Population Prospects* (CC BY 3.0 IGO).
 - INSTAT et BNGRC, *Madagascar - Subnational Population Statistics*, diffusé par OCHA sur HDX (CC BY 3.0 IGO).

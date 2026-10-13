@@ -17,6 +17,8 @@ BRUT = {
     "worldpop": "worldpop/population_{annee}_1km.tif",
     "worldpop_100m": "worldpop_100m/population_{annee}_100m.tif",
     "rgph3": "instat_rgph3/resultats_globaux_tome2.pdf",
+    "emploi": "oit_ilostat/{indicateur}.csv",
+    "pauvrete": "banque_mondiale_pip/pauvrete_madagascar.json",
     "journal": "journal_collecte.json",
 }
 # Données traitées : un dossier par thème, fichiers CSV prêts à l'emploi.
@@ -31,6 +33,9 @@ TRAITE = {
     "worldpop_100m": "estimations/worldpop_100m_fokontany.csv",
     "rgph3": "recensement/rgph3_{niveau}.csv",
     "fokontany_cales": "recensement/fokontany_estimation_calee_rgph3.csv",
+    "emploi": "enquetes/emploi_oit.csv",
+    "emploi_synthese": "enquetes/emploi_synthese.csv",
+    "pauvrete": "enquetes/pauvrete_epm.csv",
 }
 
 
@@ -106,3 +111,21 @@ WORLDPOP_100M_URL = "https://hub.worldpop.org/rest/data/pop/G2_CN_POP_R25A_100m"
 # l'UNFPA Madagascar (le site de l'INSTAT est écarté, voir DONNEES.md).
 RGPH3_URL = "https://madagascar.unfpa.org/sites/default/files/pub-pdf/resultat_globaux_rgph3_tome_02.pdf"
 RGPH3_TOTAL = 25_674_196   # population résidente publiée par l'INSTAT
+
+# Emploi : indicateurs de l'OIT calculés à partir des enquêtes ENEMPSI (2012), ENESI (2015) et EPM.
+# Clé SDMX : « MDG » suivi d'une position vide par dimension restante de l'indicateur.
+ILO_SDMX_URL = "https://sdmx.ilo.org/rest/data/ILO,{indicateur},1.0/{cle}"
+INDICATEURS_EMPLOI = {
+    "DF_EAP_DWAP_SEX_AGE_RT": ("MDG....", "taux_activite_pct", "Taux d'activité (%)"),
+    "DF_EMP_DWAP_SEX_AGE_RT": ("MDG....", "taux_emploi_pct", "Taux d'emploi (%)"),
+    "DF_UNE_DEAP_SEX_AGE_RT": ("MDG....", "taux_chomage_pct", "Taux de chômage (%)"),
+    "DF_EMP_NIFL_SEX_RT": ("MDG...", "emploi_informel_pct", "Part de l'emploi informel (%)"),
+    "DF_EIP_NEET_SEX_RT": ("MDG....", "jeunes_neet_pct", "Jeunes ni en emploi, ni en études, ni en formation (%)"),
+    "DF_EMP_TEMP_SEX_ECO_NB": ("MDG....", "emploi_par_secteur_milliers", "Emploi par secteur d'activité (milliers)"),
+    "DF_EMP_TEMP_SEX_STE_NB": ("MDG....", "emploi_par_statut_milliers", "Emploi par statut (milliers)"),
+}
+
+# Pauvreté : estimations de la Banque mondiale (Poverty and Inequality Platform) à partir des EPM.
+# Seuils internationaux en dollars par jour et par personne, en parité de pouvoir d'achat 2021.
+PIP_URL = "https://api.worldbank.org/pip/v1/pip"
+SEUILS_PAUVRETE = (3.00, 4.20, 8.30)

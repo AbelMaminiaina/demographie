@@ -5,6 +5,7 @@ dans `data/brut/journal_collecte.json` : adresse d'origine, date, taille et empr
 """
 import hashlib
 import json
+import time
 from datetime import datetime, timezone
 
 import requests
@@ -12,7 +13,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from config import (BANQUE_MONDIALE_URL, DHS_PAYS, DHS_URL, DOSSIER_BRUT, GEOBOUNDARIES_URL,
-                    HDX_DATASET, HDX_URL, INDICATEURS, INDICATEURS_DHS,
+                    HDX_DATASET, HDX_URL, ILO_SDMX_URL, INDICATEURS, INDICATEURS_DHS, INDICATEURS_EMPLOI,
+                    PIP_URL, SEUILS_PAUVRETE,
                     INDICATEURS_PROJECTIONS, NIVEAUX, PAYS, RGPH3_URL, SOURCE_PROJECTIONS, WORLDPOP_100M_URL,
                     WORLDPOP_URL, brut)
 
@@ -150,6 +152,41 @@ def worldpop(cle="worldpop", url_api=WORLDPOP_URL, libelle="1 km"):
     print(f"  -> data/brut/{brut(cle, annee='*').parent.name}/ ({len(jeux)} années)")
 
 
+def emploi_oit(essais=6):
+    """Indicateurs d'emploi de l'OIT pour Madagascar (API SDMX, sans clé).
+
+    Le serveur refuse par intermittence les requêtes rapprochées (erreur 403) : on espace les
+    appels et on recommence en attendant de plus en plus longtemps.
+    """
+    print("OIT (indicateurs d'emploi des enquêtes ENEMPSI, ENESI et EPM)...")
+    for indicateur, (cle, _, _) in INDICATEURS_EMPLOI.items():
+        url = ILO_SDMX_URL.format(indicateur=indicateur, cle=cle)
+        for essai in range(1, essais + 1):
+            r = SESSION.get(url, timeout=TIMEOUT, headers={"Accept": "application/vnd.sdmx.data+csv"})
+            if r.status_code == 200 and "sdmx" in r.headers.get("Content-Type", "") and r.text.startswith("DATAFLOW"):
+                break
+            if essai == essais:
+                raise RuntimeError(f"OIT : {indicateur} indisponible (code {r.status_code})")
+            time.sleep(5 * essai)
+        _ecrire(brut("emploi", indicateur=indicateur), r.text, "OIT, ILOSTAT (API SDMX)", url)
+        time.sleep(2)
+
+
+def pauvrete_pip():
+    """Taux de pauvreté et inégalités tirés des enquêtes auprès des ménages (Banque mondiale, PIP)."""
+    print("Banque mondiale, Poverty and Inequality Platform (enquêtes EPM)...")
+    lignes = []
+    for seuil in SEUILS_PAUVRETE:
+        r = SESSION.get(PIP_URL, params={"country": PAYS, "year": "all", "povline": seuil, "format": "json"},
+                        timeout=TIMEOUT)
+        r.raise_for_status()
+        lignes += r.json()
+    if not lignes:
+        raise RuntimeError("PIP : aucune donnée pour Madagascar")
+    return _ecrire(brut("pauvrete"), json.dumps(lignes, ensure_ascii=False), "Banque mondiale, PIP",
+                   f"{PIP_URL}?country={PAYS}&year=all&povline=<seuil>")
+
+
 def rgph3():
     """Résultats globaux du RGPH-3, tome 2 (PDF de l'INSTAT, copie de l'UNFPA Madagascar)."""
     print("RGPH-3 (résultats globaux, tome 2)...")
@@ -200,6 +237,8 @@ def tout_collecter():
     worldpop()
     worldpop("worldpop_100m", WORLDPOP_100M_URL, "100 m")
     rgph3()
+    emploi_oit()
+    pauvrete_pip()
     for niveau in NIVEAUX:
         instat_population(niveau)
         contours(niveau)

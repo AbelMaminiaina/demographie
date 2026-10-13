@@ -197,6 +197,50 @@ def projections(series, proj):
     return _sauver(fig, "projections.png")
 
 
+AQUA = "#1baf7a"   # troisième série
+
+
+def enquetes(pauvrete, emploi):
+    """Pauvreté par enquête auprès des ménages, et structure de l'emploi par enquête nationale."""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.2), gridspec_kw={"width_ratios": [1.2, 1]})
+
+    for colonne, couleur_serie, nom in (("pauvrete_3_00_dollars_pct", BLEU, "Moins de 3,00 $ par jour"),
+                                        ("pauvrete_4_20_dollars_pct", ORANGE, "Moins de 4,20 $ par jour")):
+        ax1.plot(pauvrete["annee"], pauvrete[colonne], color=couleur_serie, linewidth=2, marker="o", markersize=6,
+                 markeredgecolor=FOND, markeredgewidth=2, label=nom)
+        fin = pauvrete.iloc[-1]
+        ax1.annotate(f"{fin[colonne]:.0f} %".replace(".", ","), (fin["annee"], fin[colonne]), xytext=(6, 0),
+                     textcoords="offset points", va="center", color=ENCRE, fontweight="bold")
+    ax1.set_ylim(0, 100)
+    ax1.set_xlim(pauvrete["annee"].min() - 2, pauvrete["annee"].max() + 6)
+    ax1.set_title("Population pauvre (%), par enquête", loc="left", fontsize=10)
+    ax1.legend(frameon=False, loc="lower left")
+
+    nationales = emploi[emploi["enquete"].str.match(r"ENEMPSI|ENESI|EPM 20(1[5-9]|2)")]
+    series = (("taux_activite_pct", BLEU, "Taux d'activité"), ("emploi_informel_pct", ORANGE, "Emploi informel"),
+              ("part_agriculture_pct", AQUA, "Emploi agricole"))
+    largeur = 0.26
+    for k, (colonne, couleur_serie, nom) in enumerate(series):
+        x = [i + (k - 1) * largeur for i in range(len(nationales))]
+        ax2.bar(x, nationales[colonne], width=largeur, color=couleur_serie, label=nom, edgecolor=FOND, linewidth=1)
+    ax2.set_xticks(range(len(nationales)), nationales["enquete"])
+    ax2.set_ylim(0, 115)
+    ax2.set_yticks(range(0, 101, 25))
+    for i, rupture in enumerate(nationales["rupture_de_serie"]):
+        if rupture and nationales.iloc[i]["annee"] > nationales["annee"].min():
+            ax2.annotate("méthode révisée", (i, 103), ha="center", fontsize=8, color=ENCRE_2)
+    ax2.set_title("Emploi (% des 15 ans et plus ou des actifs occupés)", loc="left", fontsize=10)
+    ax2.legend(frameon=False, loc="upper left", bbox_to_anchor=(0, -0.08), ncol=3)
+    for ax in (ax1, ax2):
+        ax.grid(axis="y", color=GRILLE, linewidth=0.6)
+        ax.set_axisbelow(True)
+    fig.suptitle("Pauvreté et emploi d'après les enquêtes auprès des ménages", x=0.01, ha="left", fontweight="bold")
+    fig.text(0.01, -0.07, "Sources : Banque mondiale, Poverty and Inequality Platform (EPM ; seuils en dollars PPA 2021) ; "
+             "OIT, ILOSTAT (ENEMPSI 2012, ENESI 2015, EPM 2022)", color=DISCRET, fontsize=8)
+    fig.tight_layout()
+    return _sauver(fig, "enquetes_pauvrete_emploi.png")
+
+
 def carte_fecondite(dhs, contours):
     seuils = [0, 3, 3.5, 4, 4.5, 5, 6, 10]
     return _carte(contours, dhs.set_index("cle")["fecondite_isf"], seuils,
@@ -374,6 +418,40 @@ def rapport(donnees, annee, annee_courante):
         lignes.append(f"| {r['nom']} | {r['commune']} | {r['district']} | {nombre(r['wp100_2018'])} | "
                       f"{nombre(r[f'wp100_{an}'])} | {nombre(r['wp100_2030'])} | {r['croissance']:+.1f} %/an |")
 
+    # Pauvreté (EPM) et emploi (ENEMPSI, ENESI, EPM)
+    pauv = donnees["pauvrete"]
+    lignes += ["", "## Pauvreté d'après les enquêtes auprès des ménages", "",
+               "Estimations de la Banque mondiale (Poverty and Inequality Platform) calculées sur la consommation "
+               "mesurée par les enquêtes de l'INSTAT. Seuils internationaux en dollars par jour et par personne, "
+               "en parité de pouvoir d'achat 2021. Tableau complet : `data/traite/enquetes/pauvrete_epm.csv`.", "",
+               "| Année | Enquête | Moins de 3,00 $ | Moins de 4,20 $ | Moins de 8,30 $ | Indice de Gini |",
+               "|---|---|---:|---:|---:|---:|"]
+    for _, r in pauv.iterrows():
+        lignes.append(f"| {r['annee']} | {r['enquete']} | {r['pauvrete_3_00_dollars_pct']:.1f} % | "
+                      f"{r['pauvrete_4_20_dollars_pct']:.1f} % | {r['pauvrete_8_30_dollars_pct']:.1f} % | {r['gini']:.3f} |")
+    emp = donnees["emploi"]
+    nationales = emp[emp["enquete"].str.match(r"ENEMPSI|ENESI|EPM 20(1[5-9]|2)")]
+
+    def pct(v):
+        return "–" if v != v or v is None else f"{v:.1f} %"
+
+    lignes += ["", "## Emploi d'après les enquêtes nationales", "",
+               "Indicateurs calculés par l'OIT à partir des microdonnées des enquêtes de l'INSTAT, pour les 15 ans et plus. "
+               "**L'OIT signale une rupture de série pour l'EPM 2022 (méthode révisée)** : le passage aux normes "
+               "internationales de 2013, qui ne comptent plus la production pour sa propre consommation comme un emploi, "
+               "explique probablement la baisse du taux d'activité et la hausse de la part des salariés. Les chiffres de "
+               "2022 ne sont donc pas directement comparables à ceux de 2012 et 2015. "
+               "Tableaux complets : `data/traite/enquetes/emploi_synthese.csv` et `emploi_oit.csv`.", "",
+               "| Enquête | Activité | Emploi | Chômage | Emploi informel | Emploi agricole | Salariés | Jeunes NEET | Actifs occupés |",
+               "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
+    for _, r in nationales.iterrows():
+        total = "–" if r["emploi_total_milliers"] != r["emploi_total_milliers"] else f"{nombre(r['emploi_total_milliers'] * 1000)}"
+        lignes.append(f"| {r['enquete']}{' (rupture)' if r['rupture_de_serie'] and r['annee'] > nationales['annee'].min() else ''} "
+                      f"| {pct(r['taux_activite_pct'])} | {pct(r['taux_emploi_pct'])} | {pct(r['taux_chomage_pct'])} "
+                      f"| {pct(r['emploi_informel_pct'])} | {pct(r['part_agriculture_pct'])} | {pct(r['part_salaries_pct'])} "
+                      f"| {pct(r['jeunes_neet_pct'])} | {total} |")
+    lignes += ["", "Jeunes NEET : jeunes ni en emploi, ni en études, ni en formation."]
+
     # Projections ONU
     proj = donnees["projections"]
     lignes += ["", "## Projections de l'ONU", "",
@@ -423,7 +501,8 @@ def rapport(donnees, annee, annee_courante):
                "![Fécondité par région](carte_fecondite_regions.png)", "",
                "![Croissance par district](carte_croissance_districts.png)", "",
                "![Tendances](tendances.png)", "",
-               "![Projections](projections.png)", ""]
+               "![Projections](projections.png)", "",
+               "![Pauvreté et emploi](enquetes_pauvrete_emploi.png)", ""]
     chemin = DOSSIER_SORTIES / "rapport.md"
     chemin.write_text("\n".join(lignes), encoding="utf-8")
     print("  -> sorties/rapport.md")
@@ -447,4 +526,5 @@ def tout_visualiser(donnees):
     carte_croissance(donnees["worldpop"]["districts"], niveaux["districts"]["contours"], annee, annee_courante)
     tendances(donnees["series"])
     projections(donnees["series"], donnees["projections"])
+    enquetes(donnees["pauvrete"], donnees["emploi"])
     rapport(donnees, annee, annee_courante)

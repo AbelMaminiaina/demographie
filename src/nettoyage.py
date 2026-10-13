@@ -10,7 +10,7 @@ import rasterio
 from rasterio.features import rasterize
 from rasterio.windows import Window
 
-from config import (DOSSIER_TRAITE, INDICATEURS, INDICATEURS_DHS, INDICATEURS_PROJECTIONS,
+from config import (DOSSIER_TRAITE, INDICATEURS, INDICATEURS_DHS, INDICATEURS_EMPLOI, INDICATEURS_PROJECTIONS,
                     NIVEAUX, PARENTS, RGPH3_TOTAL, brut, traite)
 from geometrie import boite, contient, point_interieur, superficie_km2
 import rgph3
@@ -455,6 +455,95 @@ def worldpop_fokontany(niveaux, estimations_1km, bande=2048):
     return pd.concat([resultat, pd.DataFrame(colonnes)], axis=1)
 
 
+def _nom_enquete(source, annee):
+    """Nom court de l'enquête d'origine d'une observation de l'OIT."""
+    if source.startswith("HS - Enquête périodique auprès des Ménages"):
+        return f"EPM {annee}"
+    if source.startswith("LFS - Enquête Nationale sur l'Emploi et le Secteur Informel"):
+        return {2012: "ENEMPSI 2012", 2015: "ENESI 2015"}.get(annee, f"Enquête emploi {annee}")
+    if source.startswith("LFS - Enquête sur la Population Active"):
+        return f"Enquête emploi des grandes villes {annee}"
+    return source.split(" - ", 1)[-1] + f" {annee}"
+
+
+def emploi():
+    """Indicateurs d'emploi de l'OIT : un fichier détaillé et une synthèse par enquête.
+
+    Seules les observations issues d'enquêtes auprès des ménages (EPM) ou sur la population
+    active (ENEMPSI, ENESI) sont gardées ; les estimations officielles et les recensements
+    publiés par l'OIT sont écartés.
+    """
+    lignes = []
+    for indicateur, (_, colonne, libelle) in INDICATEURS_EMPLOI.items():
+        df = pd.read_csv(brut("emploi", indicateur=indicateur))
+        df = df[df["SOURCE"].str.startswith(("HS -", "LFS -"))].copy()
+        ventilation = next((c for c in ("AGE", "ECO", "STE") if c in df), None)
+        multiplicateur = 10.0 ** df["UNIT_MULT"].fillna(0)
+        lignes.append(pd.DataFrame({
+            "indicateur": colonne, "libelle": libelle,
+            "annee": df["TIME_PERIOD"].astype(int),
+            "enquete": [_nom_enquete(s, a) for s, a in zip(df["SOURCE"], df["TIME_PERIOD"].astype(int))],
+            "sexe": df["SEX"].map({"SEX_T": "ensemble", "SEX_M": "hommes", "SEX_F": "femmes"}).fillna(df["SEX"]),
+            "ventilation": df[ventilation] if ventilation else "",
+            "valeur": df["OBS_VALUE"] * (multiplicateur / 1000 if colonne.endswith("_milliers") else 1),
+            "note": (df["NOTE_SOURCE"].fillna("") + " | " + df["NOTE_INDICATOR"].fillna("")).str.strip(" |"),
+            "source_oit": df["SOURCE"],
+        }))
+    detail = pd.concat(lignes, ignore_index=True).sort_values(["indicateur", "annee", "sexe", "ventilation"])
+    if detail.empty:
+        raise ValueError("Emploi : aucune observation issue d'une enquête")
+
+    # Synthèse : ensemble des deux sexes, 15 ans et plus, une ligne par enquête nationale
+    tot = detail[(detail["sexe"] == "ensemble")
+                 & detail["ventilation"].isin(["", "AGE_YTHADULT_YGE15", "ECO_AGGREGATE_TOTAL", "STE_AGGREGATE_TOTAL",
+                                               "ECO_AGGREGATE_AGR", "STE_AGGREGATE_EES"])]
+    tot = tot[~tot["enquete"].str.startswith("Enquête emploi des grandes villes")]
+    synthese = {}
+    for (annee, enquete), g in tot.groupby(["annee", "enquete"]):
+        v = {(r["indicateur"], r["ventilation"]): r["valeur"] for _, r in g.iterrows()}
+        emploi_total = v.get(("emploi_par_secteur_milliers", "ECO_AGGREGATE_TOTAL"))
+        statut_total = v.get(("emploi_par_statut_milliers", "STE_AGGREGATE_TOTAL"))
+        synthese[(annee, enquete)] = {
+            # L'OIT signale une rupture de série quand la méthode change (ex. normes de 2013 sur le travail)
+            "rupture_de_serie": bool(g["note"].str.contains("Break in series").any()),
+            "taux_activite_pct": v.get(("taux_activite_pct", "AGE_YTHADULT_YGE15")),
+            "taux_emploi_pct": v.get(("taux_emploi_pct", "AGE_YTHADULT_YGE15")),
+            "taux_chomage_pct": v.get(("taux_chomage_pct", "AGE_YTHADULT_YGE15")),
+            "emploi_informel_pct": v.get(("emploi_informel_pct", "")),
+            "jeunes_neet_pct": v.get(("jeunes_neet_pct", "")),
+            "emploi_total_milliers": emploi_total,
+            "part_agriculture_pct": (100 * v[("emploi_par_secteur_milliers", "ECO_AGGREGATE_AGR")] / emploi_total
+                                     if emploi_total and ("emploi_par_secteur_milliers", "ECO_AGGREGATE_AGR") in v else None),
+            "part_salaries_pct": (100 * v[("emploi_par_statut_milliers", "STE_AGGREGATE_EES")] / statut_total
+                                  if statut_total and ("emploi_par_statut_milliers", "STE_AGGREGATE_EES") in v else None),
+        }
+    synthese = (pd.DataFrame.from_dict(synthese, orient="index").rename_axis(["annee", "enquete"])
+                .reset_index().sort_values("annee"))
+    if synthese["taux_activite_pct"].isna().all():
+        raise ValueError("Emploi : la synthèse ne contient aucun taux d'activité")
+    return detail, synthese
+
+
+def pauvrete():
+    """Pauvreté et inégalités par enquête (Banque mondiale, PIP), une ligne par année d'enquête."""
+    with open(brut("pauvrete"), encoding="utf-8") as f:
+        brut_pip = pd.DataFrame(json.load(f))
+    brut_pip = brut_pip[brut_pip["reporting_level"] == "national"]
+    taux = (brut_pip.pivot_table(index="reporting_year", columns="poverty_line", values="headcount") * 100)
+    taux.columns = [f"pauvrete_{seuil:.2f}_dollars_pct".replace(".", "_") for seuil in taux.columns]
+    ecart = (brut_pip.pivot_table(index="reporting_year", columns="poverty_line", values="poverty_gap") * 100)
+    ecart.columns = [f"ecart_pauvrete_{seuil:.2f}_dollars_pct".replace(".", "_") for seuil in ecart.columns]
+    infos = (brut_pip.drop_duplicates("reporting_year").set_index("reporting_year")
+             [["survey_acronym", "welfare_type", "survey_coverage", "gini", "mean"]]
+             .rename(columns={"survey_acronym": "enquete", "welfare_type": "mesure_du_bien_etre",
+                              "survey_coverage": "couverture", "mean": "consommation_moyenne_dollars_jour"}))
+    table = infos.join(taux).join(ecart).reset_index().rename(columns={"reporting_year": "annee"})
+    table["annee"] = table["annee"].astype(int)
+    if table.empty:
+        raise ValueError("Pauvreté : aucune estimation nationale")
+    return table.sort_values("annee")
+
+
 def tout_nettoyer():
     """Renvoie un dictionnaire avec :
     - series, pyramide : indicateurs nationaux (Banque mondiale) ;
@@ -464,7 +553,9 @@ def tout_nettoyer():
     - worldpop : estimations annuelles 2015-2030 par région, district et commune ;
     - rgph3 : résultats du recensement de 2018 par région, district et commune ;
     - fokontany_cales : population 2018 des fokontany estimée en calant sur le recensement ;
-    - worldpop_100m : estimations WorldPop à 100 m par fokontany, 2015-2030.
+    - worldpop_100m : estimations WorldPop à 100 m par fokontany, 2015-2030 ;
+    - emploi, emploi_detail : indicateurs d'emploi de l'OIT par enquête (ENEMPSI, ENESI, EPM) ;
+    - pauvrete : pauvreté et inégalités par enquête EPM (Banque mondiale).
     """
     DOSSIER_TRAITE.mkdir(parents=True, exist_ok=True)
     series, pyramide = indicateurs_nationaux()
@@ -490,6 +581,11 @@ def tout_nettoyer():
     wp100 = worldpop_fokontany(niveaux, estimations["communes"])
     annees_100m = [c for c in wp100.columns if c.startswith("wp100_")]
     print(f"  WorldPop 100 m : {len(annees_100m)} années pour {len(wp100)} fokontany, contrôles OK")
+    emploi_detail, emploi_synthese = emploi()
+    table_pauvrete = pauvrete()
+    print(f"  Emploi (OIT) : {len(emploi_detail)} observations, enquêtes "
+          + ", ".join(emploi_synthese["enquete"]))
+    print(f"  Pauvreté (Banque mondiale) : enquêtes {', '.join(f'{e} {a}' for e, a in zip(table_pauvrete['enquete'], table_pauvrete['annee']))}")
     rgph = recensement(niveaux)
     reliees = rgph["communes"]["correspondance"].value_counts()
     print(f"  RGPH-3 : {len(rgph['districts'])} districts, {len(rgph['communes'])} communes "
@@ -512,6 +608,9 @@ def tout_nettoyer():
     sortie["population_commune_rgph3"] = sortie["population_commune_rgph3"].astype("Int64")
     sortie.round(2).to_csv(traite("fokontany_cales"), index=False)
     wp100.drop(columns="cle").round(2).to_csv(traite("worldpop_100m"), index=False)
+    emploi_detail.round(3).to_csv(traite("emploi"), index=False)
+    emploi_synthese.round(2).to_csv(traite("emploi_synthese"), index=False)
+    table_pauvrete.round(3).to_csv(traite("pauvrete"), index=False)
     for niveau, donnees in niveaux.items():
         donnees["population"].drop(columns="cle").to_csv(
             traite("series", niveau=niveau), index=False)
@@ -526,4 +625,5 @@ def tout_nettoyer():
           + ", ".join(f"{len(d['unites'])} {n}" for n, d in niveaux.items()))
     return {"series": series, "pyramide": pyramide, "projections": proj, "niveaux": niveaux,
             "dhs": table_dhs, "worldpop": estimations, "rgph3": rgph, "fokontany_cales": cales,
-            "worldpop_100m": wp100}
+            "worldpop_100m": wp100, "emploi": emploi_synthese, "emploi_detail": emploi_detail,
+            "pauvrete": table_pauvrete}
