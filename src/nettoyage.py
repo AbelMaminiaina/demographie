@@ -251,11 +251,76 @@ def worldpop(niveaux, series_projetees):
     return resultats
 
 
-COLONNES_RGPH = ["hommes", "femmes", "population", "urbain", "rural"]
+COLONNES_RGPH = ["hommes", "femmes", "population", "urbain", "rural", "menages", "menages_chef_femme"]
 
 
 def _chiffres(ligne):
     return {c: ligne[c] for c in COLONNES_RGPH}
+
+
+def _menages(df):
+    """Taille moyenne des ménages ordinaires et part des ménages dirigés par une femme."""
+    df["taille_menage"] = df["population"] / df["menages"]
+    df["chef_femme_pct"] = 100 * df["menages_chef_femme"] / df["menages"]
+
+
+def _ajouter_menages(blocs, blocs_menages, districts_pdf):
+    """Joint le tableau 13 (ménages) au tableau 10 (population), commune par commune.
+
+    Les deux tableaux listent les mêmes communes dans le même ordre, mais leurs noms diffèrent
+    parfois : le tableau 10 imprime souvent le nom du district à la place de celui de la
+    commune (« Taolagnaro » cinq fois), le tableau 13 le fait précéder du nom du district
+    (« Soavinandriana Amparaky »). L'alignement est donc vérifié par les nombres (sommes,
+    milieu urbain ou rural, taille des ménages), et le nom du tableau 13 est gardé en second
+    choix pour le rapprochement avec HDX (voir _noms_possibles).
+    """
+    erreurs = []
+    if len(blocs_menages) != len(blocs):
+        return [f"{len(blocs_menages)} districts au tableau 13 contre {len(blocs)} au tableau 10"]
+    for d, bloc, bloc_m in zip(districts_pdf, blocs, blocs_menages):
+        if len(bloc_m["communes"]) != len(bloc["communes"]):
+            erreurs.append(f"{d['nom']} : {len(bloc_m['communes'])} communes au tableau 13 "
+                           f"contre {len(bloc['communes'])} au tableau 10")
+            continue
+        if sum(c["menages"] for c in bloc_m["communes"]) != bloc_m["total"]["menages"]:
+            erreurs.append(f"ménages de {d['nom']} : somme des communes différente du total du district")
+        for ligne, ligne_m in zip([bloc["total"], *bloc["communes"]], [bloc_m["total"], *bloc_m["communes"]]):
+            nom = ligne_m.get("nom", d["nom"])
+            if (ligne_m["menages_urbains"] > 0) != (ligne["urbain"] > 0):
+                erreurs.append(f"{d['nom']} : « {ligne.get('nom')} » (tableau 10) et « {nom} » (tableau 13) "
+                               "n'ont pas le même milieu")
+            if (ligne_m["menages_urbains"] + ligne_m["menages_ruraux"] != ligne_m["menages"]
+                    or ligne_m["menages_chef_homme"] + ligne_m["menages_chef_femme"] != ligne_m["menages"]):
+                erreurs.append(f"{nom} : sous-totaux des ménages incohérents")
+            if not 1 < ligne["population"] / max(ligne_m["menages"], 1) < 10:
+                erreurs.append(f"{nom} : taille de ménage invraisemblable")
+            ligne["menages"] = ligne_m["menages"]
+            ligne["menages_chef_femme"] = ligne_m["menages_chef_femme"]
+            if "nom" in ligne_m:
+                ligne["nom_tableau_13"] = ligne_m["nom"]
+    return erreurs
+
+
+def _sans_district(nom, district):
+    """Retire le nom du district placé devant celui de la commune (« Soavinandriana Amparaky »)."""
+    mots = nom.split()
+    for k in range(len(mots) - 1, 0, -1):
+        if cle_nom(" ".join(mots[:k])) == cle_nom(district):
+            return " ".join(mots[k:])
+    return nom
+
+
+def _noms_possibles(commune, district):
+    """Noms à essayer, dans l'ordre, pour relier une commune du recensement à HDX.
+
+    Quand le tableau 10 donne un morceau du nom du district, c'est sans doute une erreur
+    d'impression : le nom du tableau 13 passe alors en premier.
+    """
+    nom_10 = commune["nom"]
+    nom_13 = _sans_district(commune.get("nom_tableau_13", nom_10), district)
+    if cle_nom(nom_13) == cle_nom(nom_10):
+        return [nom_10]
+    return [nom_13, nom_10] if cle_nom(nom_10) in cle_nom(district) else [nom_10, nom_13]
 
 
 def _completer(df, superficies, estimations):
@@ -263,6 +328,7 @@ def _completer(df, superficies, estimations):
     df["part_urbaine_pct"] = 100 * df["urbain"] / df["population"]
     df["rapport_masculinite"] = 100 * df["hommes"] / df["femmes"]
     df["femmes_pct"] = 100 * df["femmes"] / df["population"]
+    _menages(df)
     df["superficie_km2"] = df["cle"].map(superficies)
     df["densite"] = df["population"] / df["superficie_km2"]
     df["estimation_hdx_2018"] = df["cle"].map(estimations)
@@ -291,6 +357,11 @@ def recensement(niveaux):
             erreurs.append(f"communes de {d['nom']} : somme différente du total du district")
         if any(c["urbain"] + c["rural"] != c["population"] for c in lignes):
             erreurs.append(f"{d['nom']} : urbain + rural différent du total")
+    erreurs += _ajouter_menages(blocs, extrait["blocs_menages"], districts_pdf)
+    if extrait["menages_national"] is None:
+        erreurs.append("total national des ménages introuvable (tableau 13)")
+    elif sum(b["total"]["menages"] for b in extrait["blocs_menages"]) != extrait["menages_national"]["menages"]:
+        erreurs.append("ménages : la somme des districts diffère du total national")
     if erreurs:
         raise ValueError("RGPH-3 : extraction incohérente :\n- " + "\n- ".join(erreurs))
 
@@ -312,17 +383,21 @@ def recensement(niveaux):
                 candidats[com] = cle
         restants = dict(candidats)
         for c in bloc["communes"]:
-            cle_c, correspondance = cle_nom(c["nom"]), "aucune"
             if arrondissements:
-                lignes_d.append({"cle": cle_c, **_chiffres(c), "densite_officielle": float("nan")})
-            if cle_c in restants:
-                correspondance = "exacte"
+                lignes_d.append({"cle": cle_nom(c["nom"]), **_chiffres(c), "densite_officielle": float("nan")})
+            noms = _noms_possibles(c, d["nom"])
+            nom, cle_hdx, correspondance = noms[0], None, "aucune"
+            for essai in noms:
+                if cle_nom(essai) in restants:
+                    nom, cle_hdx, correspondance = essai, restants.pop(cle_nom(essai)), "exacte"
+                    break
             else:
-                proche = difflib.get_close_matches(cle_c, list(restants), n=1, cutoff=0.8)
-                if proche:
-                    cle_c, correspondance = proche[0], "approchée"
-            cle_hdx = restants.pop(cle_c) if correspondance != "aucune" else None
-            lignes_c.append({"nom": c["nom"], "district_rgph": d["nom"], **_chiffres(c),
+                for essai in noms:
+                    proche = difflib.get_close_matches(cle_nom(essai), list(restants), n=1, cutoff=0.8)
+                    if proche:
+                        nom, cle_hdx, correspondance = essai, restants.pop(proche[0]), "approchée"
+                        break
+            lignes_c.append({"nom": nom, "district_rgph": d["nom"], **_chiffres(c),
                              "cle_hdx": cle_hdx, "correspondance": correspondance})
         for ligne in lignes_c[len(lignes_c) - len(bloc["communes"]):]:
             ligne["decoupage_identique"] = not restants and all(
@@ -358,8 +433,10 @@ def recensement(niveaux):
         if cle_d in district_par_nom.index:
             com.loc[i, ["district_pcode", "region_pcode", "region"]] = district_par_nom.loc[cle_d].values
     com["part_urbaine_pct"] = 100 * com["urbain"] / com["population"]
+    _menages(com)
     com = com[["nom", "district_rgph", "district_pcode", "region_pcode", "region", *COLONNES_RGPH,
-               "part_urbaine_pct", "pcode_hdx", "cle_hdx", "correspondance", "decoupage_identique"]]
+               "part_urbaine_pct", "taille_menage", "chef_femme_pct", "pcode_hdx", "cle_hdx", "correspondance",
+               "decoupage_identique"]]
     if com["population"].sum() != RGPH3_TOTAL:
         raise ValueError("RGPH-3 : la somme des communes diffère du total national")
     return {"regions": reg, "districts": dist, "communes": com}

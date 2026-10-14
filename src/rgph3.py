@@ -5,6 +5,8 @@ Source : « Résultats globaux du RGPH-3 de 2018 de Madagascar », tome 2, INSTA
   masculinité et part des femmes, par région et district (pages en format portrait).
 - Tableau 10 : population par milieu (urbain, rural) et sexe, par district et commune
   (pages en format paysage, texte pivoté).
+- Tableau 13 : ménages ordinaires par milieu et sexe du chef de ménage, par district et
+  commune (texte pivoté, communes dans le même ordre qu'au tableau 10).
 
 Les noms de régions sont imprimés à la verticale dans le tableau 8 : la région d'un district
 est retrouvée plus tard, par rapprochement avec les données administratives.
@@ -155,8 +157,50 @@ def tableau_10(pdf):
     return blocs
 
 
+def tableau_13(pdf, debut=0):
+    """Communes : ménages ordinaires par milieu et sexe du chef de ménage, par bloc de district.
+
+    Renvoie (blocs, total national). Sur certaines pages, le nom de la commune est imprimé
+    sur une ligne et ses nombres sur la suivante.
+    """
+    blocs, en_cours, en_tableau = [], None, False
+    for page in pdf.pages[debut:]:
+        lignes = _lignes_pivotees(page)
+        entete = " ".join(lignes[:4])
+        if "Tableau 13." in entete:
+            en_tableau = True
+        elif "Tableau 14." in entete:
+            break
+        if not en_tableau:
+            continue
+        lues = [_decouper(l) for l in lignes]
+        i = 0
+        while i < len(lues):
+            tete, nombres = lues[i]
+            if tete and not nombres and i + 1 < len(lues) and not lues[i + 1][0] and len(lues[i + 1][1]) == 9:
+                nombres = lues[i + 1][1]
+                i += 1
+            i += 1
+            if len(nombres) != 9:
+                continue
+            valeurs = dict(zip(["urbain_chef_homme", "urbain_chef_femme", "menages_urbains", "rural_chef_homme",
+                                "rural_chef_femme", "menages_ruraux", "menages_chef_homme", "menages_chef_femme",
+                                "menages"], nombres))
+            if tete.lower().startswith("total district"):
+                en_cours = {"total": valeurs, "communes": []}
+                blocs.append(en_cours)
+            elif "MADAGASCAR" in tete:
+                return blocs, valeurs
+            elif en_cours is not None:
+                en_cours["communes"].append({"nom": tete, **valeurs})
+    return blocs, None
+
+
 def extraire(chemin_pdf):
     with pdfplumber.open(chemin_pdf) as pdf:
         districts, regions, national = tableau_8(pdf)
         communes = tableau_10(pdf)
-    return {"districts": districts, "regions": regions, "national": national, "blocs_communes": communes}
+        # Le tableau 13 commence vers la page 100 : on évite de relire les pages précédentes.
+        menages, menages_national = tableau_13(pdf, debut=90)
+    return {"districts": districts, "regions": regions, "national": national, "blocs_communes": communes,
+            "blocs_menages": menages, "menages_national": menages_national}

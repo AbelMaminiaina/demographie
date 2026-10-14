@@ -10,6 +10,9 @@ export interface Recensement {
   e?: number;  // écart de l'estimation HDX au recensement (%)
   c?: string;  // correspondance de la commune : exacte ou approchée
   id?: boolean; // découpage communal identique dans le district
+  m?: number;   // ménages ordinaires
+  t?: number;   // personnes par ménage
+  f?: number;   // ménages dirigés par une femme (%)
 }
 
 export interface Unite {

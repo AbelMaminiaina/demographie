@@ -10,7 +10,7 @@ Les fichiers de `data/` ne sont pas versionnés dans git : ils sont recréés pa
 |---|---|---|---|---|---|---|
 | [Indicateurs du développement](#banque-mondiale--indicateurs-nationaux) | ONU (WPP), offices statistiques, Banque mondiale | Banque mondiale | Population, fécondité, mortalité, espérance de vie, urbanisation, effectifs par âge et sexe | 1960-2025 | Pays | CC BY 4.0 |
 | [Projections de population](#onu--projections-de-population) | Division de la population de l'ONU (World Population Prospects) | Banque mondiale (base 40) | Population et structure par âge projetées | 1960-2050 | Pays | CC BY 3.0 IGO (ONU) |
-| [Recensement RGPH-3](#instat--recensement-rgph-3-2018) | INSTAT | UNFPA Madagascar (copie du PDF officiel) | Population recensée par sexe et milieu (urbain, rural) | 2018 | Régions, districts, communes | Publication officielle, citation obligatoire |
+| [Recensement RGPH-3](#instat--recensement-rgph-3-2018) | INSTAT | UNFPA Madagascar (copie du PDF officiel) | Population recensée par sexe et milieu (urbain, rural), ménages ordinaires | 2018 | Régions, districts, communes | Publication officielle, citation obligatoire |
 | [Population par unité administrative](#instat--population-par-unité-administrative-2009-2018) | INSTAT et BNGRC | OCHA, sur HDX (`cod-ps-mdg`) | Population des régions, districts, communes et fokontany | 2009-2018 | Régions à fokontany | CC BY 3.0 IGO |
 | [Contours administratifs](#geoboundaries--contours-administratifs) | OpenStreetMap (régions) ; BNGRC et OCHA (districts à fokontany) | geoBoundaries (William & Mary) | Limites des 4 niveaux | 2017 (régions), 2020 (autres) | Régions à fokontany | ODbL 1.0 (régions) ; CC BY 3.0 IGO (autres) |
 | [Enquête démographique et de santé](#dhs--enquête-démographique-et-de-santé-2021) | INSTAT, avec l'appui d'ICF (programme DHS) | API du programme DHS | 8 indicateurs de santé et de fécondité | 2021 | Régions | Données agrégées publiques, citation obligatoire |
@@ -60,18 +60,21 @@ Les dernières années manquent parfois : la Banque mondiale publie certains ind
 - **Fichier brut :** `data/brut/instat_rgph3/resultats_globaux_tome2.pdf`.
 - **Tableaux extraits** (`src/rgph3.py`) :
   - tableau 8 : population résidente par sexe, poids démographique, rapport de masculinité, part des femmes et densité, pour les 22 régions et 114 districts ;
-  - tableau 10 : population par milieu (urbain, rural) et par sexe, pour les 1 727 communes et arrondissements.
+  - tableau 10 : population par milieu (urbain, rural) et par sexe, pour les 1 727 communes et arrondissements ;
+  - tableau 13 : ménages ordinaires par milieu et sexe du chef de ménage, pour les mêmes communes, dans le même ordre.
 - **Contrôles de l'extraction :**
   - le total national lu doit être 25 674 196 ;
   - les districts des deux tableaux doivent concorder un à un ;
   - chaque district doit être la somme de ses communes ;
   - urbain + rural doit égaler le total sur chaque ligne ;
-  - les totaux régionaux recalculés doivent égaler ceux publiés.
+  - les totaux régionaux recalculés doivent égaler ceux publiés ;
+  - les tableaux 10 et 13 doivent avoir les mêmes districts et le même nombre de communes, chaque commune le même milieu (urbain ou rural) et une taille de ménage plausible ; les ménages des communes doivent redonner ceux du district et du pays.
 
-  Les totaux urbain (4 942 902) et rural (20 731 294) obtenus sont ceux publiés par l'INSTAT.
+  Les totaux urbain (4 942 902) et rural (20 731 294) obtenus sont ceux publiés par l'INSTAT, ainsi que les 6 079 876 ménages ordinaires (4,2 personnes par ménage, 24 % dirigés par une femme).
+- **Erreurs d'impression :** le tableau 10 imprime souvent le nom du district à la place de celui de la commune (« Taolagnaro » pour Soavary, Isaka Ivondro ou Mandiso, « Morondava » pour Marofandilia). Le tableau 13 donne les vrais noms, parfois précédés de celui du district (« Soavinandriana Amparaky »). Les deux noms sont essayés pour relier la commune à HDX ; le nom retenu est celui qui correspond.
 - **Correspondance avec les autres sources :**
   - les 114 districts du recensement couvrent exactement les 119 districts HDX. Antananarivo Renivohitra y est détaillé par ses 6 arrondissements, et « Toliara-I » correspond à « Toliary-I » ;
-  - les communes sont reliées par leur nom dans chaque district : 1 474 exactement, 39 par un nom proche (variantes d'orthographe) et 214 sans correspondance. Le recensement compte 1 727 communes contre 1 579 dans le découpage HDX ; les communes créées depuis n'ont pas de contour ;
+  - les communes sont reliées par leur nom dans chaque district : 1 523 exactement, 38 par un nom proche (variantes d'orthographe) et 166 sans correspondance. Le recensement compte 1 727 communes contre 1 579 dans le découpage HDX ; les communes créées depuis n'ont pas de contour ;
   - dans 99 districts sur 114, le découpage communal diffère. Le chiffre d'une commune reliée peut alors ne pas couvrir exactement le territoire dessiné (colonne `decoupage_identique`).
 - **Fokontany :** le recensement n'est pas publié par fokontany (les tomes 1 et 2 s'arrêtent à la commune). Le projet produit donc une **estimation calée** :
   - la population recensée de chaque commune reliée est répartie entre ses fokontany, au prorata de leur poids dans l'estimation HDX ;
@@ -287,6 +290,9 @@ Une ligne par région (22) ou par district (119, Antananarivo Renivohitra étant
 | `part_urbaine_pct` | Part de la population urbaine (%) |
 | `rapport_masculinite` | Hommes pour 100 femmes |
 | `femmes_pct` | Part des femmes (%) |
+| `menages`, `menages_chef_femme` | Ménages ordinaires, dont ceux dirigés par une femme |
+| `taille_menage` | Personnes par ménage ordinaire |
+| `chef_femme_pct` | Part des ménages dirigés par une femme (%) |
 | `superficie_km2`, `densite` | Superficie calculée à partir des contours, et densité correspondante |
 | `estimation_hdx_2018` | Estimation 2018 diffusée sur HDX |
 | `ecart_estimation_pct` | Écart de l'estimation HDX par rapport au recensement (%) |
@@ -296,10 +302,12 @@ Une ligne par commune ou arrondissement du recensement (1 727).
 
 | Colonne | Contenu |
 |---|---|
-| `nom`, `district_rgph` | Nom de la commune et de son district, tels qu'imprimés dans le recensement |
+| `nom`, `district_rgph` | Nom de la commune (tableau 10 ou 13, voir les erreurs d'impression) et de son district |
 | `district_pcode`, `region_pcode`, `region` | Rattachement dans le découpage HDX |
 | `hommes`, `femmes`, `population`, `urbain`, `rural` | Population recensée |
+| `menages`, `menages_chef_femme` | Ménages ordinaires, dont ceux dirigés par une femme |
 | `part_urbaine_pct` | Part de la population urbaine (%) |
+| `taille_menage`, `chef_femme_pct` | Personnes par ménage ; part des ménages dirigés par une femme (%) |
 | `pcode_hdx` | Code de la commune HDX correspondante, vide si aucune |
 | `correspondance` | `exacte`, `approchée` (variante d'orthographe) ou `aucune` |
 | `decoupage_identique` | Vrai si le district a exactement les mêmes communes dans les deux sources |

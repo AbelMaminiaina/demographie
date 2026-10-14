@@ -18,6 +18,7 @@ export interface Indicateur {
 
 const TOUS: Niveau[] = ["regions", "districts", "communes", "fokontany"];
 const REGIONS_DISTRICTS: Niveau[] = ["regions", "districts"];
+const JUSQU_AUX_COMMUNES: Niveau[] = ["regions", "districts", "communes"];
 
 export function croissance(u: Unite, annee: number, meta: Meta): number | null {
   const ref = meta.annee_ref;
@@ -31,12 +32,16 @@ export function construireIndicateurs(meta: Meta): Indicateur[] {
   const iAn = (annee: number) => meta.annees_wp.indexOf(annee);
   const pourcent = (v: number) => `${nombre(v, 1)} %`;
   return [
-    { id: "rg", nom: "ind.rg", groupe: "recensement", note: "note.rg", niveaux: REGIONS_DISTRICTS,
+    { id: "rg", nom: "ind.rg", groupe: "recensement", note: "note.rg", niveaux: JUSQU_AUX_COMMUNES,
       val: (u) => u.rg?.p, fmt: entier, court: compact },
     { id: "rgd", nom: "ind.rgd", groupe: "recensement", note: "note.rg", niveaux: REGIONS_DISTRICTS,
       val: (u) => u.rg?.d, fmt: densite },
-    { id: "rgu", nom: "ind.rgu", groupe: "recensement", note: "note.rg", niveaux: REGIONS_DISTRICTS,
+    { id: "rgu", nom: "ind.rgu", groupe: "recensement", note: "note.rg", niveaux: JUSQU_AUX_COMMUNES,
       val: (u) => u.rg?.u, fmt: pourcent },
+    { id: "rgt", nom: "ind.rgt", groupe: "recensement", note: "note.rgt", niveaux: JUSQU_AUX_COMMUNES,
+      val: (u) => u.rg?.t, fmt: (v) => nombre(v, 1) },
+    { id: "rgf", nom: "ind.rgf", groupe: "recensement", note: "note.rgf", niveaux: JUSQU_AUX_COMMUNES,
+      val: (u) => u.rg?.f, fmt: pourcent },
     { id: "rgm", nom: "ind.rgm", groupe: "recensement", note: "note.rg", niveaux: REGIONS_DISTRICTS,
       val: (u) => u.rg?.rm, fmt: (v) => nombre(v, 1) },
     { id: "rge", nom: "ind.rge", groupe: "recensement", note: "note.rge", niveaux: REGIONS_DISTRICTS, divergent: true,

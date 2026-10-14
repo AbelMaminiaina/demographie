@@ -133,6 +133,11 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
       </div>
       <Chiffres elements={chiffres} />
       {niveau === "fokontany" && <p className="m-0 text-[0.82rem] text-discret">{t("troisEstimations")}</p>}
+      {recense && u.rg!.m != null && (
+        <p className="m-0 text-[0.86rem] text-encre-2">
+          {t("menagesPhrase", { m: entier(u.rg!.m), t: nombre(u.rg!.t, 1), f: pct(u.rg!.f, 0) })}
+        </p>
+      )}
       {recense && u.rg!.e != null && (
         <p className="m-0 text-[0.82rem] text-discret">
           {t("ecartHdx", { p: entier(u.p), e: `${u.rg!.e > 0 ? "+" : ""}${nombre(u.rg!.e, 1)} %` })}
@@ -143,6 +148,11 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
           {u.rg ? (
             <>
               <p className="m-0">{t("recensementCommune", { p: entier(u.rg.p), u: pct(u.rg.u, 0) })}</p>
+              {u.rg.m != null && (
+                <p className="m-0 text-[0.86rem] text-encre-2">
+                  {t("menagesPhrase", { m: entier(u.rg.m), t: nombre(u.rg.t, 1), f: pct(u.rg.f, 0) })}
+                </p>
+              )}
               {!u.rg.id && <p className="m-0 text-[0.82rem] text-discret">{t("decoupageChange")}</p>}
             </>
           ) : <p className="m-0 text-[0.82rem] text-discret">{t("pasDeCorrespondance")}</p>}

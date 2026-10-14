@@ -64,6 +64,12 @@ def annee_courante_wp100(wp100):
     return min(date.today().year, annees[-1])
 
 
+def _menages(r):
+    """Ménages ordinaires du recensement : nombre, taille moyenne, part dirigée par une femme (%)."""
+    return {"m": int(r["menages"]), "t": round(float(r["taille_menage"]), 2),
+            "f": round(float(r["chef_femme_pct"]), 1)}
+
+
 def _niveaux(donnees):
     niveaux, wp, dhs = donnees["niveaux"], donnees["worldpop"], donnees["dhs"]
     annees_wp = sorted(int(a) for a in wp["regions"]["annee"].unique())
@@ -90,11 +96,11 @@ def _niveaux(donnees):
                 r = rg_par_cle[niveau].loc[u["cle"]]
                 ligne["rg"] = {"p": int(r["population"]), "u": round(float(r["part_urbaine_pct"]), 1),
                                "rm": round(float(r["rapport_masculinite"]), 1), "d": round(float(r["densite"]), 1),
-                               "e": round(float(r["ecart_estimation_pct"]), 1)}
+                               "e": round(float(r["ecart_estimation_pct"]), 1), **_menages(r)}
             elif u["cle"] in rg_communes.index:
                 r = rg_communes.loc[u["cle"]]
                 ligne["rg"] = {"p": int(r["population"]), "u": round(float(r["part_urbaine_pct"]), 1),
-                               "c": r["correspondance"], "id": bool(r["decoupage_identique"])}
+                               "c": r["correspondance"], "id": bool(r["decoupage_identique"]), **_menages(r)}
             if niveau == "regions":
                 ligne["dhs"] = {c: (None if v != v else float(v)) for c, v in dhs_par_cle.loc[u["cle"]].items()}
             lignes.append(ligne)

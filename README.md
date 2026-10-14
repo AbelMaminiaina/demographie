@@ -12,7 +12,7 @@ Pipeline qui télécharge, nettoie et visualise les données démographiques de 
 
 L'application propose une carte de Madagascar à quatre niveaux (régions, districts, communes et 17 464 fokontany) sur un fond de carte réel (routes, noms de lieux). On peut y afficher :
 
-- les résultats du recensement de 2018 ;
+- les résultats du recensement de 2018, jusqu'à la commune (population, part urbaine, taille des ménages, ménages dirigés par une femme) ;
 - les estimations et la croissance WorldPop, année par année (grille de 100 m pour les fokontany) ;
 - la population des fokontany calée sur le recensement ;
 - les indicateurs de santé DHS.
@@ -102,7 +102,7 @@ Le **[catalogue des données](DONNEES.md)** détaille, pour chaque source, le pr
 
 | Source | Producteur | Contenu | Licence |
 |---|---|---|---|
-| Recensement RGPH-3 (PDF officiel, copie UNFPA) | INSTAT | Population 2018 par région, district et commune, par sexe et milieu | Publication officielle, citation obligatoire |
+| Recensement RGPH-3 (PDF officiel, copie UNFPA) | INSTAT | Population 2018 par région, district et commune, par sexe et milieu ; ménages ordinaires | Publication officielle, citation obligatoire |
 | Banque mondiale | ONU, offices statistiques, Banque mondiale | Séries nationales 1960-2025, pyramide des âges | CC BY 4.0 |
 | ONU, World Population Prospects (via la Banque mondiale) | Division de la population de l'ONU | Projections jusqu'en 2050 | CC BY 3.0 IGO |
 | HDX `cod-ps-mdg` | INSTAT et BNGRC, diffusé par OCHA | Population 2009-2018 des régions, districts, communes et fokontany | CC BY 3.0 IGO |
