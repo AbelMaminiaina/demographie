@@ -31,11 +31,12 @@ const EPAISSEUR: Record<Niveau, ExpressionSpecification | number> = {
 
 export interface Survol { niveau: Niveau; i: number; x: number; y: number }
 
-export function Carte({ niveau, contours, couleurs, selection, centrage, sombre, fondActif, onSurvol, onChoisir }: {
+export function Carte({ niveau, contours, couleurs, selection, zone, centrage, sombre, fondActif, onSurvol, onChoisir }: {
   niveau: Niveau;
   contours: Partial<Record<Niveau, Contours>>;
   couleurs: string[] | null;
   selection: Selection | null;
+  zone: { niveau: Niveau; indices: number[] } | null;   // unités de la zone d'intervention, surlignées
   centrage: number;               // change à chaque demande de recentrage sur la sélection
   sombre: boolean;
   fondActif: boolean;
@@ -47,7 +48,8 @@ export function Carte({ niveau, contours, couleurs, selection, centrage, sombre,
   const carte = useRef<CarteMapLibre | null>(null);
   const [styleCharge, setStyleCharge] = useState(0);   // incrémenté à chaque (re)chargement du style
   const [fondEnErreur, setFondEnErreur] = useState(false);
-  const etat = useRef({ niveau, onSurvol, onChoisir, survol: null as number | null, choisi: null as Selection | null });
+  const etat = useRef({ niveau, onSurvol, onChoisir, survol: null as number | null, choisi: null as Selection | null,
+    zone: null as { niveau: Niveau; indices: number[] } | null });
   // Vrai entre l'événement « style.load » et le prochain changement de style. On ne peut pas se fier à
   // isStyleLoaded(), qui reste faux tant que les tuiles du fond de carte se chargent.
   const stylePret = useRef(false);
@@ -123,6 +125,8 @@ export function Carte({ niveau, contours, couleurs, selection, centrage, sombre,
         paint: { "line-color": jeton("--selection"),
                  "line-width": ["case", ["boolean", ["feature-state", "choisi"], false], 2.6,
                                 ["boolean", ["feature-state", "survol"], false], 1.6, 0] } });
+      m.addLayer({ id: `zone-${n}`, type: "line", source: `src-${n}`, layout: { visibility: "none" },
+        paint: { "line-color": jeton("--femme"), "line-width": ["case", ["boolean", ["feature-state", "zone"], false], 2.4, 0] } });
     }
     if (contours.regions && !m.getLayer("contour-regions")) {
       m.addLayer({ id: "contour-regions", type: "line", source: "src-regions",
@@ -134,7 +138,7 @@ export function Carte({ niveau, contours, couleurs, selection, centrage, sombre,
   useEffect(() => {
     const m = carte.current;
     if (!m || !stylePret.current) return;
-    for (const n of NIVEAUX) for (const c of ["fill", "ligne", "select"]) {
+    for (const n of NIVEAUX) for (const c of ["fill", "ligne", "select", "zone"]) {
       if (m.getLayer(`${c}-${n}`)) m.setLayoutProperty(`${c}-${n}`, "visibility", n === niveau ? "visible" : "none");
     }
     if (m.getLayer("contour-regions")) m.setLayoutProperty("contour-regions", "visibility", niveau === "regions" ? "none" : "visible");
@@ -157,6 +161,19 @@ export function Carte({ niveau, contours, couleurs, selection, centrage, sombre,
     if (selection && m.getSource(`src-${selection.niveau}`)) m.setFeatureState({ source: `src-${selection.niveau}`, id: selection.i }, { choisi: true });
     etat.current.choisi = selection;
   }, [selection, contours, styleCharge]);
+
+  // Zone d'intervention : contour de couleur sur chacune de ses unités
+  useEffect(() => {
+    const m = carte.current;
+    if (!m) return;
+    const marquer = (z: { niveau: Niveau; indices: number[] } | null, valeur: boolean) => {
+      if (!z || !m.getSource(`src-${z.niveau}`)) return;
+      for (const i of z.indices) m.setFeatureState({ source: `src-${z.niveau}`, id: i }, { zone: valeur });
+    };
+    marquer(etat.current.zone, false);
+    marquer(zone, true);
+    etat.current.zone = zone;
+  }, [zone, contours, styleCharge]);
 
   useEffect(() => {
     const m = carte.current;

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Carte, type Survol } from "./components/Carte";
 import { Fiche } from "./components/Fiche";
 import { FicheTerritoire, NIVEAUX_FICHE } from "./components/FicheTerritoire";
+import { FicheZone, PanneauZone } from "./components/Zone";
+import { memoriserZone, zoneDepuisAdresse, zoneMemorisee, type Zone } from "./lib/zone";
 import { Infobulle } from "./components/Graphiques";
 import { Recherche } from "./components/Recherche";
 import { Classement, Enquetes, Tendances, Tuiles } from "./components/Sections";
@@ -62,12 +64,43 @@ export default function App() {
     }
   }, [base]);
 
+  // Zone d'intervention : lue dans un lien partagé (#zone?…), sinon reprise de la dernière visite
+  const zoneLien = useMemo(() => zoneDepuisAdresse(window.location.hash, "zone"), []);
+  const [zone, setZone] = useState<Zone | null>(() => zoneLien ?? zoneMemorisee());
+  const [modeZone, setModeZone] = useState(!!zoneLien);
+  useEffect(() => memoriserZone(zone), [zone]);
+  // La carte affiche le découpage de la zone ouverte par lien
+  const ouvrirZone = useCallback((z: Zone) => {
+    setZone(z);
+    setModeZone(true);
+    setNiveau(z.niveau);
+    setIndicateurId((id) => (z.niveau === "fokontany" && !["wp", "wpd", "cr", "ca", "p", "d"].includes(id) ? INDICATEUR_PAR_DEFAUT.fokontany : id));
+  }, []);
+  useEffect(() => { if (zoneLien) ouvrirZone(zoneLien); }, [zoneLien, ouvrirZone]);
+
   const [demandeFiche, setDemandeFiche] = useState(ficheDemandee);
+  const [demandeFicheZone, setDemandeFicheZone] = useState(() => zoneDepuisAdresse(window.location.hash, "fiche-zone"));
   useEffect(() => {
-    const lire = () => setDemandeFiche(ficheDemandee());
+    const lire = () => {
+      setDemandeFiche(ficheDemandee());
+      setDemandeFicheZone(zoneDepuisAdresse(window.location.hash, "fiche-zone"));
+      const z = zoneDepuisAdresse(window.location.hash, "zone");
+      if (z) ouvrirZone(z);
+    };
     window.addEventListener("hashchange", lire);
     return () => window.removeEventListener("hashchange", lire);
-  }, []);
+  }, [ouvrirZone]);
+  // Une zone ouverte par lien est reprise dans l'état : l'adresse n'a plus à la porter
+  useEffect(() => {
+    if (window.location.hash.startsWith("#zone?")) history.replaceState(null, "", window.location.pathname + window.location.search);
+  }, [zone]);
+  // Contours et fokontany nécessaires à la zone (carte, panneau, fiche)
+  const niveauZone = (demandeFicheZone ?? zone)?.niveau;
+  useEffect(() => {
+    if (!base || !niveauZone) return;
+    chargerNiveau(niveauZone);
+    if (niveauZone === "fokontany") chargerNiveau("fokontany");
+  }, [base, niveauZone, chargerNiveau]);
   // La fiche a besoin des contours de son niveau (carte de situation) et, pour une commune, des fokontany
   useEffect(() => {
     if (!demandeFiche || !base) return;
@@ -107,6 +140,14 @@ export default function App() {
     setSelection(s);
     if (centrer) setCentrage((c) => c + 1);
   };
+  // En mode zone, un clic ajoute l'unité à la zone ou l'en retire (un seul découpage par zone)
+  const basculerDansZone = (s: Selection, ajouterSeulement = false) => setZone((z) => {
+    if (!z || !z.indices.length) return { niveau: s.niveau, indices: [s.i], nom: z?.nom ?? "" };
+    if (z.niveau !== s.niveau) return z;
+    if (z.indices.includes(s.i)) return ajouterSeulement ? z : { ...z, indices: z.indices.filter((i) => i !== s.i) };
+    return { ...z, indices: [...z.indices, s.i] };
+  });
+  const zoneAccepte = (n: Niveau) => !zone?.indices.length || zone.niveau === n;
 
   if (erreur) return <p className="p-8 text-encre">{t("erreurChargement", { erreur })}</p>;
   if (!base || !indicateur) return <p className="p-8 text-encre-2">{t("chargement")}</p>;
@@ -122,6 +163,11 @@ export default function App() {
   ];
   const dateCollecte = base.meta.collecte ? dateLongue(new Date(base.meta.collecte), langue) : "";
 
+  if (demandeFicheZone) {
+    const u = unites[demandeFicheZone.niveau];
+    return u ? <FicheZone base={base} unitesNiveau={u} contours={contours} zone={demandeFicheZone} />
+      : <p className="p-8 text-encre-2">{t("chargement")}</p>;
+  }
   if (ficheImprimable) {
     return <FicheTerritoire base={base} unites={unites} contours={contours} selection={ficheImprimable}
       fokontanyParCommune={fokontanyParCommune} />;
@@ -137,7 +183,11 @@ export default function App() {
           </div>
           <div className="order-3 w-full sm:order-none sm:w-auto sm:flex-1 sm:justify-center sm:flex">
             <Recherche base={base} fokontany={fokontany} onDemanderFokontany={() => chargerNiveau("fokontany")}
-              onChoisir={(s, nom) => { setFkRepere(s.niveau === "fokontany" ? nom : null); choisir(s); }} />
+              onChoisir={(s, nom) => {
+                setFkRepere(s.niveau === "fokontany" ? nom : null);
+                if (modeZone && zoneAccepte(s.niveau)) basculerDansZone(s, true);
+                choisir(s);
+              }} />
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <div className="segments" role="group" aria-label={t("langue")}>
@@ -162,8 +212,9 @@ export default function App() {
         <section className="grid gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,1fr)]">
           <div className="carte-ui relative min-w-0 overflow-hidden">
             <div className="relative h-[72vh] min-h-[520px]">
-              <Carte niveau={niveau} contours={contours} couleurs={couleurs} selection={selection} centrage={centrage}
-                sombre={theme.sombre} fondActif={fondActif} onSurvol={setSurvol} onChoisir={(s) => choisir(s, false)} />
+              <Carte niveau={niveau} contours={contours} couleurs={couleurs} selection={selection} zone={zone} centrage={centrage}
+                sombre={theme.sombre} fondActif={fondActif} onSurvol={setSurvol}
+                onChoisir={(s) => (modeZone && zoneAccepte(s.niveau) ? basculerDansZone(s) : choisir(s, false))} />
               <div className="pointer-events-none absolute left-3 right-14 top-3 flex flex-wrap items-start gap-2">
                 <div className="segments pointer-events-auto max-w-full overflow-x-auto shadow-sm" role="group" aria-label="Découpage">
                   {NIVEAUX.map((n) => (
@@ -181,6 +232,12 @@ export default function App() {
                     ))}
                   </select>
                 </label>
+                <button type="button" aria-pressed={modeZone} onClick={() => setModeZone((m) => !m)}
+                  className={`pointer-events-auto cursor-pointer rounded-xl border px-3 py-1.5 text-sm font-semibold shadow-sm ${modeZone
+                    ? "border-transparent text-white" : "border-trait bg-surface text-encre"}`}
+                  style={modeZone ? { background: "var(--femme)" } : undefined} title={t("zoneBoutonAide")}>
+                  {t("zoneTitre")}{zone?.indices.length ? ` (${zone.indices.length})` : ""}
+                </button>
                 {indicateur.annee && (
                   <label className="carte-ui pointer-events-auto flex items-center gap-2 px-3 py-1.5 text-sm">
                     <span className="etiquette">{t("annee")}</span>
@@ -212,8 +269,17 @@ export default function App() {
             </div>
           </div>
           <aside className="carte-ui min-w-0 p-5 lg:max-h-[72vh] lg:min-h-[520px] lg:overflow-y-auto" aria-live="polite">
-            <Fiche base={base} unites={unites} selection={selection} fokontanyParCommune={fokontanyParCommune} fkRepere={fkRepere}
-              onChoisir={choisir} onReinitialiser={() => { setSelection(null); setCentrage((c) => c + 1); }} />
+            {modeZone ? (
+              <PanneauZone base={base} unitesNiveau={zone ? unites[zone.niveau] : null} niveauCarte={niveau}
+                zone={zone ?? { niveau, indices: [], nom: "" }} annee={Math.min(new Date().getFullYear(), base.meta.annees_wp[base.meta.annees_wp.length - 1])}
+                onRetirer={(i) => setZone((z) => z && { ...z, indices: z.indices.filter((x) => x !== i) })}
+                onVider={() => setZone((z) => z && { ...z, indices: [] })}
+                onNom={(nom) => setZone((z) => ({ ...(z ?? { niveau, indices: [] }), nom }))}
+                onNiveau={changerNiveau} onQuitter={() => setModeZone(false)} />
+            ) : (
+              <Fiche base={base} unites={unites} selection={selection} fokontanyParCommune={fokontanyParCommune} fkRepere={fkRepere}
+                onChoisir={choisir} onReinitialiser={() => { setSelection(null); setCentrage((c) => c + 1); }} />
+            )}
           </aside>
         </section>
 

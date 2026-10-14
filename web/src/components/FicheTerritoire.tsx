@@ -7,14 +7,15 @@ import type { Base, Contours, Niveau, Recensement, Selection, Unite } from "../l
 import { Courbes } from "./Graphiques";
 
 /** Niveaux pour lesquels une fiche imprimable existe. */
+export const ADRESSE_SITE = "https://abelmaminiaina.github.io/demographie/";
+
 export const NIVEAUX_FICHE: Niveau[] = ["regions", "districts", "communes"];
 
-const ADRESSE = "https://abelmaminiaina.github.io/demographie/";
 
 /** Colonne du tableau de comparaison : le territoire, ses parents, puis le pays. */
 interface Colonne { nom: string; rg?: Recensement; wp: number[]; s: number; p?: number }
 
-function Bloc({ titre, children }: { titre: string; children: ReactNode }) {
+export function Bloc({ titre, children }: { titre: string; children: ReactNode }) {
   // Mise en page en blocs (et non en grille) : Chrome découpe mal les grilles entre deux pages
   return (
     <section className="bloc-fiche border-t border-trait pt-3">
@@ -24,25 +25,59 @@ function Bloc({ titre, children }: { titre: string; children: ReactNode }) {
   );
 }
 
-/** Carte de situation : régions en gris, territoire en couleur (projection équirectangulaire). */
-function Situation({ regions, cible }: { regions: Contours; cible?: GeoJSON.Feature }) {
-  const anneaux = (g: GeoJSON.Geometry | undefined): number[][][] =>
-    !g ? [] : g.type === "Polygon" ? g.coordinates : g.type === "MultiPolygon" ? g.coordinates.flat() : [];
-  const tous = regions.features.flatMap((f) => anneaux(f.geometry)).flat();
-  const lon = tous.map((c) => c[0]), lat = tous.map((c) => c[1]);
-  const [x0, x1, y0, y1] = [Math.min(...lon), Math.max(...lon), Math.min(...lat), Math.max(...lat)];
+const anneaux = (g: GeoJSON.Geometry | undefined): number[][][] =>
+  !g ? [] : g.type === "Polygon" ? g.coordinates : g.type === "MultiPolygon" ? g.coordinates.flat() : [];
+
+/** Carte en projection équirectangulaire : `fond` en gris, `cibles` en couleur, cadrée sur `cadre`
+ * (par défaut le fond entier), sans bibliothèque cartographique. */
+export function Situation({ fond, cibles, cadre, largeur = 150 }: {
+  fond: GeoJSON.Feature[]; cibles: (GeoJSON.Feature | undefined)[]; cadre?: GeoJSON.Feature[]; largeur?: number;
+}) {
+  const points = (cadre ?? fond).flatMap((f) => anneaux(f.geometry)).flat();
+  const lon = points.map((c) => c[0]), lat = points.map((c) => c[1]);
+  let [x0, x1, y0, y1] = [Math.min(...lon), Math.max(...lon), Math.min(...lat), Math.max(...lat)];
+  if (cadre) {   // marge autour d'une zone, pour voir son voisinage
+    const m = Math.max(x1 - x0, y1 - y0) * 0.15 + 0.02;
+    [x0, x1, y0, y1] = [x0 - m, x1 + m, y0 - m, y1 + m];
+  }
   const k = Math.cos((((y0 + y1) / 2) * Math.PI) / 180);
-  const L = 150, H = (L * (y1 - y0)) / ((x1 - x0) * k);
+  const L = largeur, H = (L * (y1 - y0)) / ((x1 - x0) * k);
+  const dedans = (f: GeoJSON.Feature) => anneaux(f.geometry).some((a) => a.some(([x, y]) => x >= x0 && x <= x1 && y >= y0 && y <= y1));
   const chemin = (g: GeoJSON.Geometry | undefined) => anneaux(g).map((a) => "M" + a.map(
-    ([x, y]) => `${(((x - x0) * k) / ((x1 - x0) * k)) * L},${((y1 - y) / (y1 - y0)) * H}`).join("L") + "Z").join("");
+    ([x, y]) => `${((x - x0) / (x1 - x0)) * L},${((y1 - y) / (y1 - y0)) * H}`).join("L") + "Z").join("");
   return (
-    <svg viewBox={`-2 -2 ${L + 4} ${H + 4}`} className="block h-auto w-full" role="img" aria-hidden="true">
-      {regions.features.map((f, i) => (
-        <path key={i} d={chemin(f.geometry)} fill="var(--vide)" stroke="var(--surface)" strokeWidth={0.4} />
+    <svg viewBox={`0 0 ${L} ${H}`} className="block h-auto w-full overflow-hidden" role="img" aria-hidden="true">
+      {fond.filter((f) => !cadre || dedans(f)).map((f, i) => (
+        <path key={i} d={chemin(f.geometry)} fill="var(--vide)" stroke="var(--surface)" strokeWidth={cadre ? 0.6 : 0.4} />
       ))}
-      {cible && <path d={chemin(cible.geometry)} fill="var(--accent)" stroke="var(--encre)" strokeWidth={0.5} />}
+      {cibles.map((f, i) => f && <path key={`c${i}`} d={chemin(f.geometry)} fill="var(--accent)" stroke="var(--encre)" strokeWidth={0.5} />)}
     </svg>
   );
+}
+
+/** Barre au-dessus d'une feuille imprimable (masquée à l'impression). */
+export function BarreImpression() {
+  const { t } = useLangue();
+  return (
+    <div className="ecran-seul mx-auto mb-4 flex max-w-[210mm] flex-wrap items-center gap-3 px-4">
+      <a href="#" className="rounded-lg px-2 py-1 text-sm text-accent underline underline-offset-2">← {t("ficheRetour")}</a>
+      <button type="button" onClick={() => window.print()}
+        className="cursor-pointer rounded-lg border-0 px-4 py-2 text-sm font-semibold text-white" style={{ background: "var(--accent)" }}>
+        {t("ficheEnregistrer")}
+      </button>
+      <span className="text-[0.82rem] text-discret">{t("ficheAideImpression")}</span>
+    </div>
+  );
+}
+
+/** Titre de la page (nom proposé pour le PDF), rétabli à la fermeture. */
+export function useTitre(titre: string) {
+  useEffect(() => {
+    const avant = document.title;
+    document.title = titre;
+    window.scrollTo(0, 0);
+    return () => { document.title = avant; };
+  }, [titre]);
 }
 
 export function FicheTerritoire({ base, unites, contours, selection, fokontanyParCommune }: {
@@ -60,12 +95,7 @@ export function FicheTerritoire({ base, unites, contours, selection, fokontanyPa
   const aujourdhui = dateLongue(new Date(), langue);
   const titre = `${t("ficheTitre")} – ${u.n}`;
 
-  useEffect(() => {
-    const avant = document.title;
-    document.title = titre;
-    window.scrollTo(0, 0);
-    return () => { document.title = avant; };
-  }, [titre]);
+  useTitre(titre);
 
   // Colonnes de comparaison : territoire, district et région de rattachement, pays
   const region = niveau === "regions" ? null : R[u.r!];
@@ -134,14 +164,7 @@ export function FicheTerritoire({ base, unites, contours, selection, fokontanyPa
   const cellule = "border-b border-trait px-2 py-1";
   return (
     <div className="papier min-h-screen py-6">
-      <div className="ecran-seul mx-auto mb-4 flex max-w-[210mm] flex-wrap items-center gap-3 px-4">
-        <a href="#" className="rounded-lg px-2 py-1 text-sm text-accent underline underline-offset-2">← {t("ficheRetour")}</a>
-        <button type="button" onClick={() => window.print()}
-          className="cursor-pointer rounded-lg border-0 px-4 py-2 text-sm font-semibold text-white" style={{ background: "var(--accent)" }}>
-          {t("ficheEnregistrer")}
-        </button>
-        <span className="text-[0.82rem] text-discret">{t("ficheAideImpression")}</span>
-      </div>
+      <BarreImpression />
 
       <article className="feuille">
         <header className="grid grid-cols-[minmax(0,1fr)_110px] items-start gap-4">
@@ -156,7 +179,7 @@ export function FicheTerritoire({ base, unites, contours, selection, fokontanyPa
               {t("ficheEdition", { date: aujourdhui, collecte: meta.collecte ? dateLongue(new Date(meta.collecte), langue) : "n.d." })}
             </p>
           </div>
-          {contours.regions && <Situation regions={contours.regions} cible={cible} />}
+          {contours.regions && <Situation fond={contours.regions.features} cibles={[cible]} />}
         </header>
 
         <Bloc titre={t("ficheChiffresCles")}>
@@ -285,7 +308,7 @@ export function FicheTerritoire({ base, unites, contours, selection, fokontanyPa
             <li>{t("ficheSourceDhs", { enquete: meta.enquete_dhs })}</li>
             {niveau === "communes" && <li>{t("ficheLimiteDensite")}</li>}
           </ul>
-          <p className="m-0 text-[0.8rem]">{t("ficheCitation", { titre, date: aujourdhui, url: ADRESSE })}</p>
+          <p className="m-0 text-[0.8rem]">{t("ficheCitation", { titre, date: aujourdhui, url: ADRESSE_SITE })}</p>
         </Bloc>
       </article>
     </div>

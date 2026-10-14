@@ -22,6 +22,7 @@ Elle offre aussi :
 - une recherche jusqu'au fokontany ;
 - une fiche par lieu (évolution 2015-2030, indicateurs DHS de la région, liste des fokontany d'une commune) ;
 - une **fiche territoire imprimable**, à enregistrer en PDF, pour chaque région, district et commune : chiffres clés, comparaison avec le district, la région et le pays, carte de situation, liste des sous-unités, sources et citation (bouton « Fiche PDF », ou adresse `#fiche/<niveau>/<indice>`) ;
+- une **zone d'intervention** composée sur la carte (régions, districts, communes ou fokontany) : totaux de population, de ménages et d'estimations, fiche PDF de la zone, export CSV et lien de partage (bouton « Zone d'intervention ») ;
 - la population de 1960 à 2050 et une pyramide des âges année par année ;
 - la pauvreté et l'emploi d'après les enquêtes EPM, ENEMPSI et ENESI ;
 - un classement triable ;
