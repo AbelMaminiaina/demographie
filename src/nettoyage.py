@@ -251,7 +251,8 @@ def worldpop(niveaux, series_projetees):
     return resultats
 
 
-COLONNES_RGPH = ["hommes", "femmes", "population", "urbain", "rural", "menages", "menages_chef_femme"]
+COLONNES_RGPH = ["hommes", "femmes", "population", "urbain", "rural", "menages", "menages_chef_femme",
+                 "menages_urbains"]
 
 
 def _chiffres(ligne):
@@ -261,6 +262,9 @@ def _chiffres(ligne):
 def _menages(df):
     """Taille moyenne des ménages ordinaires et part des ménages dirigés par une femme."""
     df["taille_menage"] = df["population"] / df["menages"]
+    df["taille_menage_urbain"] = (df["urbain"] / df["menages_urbains"]).where(df["menages_urbains"] > 0)
+    df["taille_menage_rural"] = (df["rural"] / (df["menages"] - df["menages_urbains"])).where(
+        df["menages"] > df["menages_urbains"])
     df["chef_femme_pct"] = 100 * df["menages_chef_femme"] / df["menages"]
 
 
@@ -296,9 +300,68 @@ def _ajouter_menages(blocs, blocs_menages, districts_pdf):
                 erreurs.append(f"{nom} : taille de ménage invraisemblable")
             ligne["menages"] = ligne_m["menages"]
             ligne["menages_chef_femme"] = ligne_m["menages_chef_femme"]
+            ligne["menages_urbains"] = ligne_m["menages_urbains"]
             if "nom" in ligne_m:
                 ligne["nom_tableau_13"] = ligne_m["nom"]
     return erreurs
+
+
+def _controler_tableau_16(blocs, blocs_controle, districts_pdf):
+    """Le tableau 16 doit redonner, ligne à ligne, la population (tableau 10), les ménages
+    (tableau 13) et, à l'arrondi près, la taille moyenne des ménages par milieu."""
+    if len(blocs_controle) != len(blocs):
+        return [f"{len(blocs_controle)} districts au tableau 16 contre {len(blocs)} au tableau 10"]
+    erreurs = []
+    for d, bloc, bloc_c in zip(districts_pdf, blocs, blocs_controle):
+        if len(bloc_c["communes"]) != len(bloc["communes"]):
+            erreurs.append(f"{d['nom']} : {len(bloc_c['communes'])} communes au tableau 16 "
+                           f"contre {len(bloc['communes'])} au tableau 10")
+            continue
+        for ligne, ligne_c in zip([bloc["total"], *bloc["communes"]], [bloc_c["total"], *bloc_c["communes"]]):
+            nom = ligne_c.get("nom", d["nom"])
+            attendu = {"population_menages": ligne["population"], "population_urbaine_menages": ligne["urbain"],
+                       "menages": ligne["menages"], "menages_urbains": ligne["menages_urbains"]}
+            ecarts = [c for c, v in attendu.items() if ligne_c[c] != v]
+            for population, menages, taille in [("population_menages", "menages", "taille_menage"),
+                                                ("population_urbaine_menages", "menages_urbains", "taille_urbain"),
+                                                ("population_rurale_menages", "menages_ruraux", "taille_rural")]:
+                if ligne_c[menages] and abs(ligne_c[population] / ligne_c[menages] - ligne_c[taille]) > 0.051:
+                    ecarts.append(taille)
+            if ecarts:
+                erreurs.append(f"{nom} : tableau 16 différent ({', '.join(ecarts)})")
+    return erreurs
+
+
+def _tailles_par_sexe(districts_pdf, blocs, tailles):
+    """Taille moyenne des ménages selon le sexe du chef (tableau 14), alignée sur les districts
+    du tableau 8 ; contrôle par la population et le nombre de ménages."""
+    if len(tailles) != len(districts_pdf):
+        return [f"{len(tailles)} districts au tableau 14 contre {len(districts_pdf)} au tableau 8"]
+    erreurs = []
+    for d, bloc, t in zip(districts_pdf, blocs, tailles):
+        if t["population_menages"] != d["population"] or t["menages"] != bloc["total"]["menages"]:
+            erreurs.append(f"{d['nom']} : tableau 14 différent des tableaux 8 et 13 (« {t['nom']} »)")
+        d["taille_menage_chef_homme"] = t["taille_chef_homme"]
+        d["taille_menage_chef_femme"] = t["taille_chef_femme"]
+    return erreurs
+
+
+def _national_rgph(reg, tailles):
+    """Valeurs nationales du recensement (somme des régions), pour les comparaisons."""
+    if tailles is None:
+        raise ValueError("RGPH-3 : ligne MADAGASCAR du tableau 14 introuvable")
+    n = pd.DataFrame([reg[COLONNES_RGPH].sum()])
+    n["superficie_km2"] = reg["superficie_km2"].sum()
+    if int(n.loc[0, "menages"]) != tailles["menages"]:
+        raise ValueError("RGPH-3 : ménages nationaux différents entre les tableaux 13 et 14")
+    _menages(n)
+    n = n.iloc[0]
+    return {"population": int(n["population"]), "part_urbaine_pct": 100 * n["urbain"] / n["population"],
+            "rapport_masculinite": 100 * n["hommes"] / n["femmes"], "densite": n["population"] / n["superficie_km2"],
+            "menages": int(n["menages"]), "taille_menage": n["taille_menage"], "chef_femme_pct": n["chef_femme_pct"],
+            "taille_menage_urbain": n["taille_menage_urbain"], "taille_menage_rural": n["taille_menage_rural"],
+            "taille_menage_chef_homme": tailles["taille_chef_homme"],
+            "taille_menage_chef_femme": tailles["taille_chef_femme"]}
 
 
 def _sans_district(nom, district):
@@ -362,6 +425,8 @@ def recensement(niveaux):
         erreurs.append("total national des ménages introuvable (tableau 13)")
     elif sum(b["total"]["menages"] for b in extrait["blocs_menages"]) != extrait["menages_national"]["menages"]:
         erreurs.append("ménages : la somme des districts diffère du total national")
+    erreurs += _controler_tableau_16(blocs, extrait["blocs_controle"], districts_pdf)
+    erreurs += _tailles_par_sexe(districts_pdf, blocs, extrait["tailles_districts"])
     if erreurs:
         raise ValueError("RGPH-3 : extraction incohérente :\n- " + "\n- ".join(erreurs))
 
@@ -374,7 +439,9 @@ def recensement(niveaux):
         if not arrondissements:
             if cle_d not in unites_d.index:
                 raise ValueError(f"RGPH-3 : district sans correspondance « {d['nom']} »")
-            lignes_d.append({"cle": cle_d, **_chiffres(bloc["total"]), "densite_officielle": d["densite"]})
+            lignes_d.append({"cle": cle_d, **_chiffres(bloc["total"]), "densite_officielle": d["densite"],
+                             "taille_menage_chef_homme": d["taille_menage_chef_homme"],
+                             "taille_menage_chef_femme": d["taille_menage_chef_femme"]})
         # Communes de HDX disponibles dans ce district, par nom normalisé
         candidats = {}
         for cle in unites_c["cle"]:
@@ -418,8 +485,16 @@ def recensement(niveaux):
     densites_publiees = {r["population"]: r["densite"] for r in extrait["regions"]}
     reg = unites_r[["cle", "nom"]].join(reg).reset_index()
     reg["densite_officielle"] = reg["population"].map(densites_publiees)
+    # Taille des ménages selon le sexe du chef : lignes « Total Région » du tableau 14,
+    # reconnues par leur nombre de ménages
+    tailles = {r["menages"]: r for r in extrait["tailles_regions"]}
+    if set(tailles) != set(reg["menages"]):
+        raise ValueError("RGPH-3 : les régions du tableau 14 ne correspondent pas aux ménages recalculés")
+    for sexe in ("homme", "femme"):
+        reg[f"taille_menage_chef_{sexe}"] = reg["menages"].map(lambda m: tailles[m][f"taille_chef_{sexe}"])
     reg = _completer(reg, niveaux["regions"]["unites"].set_index("cle")["superficie_km2"],
                      niveaux["regions"]["unites"].set_index("cle")["population"])
+    reg.attrs["national"] = _national_rgph(reg, extrait["tailles_national"])
 
     # Communes : codes HDX quand la correspondance existe
     com = pd.DataFrame(lignes_c)
@@ -435,7 +510,8 @@ def recensement(niveaux):
     com["part_urbaine_pct"] = 100 * com["urbain"] / com["population"]
     _menages(com)
     com = com[["nom", "district_rgph", "district_pcode", "region_pcode", "region", *COLONNES_RGPH,
-               "part_urbaine_pct", "taille_menage", "chef_femme_pct", "pcode_hdx", "cle_hdx", "correspondance",
+               "part_urbaine_pct", "taille_menage", "taille_menage_urbain", "taille_menage_rural", "chef_femme_pct",
+               "pcode_hdx", "cle_hdx", "correspondance",
                "decoupage_identique"]]
     if com["population"].sum() != RGPH3_TOTAL:
         raise ValueError("RGPH-3 : la somme des communes diffère du total national")

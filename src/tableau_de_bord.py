@@ -65,9 +65,15 @@ def annee_courante_wp100(wp100):
 
 
 def _menages(r):
-    """Ménages ordinaires du recensement : nombre, taille moyenne, part dirigée par une femme (%)."""
-    return {"m": int(r["menages"]), "t": round(float(r["taille_menage"]), 2),
-            "f": round(float(r["chef_femme_pct"]), 1)}
+    """Ménages ordinaires du recensement : nombre, taille moyenne, part dirigée par une femme (%),
+    taille en milieu urbain et rural, et selon le sexe du chef (régions et districts)."""
+    valeurs = {"m": int(r["menages"]), "t": round(float(r["taille_menage"]), 2),
+               "f": round(float(r["chef_femme_pct"]), 1)}
+    for cle, colonne in (("tu", "taille_menage_urbain"), ("tr", "taille_menage_rural"),
+                         ("th", "taille_menage_chef_homme"), ("tf", "taille_menage_chef_femme")):
+        if colonne in r and r[colonne] == r[colonne]:
+            valeurs[cle] = round(float(r[colonne]), 1)
+    return valeurs
 
 
 def _niveaux(donnees):

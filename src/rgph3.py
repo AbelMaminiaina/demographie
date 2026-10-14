@@ -7,6 +7,10 @@ Source : « Résultats globaux du RGPH-3 de 2018 de Madagascar », tome 2, INSTA
   (pages en format paysage, texte pivoté).
 - Tableau 13 : ménages ordinaires par milieu et sexe du chef de ménage, par district et
   commune (texte pivoté, communes dans le même ordre qu'au tableau 10).
+- Tableau 14 : taille moyenne des ménages selon le sexe du chef de ménage, par région et
+  district (texte pivoté, districts dans l'ordre du tableau 8).
+- Tableau 16 : population, nombre et taille moyenne des ménages ordinaires par milieu, par
+  district et commune (texte pivoté) ; sert à contrôler les tableaux 10 et 13.
 
 Les noms de régions sont imprimés à la verticale dans le tableau 8 : la région d'un district
 est retrouvée plus tard, par rapprochement avec les données administratives.
@@ -196,11 +200,82 @@ def tableau_13(pdf, debut=0):
     return blocs, None
 
 
+def _lignes_tableau(pdf, debut, numero):
+    """Lignes (libellé, nombres) des pages pivotées du tableau `numero`, jusqu'au tableau suivant."""
+    lignes, en_tableau = [], False
+    for page in pdf.pages[debut:]:
+        lues = _lignes_pivotees(page)
+        entete = " ".join(lues[:4])
+        if f"Tableau {numero}." in entete:
+            en_tableau = True
+        elif f"Tableau {numero + 1}." in entete:
+            break
+        if en_tableau:
+            lignes += [_decouper(l) for l in lues]
+    return lignes
+
+
+def tableau_14(pdf, debut=0):
+    """Régions et districts : ménages ordinaires et leur taille moyenne selon le sexe du chef de ménage.
+
+    Renvoie (districts, regions, national) ; les districts sont dans l'ordre du tableau 8.
+    """
+    colonnes = ["population_hommes", "population_femmes", "population_menages", "menages_chef_homme",
+                "menages_chef_femme", "menages", "taille_chef_homme", "taille_chef_femme", "taille_menage",
+                "chef_femme_pct", "poids_menages_pct"]
+    districts, regions = [], []
+    for tete, nombres in _lignes_tableau(pdf, debut, 14):
+        if len(nombres) != len(colonnes):
+            continue
+        valeurs = dict(zip(colonnes, nombres))
+        if tete.startswith("Total Région"):
+            regions.append(valeurs)
+        elif "MADAGASCAR" in tete:
+            return districts, regions, valeurs
+        else:
+            districts.append({"nom": tete, **valeurs})
+    return districts, regions, None
+
+
+def tableau_16(pdf, debut=0):
+    """Communes : population et nombre des ménages ordinaires, taille moyenne, par milieu.
+
+    Renvoie des blocs par district, comme le tableau 10 et dans le même ordre.
+    """
+    colonnes = ["population_urbaine_menages", "menages_urbains", "taille_urbain", "population_rurale_menages",
+                "menages_ruraux", "taille_rural", "population_menages", "menages", "taille_menage"]
+    blocs, en_cours = [], None
+    for tete, nombres in _lignes_tableau(pdf, debut, 16):
+        if len(nombres) == 8:
+            # Commune seulement urbaine ou seulement rurale : un des tirets de la colonne vide
+            # se perd à la lecture. Le groupe « Ensemble » (3 derniers nombres) dit lequel.
+            if nombres[:3] == nombres[-3:]:
+                nombres = [*nombres[:3], 0, 0, 0, *nombres[-3:]]
+            elif nombres[2:5] == nombres[-3:]:
+                nombres = [0, 0, 0, *nombres[-3:], *nombres[-3:]]
+        if len(nombres) != len(colonnes):
+            continue
+        valeurs = dict(zip(colonnes, nombres))
+        if "total district" in tete.lower():   # parfois précédé du nom du district
+            en_cours = {"total": valeurs, "communes": []}
+            blocs.append(en_cours)
+        elif "MADAGASCAR" in tete:
+            break
+        elif en_cours is not None:
+            en_cours["communes"].append({"nom": tete, **valeurs})
+    return blocs
+
+
 def extraire(chemin_pdf):
     with pdfplumber.open(chemin_pdf) as pdf:
         districts, regions, national = tableau_8(pdf)
         communes = tableau_10(pdf)
         # Le tableau 13 commence vers la page 100 : on évite de relire les pages précédentes.
         menages, menages_national = tableau_13(pdf, debut=90)
+        tailles_districts, tailles_regions, tailles_national = tableau_14(pdf, debut=150)
+        controle = tableau_16(pdf, debut=160)
     return {"districts": districts, "regions": regions, "national": national, "blocs_communes": communes,
-            "blocs_menages": menages, "menages_national": menages_national}
+            "blocs_menages": menages, "menages_national": menages_national,
+            "tailles_districts": tailles_districts, "tailles_regions": tailles_regions,
+            "tailles_national": tailles_national,
+            "blocs_controle": controle}

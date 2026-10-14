@@ -61,16 +61,21 @@ Les dernières années manquent parfois : la Banque mondiale publie certains ind
 - **Tableaux extraits** (`src/rgph3.py`) :
   - tableau 8 : population résidente par sexe, poids démographique, rapport de masculinité, part des femmes et densité, pour les 22 régions et 114 districts ;
   - tableau 10 : population par milieu (urbain, rural) et par sexe, pour les 1 727 communes et arrondissements ;
-  - tableau 13 : ménages ordinaires par milieu et sexe du chef de ménage, pour les mêmes communes, dans le même ordre.
+  - tableau 13 : ménages ordinaires par milieu et sexe du chef de ménage, pour les mêmes communes, dans le même ordre ;
+  - tableau 14 : taille moyenne des ménages selon le sexe du chef de ménage, pour les régions et les districts ;
+  - tableau 16 : population, nombre et taille moyenne des ménages ordinaires par milieu, pour les communes. Il ne sert qu'au contrôle : il doit redonner les tableaux 10 et 13.
 - **Contrôles de l'extraction :**
   - le total national lu doit être 25 674 196 ;
   - les districts des deux tableaux doivent concorder un à un ;
   - chaque district doit être la somme de ses communes ;
   - urbain + rural doit égaler le total sur chaque ligne ;
   - les totaux régionaux recalculés doivent égaler ceux publiés ;
-  - les tableaux 10 et 13 doivent avoir les mêmes districts et le même nombre de communes, chaque commune le même milieu (urbain ou rural) et une taille de ménage plausible ; les ménages des communes doivent redonner ceux du district et du pays.
+  - les tableaux 10 et 13 doivent avoir les mêmes districts et le même nombre de communes, chaque commune le même milieu (urbain ou rural) et une taille de ménage plausible ; les ménages des communes doivent redonner ceux du district et du pays ;
+  - le tableau 14 doit redonner, district par district, la population du tableau 8 et les ménages du tableau 13 ;
+  - le tableau 16 doit redonner, commune par commune, la population (tableau 10), les ménages urbains et l'ensemble des ménages (tableau 13), et sa taille moyenne publiée doit égaler, à l'arrondi près, celle recalculée.
 
   Les totaux urbain (4 942 902) et rural (20 731 294) obtenus sont ceux publiés par l'INSTAT, ainsi que les 6 079 876 ménages ordinaires (4,2 personnes par ménage, 24 % dirigés par une femme).
+- **Lecture du tableau 16 :** quand une commune est entièrement urbaine ou rurale, un des trois tirets de la colonne vide se perd à la lecture ; la ligne est complétée d'après le groupe « Ensemble ». Une ligne de total porte parfois le nom du district devant (« Befandriana Nord Total District »).
 - **Erreurs d'impression :** le tableau 10 imprime souvent le nom du district à la place de celui de la commune (« Taolagnaro » pour Soavary, Isaka Ivondro ou Mandiso, « Morondava » pour Marofandilia). Le tableau 13 donne les vrais noms, parfois précédés de celui du district (« Soavinandriana Amparaky »). Les deux noms sont essayés pour relier la commune à HDX ; le nom retenu est celui qui correspond.
 - **Correspondance avec les autres sources :**
   - les 114 districts du recensement couvrent exactement les 119 districts HDX. Antananarivo Renivohitra y est détaillé par ses 6 arrondissements, et « Toliara-I » correspond à « Toliary-I » ;
@@ -293,6 +298,9 @@ Une ligne par région (22) ou par district (119, Antananarivo Renivohitra étant
 | `menages`, `menages_chef_femme` | Ménages ordinaires, dont ceux dirigés par une femme |
 | `taille_menage` | Personnes par ménage ordinaire |
 | `chef_femme_pct` | Part des ménages dirigés par une femme (%) |
+| `menages_urbains` | Ménages ordinaires en milieu urbain |
+| `taille_menage_urbain`, `taille_menage_rural` | Personnes par ménage selon le milieu (vide si la population de ce milieu est nulle) |
+| `taille_menage_chef_homme`, `taille_menage_chef_femme` | Personnes par ménage selon le sexe du chef, publiées par l'INSTAT (tableau 14, une décimale ; vide pour les arrondissements d'Antananarivo, publiés ensemble) |
 | `superficie_km2`, `densite` | Superficie calculée à partir des contours, et densité correspondante |
 | `estimation_hdx_2018` | Estimation 2018 diffusée sur HDX |
 | `ecart_estimation_pct` | Écart de l'estimation HDX par rapport au recensement (%) |
@@ -305,9 +313,10 @@ Une ligne par commune ou arrondissement du recensement (1 727).
 | `nom`, `district_rgph` | Nom de la commune (tableau 10 ou 13, voir les erreurs d'impression) et de son district |
 | `district_pcode`, `region_pcode`, `region` | Rattachement dans le découpage HDX |
 | `hommes`, `femmes`, `population`, `urbain`, `rural` | Population recensée |
-| `menages`, `menages_chef_femme` | Ménages ordinaires, dont ceux dirigés par une femme |
+| `menages`, `menages_chef_femme`, `menages_urbains` | Ménages ordinaires, dont ceux dirigés par une femme, et ceux du milieu urbain |
 | `part_urbaine_pct` | Part de la population urbaine (%) |
 | `taille_menage`, `chef_femme_pct` | Personnes par ménage ; part des ménages dirigés par une femme (%) |
+| `taille_menage_urbain`, `taille_menage_rural` | Personnes par ménage selon le milieu |
 | `pcode_hdx` | Code de la commune HDX correspondante, vide si aucune |
 | `correspondance` | `exacte`, `approchée` (variante d'orthographe) ou `aucune` |
 | `decoupage_identique` | Vrai si le district a exactement les mêmes communes dans les deux sources |

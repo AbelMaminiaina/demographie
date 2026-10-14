@@ -36,6 +36,15 @@ def _enquetes(donnees):
     }
 
 
+def _recensement_national(donnees):
+    """Valeurs nationales du recensement, avec les clés courtes des unités (voir types.ts)."""
+    n = donnees["rgph3"]["regions"].attrs["national"]
+    cles = {"p": "population", "u": "part_urbaine_pct", "rm": "rapport_masculinite", "d": "densite",
+            "m": "menages", "t": "taille_menage", "f": "chef_femme_pct", "tu": "taille_menage_urbain",
+            "tr": "taille_menage_rural", "th": "taille_menage_chef_homme", "tf": "taille_menage_chef_femme"}
+    return {c: (n[col] if isinstance(n[col], int) else round(float(n[col]), 2)) for c, col in cles.items()}
+
+
 def generer(donnees):
     DOSSIER.mkdir(parents=True, exist_ok=True)
     niveaux, annees_wp = _niveaux(donnees)
@@ -53,7 +62,8 @@ def generer(donnees):
                      "rgph_total": int(donnees["rgph3"]["regions"]["population"].sum()),
                      "rgph_communes": len(donnees["rgph3"]["communes"]),
                      "annee_wp100": annee_courante_wp100(donnees["worldpop_100m"]),
-                     "nb_fokontany": len(fokontany["unites"])},
+                     "nb_fokontany": len(fokontany["unites"]),
+                     "rg_national": _recensement_national(donnees)},
             **_national(donnees),
             "enquetes": _enquetes(donnees),
             # Attributs des régions, districts et communes ; leurs contours sont dans contours_<niveau>.json
