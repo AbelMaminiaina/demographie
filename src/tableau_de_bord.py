@@ -91,7 +91,7 @@ def _niveaux(donnees):
         serie_wp = wp[niveau].pivot(index="cle", columns="annee", values="population")
         lignes, entites = [], []
         for i, u in unites.iterrows():
-            ligne = {"n": u["nom"], "p": int(u["population"]), "s": round(float(u["superficie_km2"]), 1),
+            ligne = {"n": u["nom"], "pc": u["pcode"], "p": int(u["population"]), "s": round(float(u["superficie_km2"]), 1),
                      "d": round(float(u["densite"]), 1),
                      "wp": [int(round(v)) for v in serie_wp.loc[u["cle"], annees_wp]]}
             if niveau != "regions":
@@ -123,7 +123,7 @@ def _niveaux(donnees):
     lignes = []
     for _, f in unites_fk.iterrows():
         cale = cales.get(f["cle"])
-        lignes.append({"n": f["nom"], "c": index["communes"][f["commune_pcode"].split("|")[0]],
+        lignes.append({"n": f["nom"], "pc": f["pcode"], "c": index["communes"][f["commune_pcode"].split("|")[0]],
                        "p": int(f["population"]), "ca": None if cale != cale else int(cale),
                        "s": round(float(f["superficie_km2"]), 2),
                        "wp": [int(v) for v in wp100.loc[f["cle"], colonnes_wp100]]})

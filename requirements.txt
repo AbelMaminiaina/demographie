@@ -4,3 +4,4 @@ pandas>=2.0
 numpy>=1.26
 matplotlib==3.11.2  # version fixée : les graphiques doivent être identiques partout
 rasterio>=1.4
+openpyxl>=3.1   # classeur Excel des données téléchargeables

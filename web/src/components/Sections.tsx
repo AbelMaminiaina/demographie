@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useLangue } from "../i18n";
 import type { Cle } from "../i18n/fr";
 import type { Indicateur } from "../lib/indicateurs";
+import { telechargerCsv } from "../lib/csv";
 import { compact, entier, nombre, normaliser, pct } from "../lib/format";
 import type { Base, Niveau, Selection, Unite } from "../lib/types";
 import { Courbes, Infobulle, Legende, Sparkline, type Bulle } from "./Graphiques";
@@ -190,11 +191,29 @@ export function Enquetes({ base }: { base: Base }) {
   );
 }
 
-export function Classement({ niveau, unites, indicateur, annee, base, selection, onChoisir }: {
-  niveau: Niveau; unites: Unite[] | null; indicateur: Indicateur; annee: number; base: Base;
+export function Classement({ niveau, unites, indicateur, indicateurs, annee, base, selection, onChoisir }: {
+  niveau: Niveau; unites: Unite[] | null; indicateur: Indicateur; indicateurs: Indicateur[]; annee: number; base: Base;
   selection: Selection | null; onChoisir: (s: Selection) => void;
 }) {
   const { t } = useLangue();
+  // Tous les indicateurs du découpage, une ligne par unité, avec codes et rattachement pour les jointures
+  const exporter = () => {
+    if (!unites) return;
+    const R = base.niveaux.regions, D = base.niveaux.districts, C = base.niveaux.communes;
+    const liste = indicateurs.filter((i) => i.niveaux.includes(niveau));
+    const parents = (u: Unite): string[] => niveau === "regions" ? [] : niveau === "districts" ? [R[u.r!].n]
+      : niveau === "communes" ? [R[u.r!].n, D[u.di!].n] : [R[u.r!].n, D[u.di!].n, C[u.c!].n];
+    const entetes = ["P-code", t(`unite.${niveau}` as Cle),
+      ...(["regions", "districts", "communes"] as Niveau[]).slice(0, ["regions", "districts", "communes", "fokontany"].indexOf(niveau)).map((n) => t(`unite.${n}` as Cle)),
+      ...liste.map((i) => `${t(i.nom)}${i.annee ? ` ${annee}` : ""}`)];
+    const valeur = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? null : Math.round(v * 100) / 100);
+    telechargerCsv(`${t(`niveau.${niveau}` as Cle)}_${annee}.csv`.toLowerCase(), [
+      entetes,
+      ...unites.map((u) => [u.pc ?? "", u.n, ...parents(u), ...liste.map((i) => valeur(i.val(u, annee)))]),
+      [],
+      [t("zoneSourcesCsv", { date: base.meta.collecte ?? "" })],
+    ]);
+  };
   const [filtre, setFiltre] = useState("");
   const [tri, setTri] = useState<{ col: "rang" | "n" | "parent" | "v"; sens: 1 | -1 }>({ col: "v", sens: -1 });
   const lignes = useMemo(() => {
@@ -220,8 +239,14 @@ export function Classement({ niveau, unites, indicateur, annee, base, selection,
     <section className="carte-ui grid gap-3 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="m-0 text-lg font-semibold">{t("classementTitre")} · {t(`niveau.${niveau}` as Cle)} · {t(indicateur.nom)}{indicateur.annee ? ` · ${annee}` : ""}</h2>
-        <input type="search" value={filtre} onChange={(e) => setFiltre(e.target.value)} placeholder={t("filtrer")} aria-label={t("filtrer")}
-          className="rounded-lg border border-trait-fort bg-surface px-3 py-1.5 text-sm" />
+        <div className="flex flex-wrap items-center gap-2">
+          <input type="search" value={filtre} onChange={(e) => setFiltre(e.target.value)} placeholder={t("filtrer")} aria-label={t("filtrer")}
+            className="rounded-lg border border-trait-fort bg-surface px-3 py-1.5 text-sm" />
+          <button type="button" onClick={exporter} disabled={!unites} title={t("classementExporterAide")}
+            className="cursor-pointer rounded-lg border border-trait-fort bg-surface px-3 py-1.5 text-sm font-semibold text-accent hover:bg-accent-doux">
+            {t("classementExporter")}
+          </button>
+        </div>
       </div>
       <div className="max-h-[440px] overflow-auto rounded-lg border border-trait">
         <table className="w-full border-collapse text-[0.88rem]">

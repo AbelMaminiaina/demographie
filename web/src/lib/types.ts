@@ -21,6 +21,7 @@ export interface Recensement {
 
 export interface Unite {
   n: string;            // nom
+  pc?: string;          // P-code (code administratif OCHA/INSTAT)
   p: number;            // estimation HDX 2018
   s: number;            // superficie (km²)
   d?: number | null;    // densité HDX

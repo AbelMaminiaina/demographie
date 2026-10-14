@@ -5,6 +5,7 @@ les fokontany (attributs et contours) ne sont chargés que lorsqu'on choisit ce 
 """
 import json
 
+import telechargements
 from config import DOSSIER_SORTIES
 from tableau_de_bord import NOMS_DHS, _national, _niveaux, annee_courante_wp100, brut
 
@@ -77,4 +78,5 @@ def generer(donnees):
         tailles[f"contours_{niveau}.json"] = _ecrire(f"contours_{niveau}.json", d["geo"])
     total = sum(tailles.values()) / 1e6
     print(f"  -> sorties/web/donnees/ ({len(tailles)} fichiers, {total:.1f} Mo)")
+    telechargements.generer(collecte)
     return DOSSIER

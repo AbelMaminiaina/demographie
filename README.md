@@ -22,6 +22,8 @@ Elle offre aussi :
 - une recherche jusqu'au fokontany ;
 - une fiche par lieu (évolution 2015-2030, indicateurs DHS de la région, liste des fokontany d'une commune) ;
 - une **fiche territoire imprimable**, à enregistrer en PDF, pour chaque région, district et commune : chiffres clés, comparaison avec le district, la région et le pays, carte de situation, liste des sous-unités, sources et citation (bouton « Fiche PDF », ou adresse `#fiche/<niveau>/<indice>`) ;
+- la **population à une date** (2015-2030) pour chaque lieu ou zone : trois estimations et leur fourchette, et les groupes d'âge utiles aux campagnes (moins de 5 ans, femmes de 15 à 49 ans…) ;
+- le **téléchargement des données** : classement exporté en CSV (tous les indicateurs, avec les P-codes), chaque fichier traité en CSV, une archive ZIP et un classeur Excel ;
 - une **zone d'intervention** composée sur la carte (régions, districts, communes ou fokontany) : totaux de population, de ménages et d'estimations, fiche PDF de la zone, export CSV et lien de partage (bouton « Zone d'intervention ») ;
 - la population de 1960 à 2050 et une pyramide des âges année par année ;
 - la pauvreté et l'emploi d'après les enquêtes EPM, ENEMPSI et ENESI ;
@@ -148,6 +150,19 @@ Le workflow `.github/workflows/mise-a-jour-mensuelle.yml` exécute le pipeline :
 Lancement manuel, si besoin : onglet **Actions**, puis **Mise à jour mensuelle**, puis **Run workflow**.
 
 Le robot commite les graphiques sur `main` : faites un `git pull` avant de modifier le projet.
+
+## Accès direct aux données
+
+Les fichiers traités sont publiés à des adresses stables, utilisables depuis un script (R, Python, Excel, Power BI) :
+
+```
+https://abelmaminiaina.github.io/demographie/donnees/telechargements/<fichier>.csv
+https://abelmaminiaina.github.io/demographie/donnees/telechargements/catalogue.json   # liste, tailles, licences
+https://abelmaminiaina.github.io/demographie/donnees/telechargements/donnees_madagascar.xlsx
+https://abelmaminiaina.github.io/demographie/donnees/telechargements/donnees_madagascar.zip
+```
+
+Exemple : `pd.read_csv("https://abelmaminiaina.github.io/demographie/donnees/telechargements/recensement_rgph3_communes.csv")`. Les fichiers sont recréés à chaque exécution du pipeline (`src/telechargements.py`) ; les colonnes sont décrites dans le [catalogue des données](DONNEES.md).
 
 ## Pistes suivantes
 

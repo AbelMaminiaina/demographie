@@ -7,6 +7,7 @@ import { memoriserZone, zoneDepuisAdresse, zoneMemorisee, type Zone } from "./li
 import { Infobulle } from "./components/Graphiques";
 import { Recherche } from "./components/Recherche";
 import { Classement, Enquetes, Tendances, Tuiles } from "./components/Sections";
+import { Telechargements } from "./components/Telechargements";
 import { useLangue, type Langue } from "./i18n";
 import type { Cle } from "./i18n/fr";
 import { chargerBase, chargerContours, chargerFokontany } from "./lib/donnees";
@@ -285,8 +286,9 @@ export default function App() {
 
         <Tendances base={base} />
         <Enquetes base={base} />
-        <Classement niveau={niveau} unites={unitesNiveau} indicateur={indicateur} annee={annee} base={base}
+        <Classement niveau={niveau} unites={unitesNiveau} indicateur={indicateur} indicateurs={indicateurs} annee={annee} base={base}
           selection={selection} onChoisir={(s) => choisir(s)} />
+        <Telechargements />
 
         <footer className="grid gap-1 pb-6 text-[0.82rem] text-discret">
           <span>{t("sources")}</span>

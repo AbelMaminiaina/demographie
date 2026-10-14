@@ -194,6 +194,10 @@ Les microdonnées (réponses individuelles anonymisées) de l'EPM 2021-2022 et d
 
 Le site [instat.mg](https://www.instat.mg) publie les résultats du RGPH-3 en PDF. En octobre 2026, sa page d'accueil contenait des dizaines de liens cachés vers des sites de jeux d'argent, signe d'une compromission. Il n'est pas collecté automatiquement, parce qu'un script ne doit pas suivre ces liens. Le même document officiel est récupéré depuis la copie de l'UNFPA Madagascar.
 
+## Publication
+
+Les fichiers de `data/traite/` sont publiés sur le site, sous le nom `<dossier>_<fichier>.csv`, dans `donnees/telechargements/`, avec une archive ZIP, un classeur Excel (une feuille par fichier) et `catalogue.json` (`src/telechargements.py`). Seules les séries 2009-2018 des fokontany ne le sont pas : 17 Mo de valeurs calculées avec un taux uniforme. Chaque fichier garde la licence de sa source.
+
 ## Classement des fichiers
 
 Les chemins sont définis à un seul endroit : `BRUT` et `TRAITE` dans `src/config.py`.
