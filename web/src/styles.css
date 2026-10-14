@@ -83,4 +83,26 @@ h1, h2, h3 { text-wrap: balance; }
 .maplibregl-ctrl-attrib { background: color-mix(in srgb, var(--surface) 80%, transparent) !important; color: var(--encre-2); font-size: 11px; }
 .maplibregl-ctrl-attrib a { color: var(--encre-2) !important; }
 
+/* Fiche territoire imprimable : toujours en thème clair, page A4 */
+.papier {
+  --fond: #e9ece9; --surface: #ffffff; --surface-2: #f0f2ef; --encre: #13201d; --encre-2: #4c5955;
+  --discret: #6b7571; --trait: #e0e4e1; --trait-fort: #c4cbc7; --accent: #2a78d6; --accent-doux: #e3eefb;
+  --femme: #eb6834; --vide: #dfe3e0;
+  background: var(--fond); color: var(--encre); color-scheme: light;
+}
+.feuille > * + * { margin-top: 1rem; }
+.bloc-fiche > * + * { margin-top: 0.5rem; }
+.feuille { box-sizing: border-box; width: 210mm; max-width: 100%; margin: 0 auto; padding: 14mm; background: var(--surface); box-shadow: var(--ombre); }
+@page { size: A4; margin: 12mm; }
+@media print {
+  html, body, .papier { background: #fff !important; }
+  .ecran-seul { display: none !important; }
+  .papier { padding: 0; }
+  .feuille { width: auto; padding: 0; box-shadow: none; }
+  .bloc-fiche { break-inside: avoid; }
+  .bloc-fiche:has(tbody tr:nth-child(12)) { break-inside: auto; }
+  tr { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

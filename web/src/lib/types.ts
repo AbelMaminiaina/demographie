@@ -13,6 +13,10 @@ export interface Recensement {
   m?: number;   // ménages ordinaires
   t?: number;   // personnes par ménage
   f?: number;   // ménages dirigés par une femme (%)
+  tu?: number;  // personnes par ménage, milieu urbain
+  tr?: number;  // personnes par ménage, milieu rural
+  th?: number;  // personnes par ménage dirigé par un homme (régions et districts)
+  tf?: number;  // personnes par ménage dirigé par une femme (régions et districts)
 }
 
 export interface Unite {
@@ -39,6 +43,7 @@ export interface Meta {
   rgph_communes: number;
   annee_wp100: number;
   nb_fokontany: number;
+  rg_national: Recensement;
 }
 
 export interface Base {

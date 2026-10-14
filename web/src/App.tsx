@@ -1,17 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Carte, type Survol } from "./components/Carte";
 import { Fiche } from "./components/Fiche";
+import { FicheTerritoire, NIVEAUX_FICHE } from "./components/FicheTerritoire";
 import { Infobulle } from "./components/Graphiques";
 import { Recherche } from "./components/Recherche";
 import { Classement, Enquetes, Tendances, Tuiles } from "./components/Sections";
 import { useLangue, type Langue } from "./i18n";
 import type { Cle } from "./i18n/fr";
 import { chargerBase, chargerContours, chargerFokontany } from "./lib/donnees";
+import { dateLongue } from "./lib/format";
 import { construireEchelle, construireIndicateurs, INDICATEUR_PAR_DEFAUT, type Indicateur } from "./lib/indicateurs";
 import { useTheme, type ModeTheme } from "./lib/theme";
 import { NIVEAUX, type Base, type Contours, type Niveau, type Selection, type Unite } from "./lib/types";
 
 const disponible = (ind: Indicateur | undefined, n: Niveau) => !!ind && ind.niveaux.includes(n);
+
+/** Fiche imprimable demandée par l'adresse : #fiche/<niveau>/<indice>. */
+function ficheDemandee(): Selection | null {
+  const m = window.location.hash.match(/^#fiche\/(\w+)\/(\d+)$/);
+  return m && NIVEAUX_FICHE.includes(m[1] as Niveau) ? { niveau: m[1] as Niveau, i: Number(m[2]) } : null;
+}
 
 export default function App() {
   const { t, langue, setLangue } = useLangue();
@@ -54,6 +62,19 @@ export default function App() {
     }
   }, [base]);
 
+  const [demandeFiche, setDemandeFiche] = useState(ficheDemandee);
+  useEffect(() => {
+    const lire = () => setDemandeFiche(ficheDemandee());
+    window.addEventListener("hashchange", lire);
+    return () => window.removeEventListener("hashchange", lire);
+  }, []);
+  // La fiche a besoin des contours de son niveau (carte de situation) et, pour une commune, des fokontany
+  useEffect(() => {
+    if (!demandeFiche || !base) return;
+    chargerNiveau(demandeFiche.niveau);
+    if (demandeFiche.niveau === "communes") chargerNiveau("fokontany");
+  }, [demandeFiche, base, chargerNiveau]);
+
   const indicateurs = useMemo(() => (base ? construireIndicateurs(base.meta) : []), [base]);
   const indicateur = indicateurs.find((i) => i.id === indicateurId) ?? indicateurs[0];
   const unites: Record<Niveau, Unite[] | null> = useMemo(() => ({
@@ -61,6 +82,7 @@ export default function App() {
     communes: base?.niveaux.communes ?? null, fokontany,
   }), [base, fokontany]);
   const unitesNiveau = unites[niveau];
+  const ficheImprimable = demandeFiche && unites[demandeFiche.niveau]?.[demandeFiche.i] ? demandeFiche : null;
 
   const echelle = useMemo(() => (indicateur && unitesNiveau ? construireEchelle(indicateur, unitesNiveau.map((u) => indicateur.val(u, annee))) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,12 +120,12 @@ export default function App() {
     { cle: "groupeEstimations", liste: indicateurs.filter((i) => i.groupe === "estimations") },
     { cle: "groupeSante", liste: indicateurs.filter((i) => i.groupe === "sante"), params: { enquete: base.meta.enquete_dhs } },
   ];
-  // Les navigateurs ne connaissent pas les noms de mois malgaches : on les fournit
-  const MOIS_MG = ["Janoary", "Febroary", "Martsa", "Aprily", "Mey", "Jona", "Jolay", "Aogositra", "Septambra", "Oktobra", "Novambra", "Desambra"];
-  const jour = base.meta.collecte ? new Date(base.meta.collecte) : null;
-  const dateCollecte = !jour ? "" : langue === "mg"
-    ? `${jour.getDate()} ${MOIS_MG[jour.getMonth()]} ${jour.getFullYear()}`
-    : jour.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  const dateCollecte = base.meta.collecte ? dateLongue(new Date(base.meta.collecte), langue) : "";
+
+  if (ficheImprimable) {
+    return <FicheTerritoire base={base} unites={unites} contours={contours} selection={ficheImprimable}
+      fokontanyParCommune={fokontanyParCommune} />;
+  }
 
   return (
     <div className="min-h-screen">

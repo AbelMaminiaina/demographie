@@ -91,7 +91,8 @@ export function construireEchelle(ind: Indicateur, valeurs: (number | null | und
   const v = valeurs.filter((x): x is number => x != null && Number.isFinite(x));
   const rampe = [1, 2, 3, 4, 5, 6, 7].map((i) => jeton(`--q${i}`));
   const n = Math.min(7, new Set(v).size);
-  const couleurs = n >= 7 ? rampe : Array.from({ length: Math.max(n, 2) }, (_, i, a) => rampe[Math.round((i / (a.length - 1)) * 6)]);
+  const nb = Math.max(n, 2);
+  const couleurs = n >= 7 ? rampe : Array.from({ length: nb }, (_, i) => rampe[Math.round((i / (nb - 1)) * 6)]);
   const s = scaleQuantile<string>().domain(v).range(couleurs);
   const bornes = [Math.min(...v), ...s.quantiles()];
   const lib = ind.court ?? ind.fmt;

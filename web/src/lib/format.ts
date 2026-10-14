@@ -23,6 +23,16 @@ export function compact(v: number | null | undefined): string {
   return entier(v);
 }
 
+// Les navigateurs ne connaissent pas les noms de mois malgaches : on les fournit
+const MOIS_MG = ["Janoary", "Febroary", "Martsa", "Aprily", "Mey", "Jona", "Jolay", "Aogositra", "Septambra", "Oktobra", "Novambra", "Desambra"];
+
+/** Date en toutes lettres (« 14 octobre 2026 », « 14 Oktobra 2026 »). */
+export function dateLongue(jour: Date, langue: "fr" | "mg"): string {
+  return langue === "mg"
+    ? `${jour.getDate()} ${MOIS_MG[jour.getMonth()]} ${jour.getFullYear()}`
+    : jour.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+}
+
 /** Clé de recherche : sans accents ni ponctuation, en minuscules. */
 export function normaliser(s: string): string {
   return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();

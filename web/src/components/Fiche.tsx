@@ -3,7 +3,8 @@ import { useLangue } from "../i18n";
 import type { Cle } from "../i18n/fr";
 import { croissance } from "../lib/indicateurs";
 import { compact, densite, entier, nombre, pct } from "../lib/format";
-import type { Base, Niveau, Selection, Unite } from "../lib/types";
+import type { Base, Niveau, Recensement, Selection, Unite } from "../lib/types";
+import { NIVEAUX_FICHE } from "./FicheTerritoire";
 import { Courbes } from "./Graphiques";
 
 type Unites = Record<Niveau, Unite[] | null>;
@@ -48,6 +49,22 @@ function ListeBarres({ lignes, onChoisir }: { lignes: { cle: string | number; no
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Ménages ordinaires du recensement : nombre, taille moyenne et ses variations. */
+function Menages({ rg }: { rg: Recensement }) {
+  const { t } = useLangue();
+  return (
+    <div className="grid gap-1 text-[0.86rem] text-encre-2">
+      <p className="m-0">{t("menagesPhrase", { m: entier(rg.m), t: nombre(rg.t, 1), f: pct(rg.f, 0) })}</p>
+      {rg.th != null && rg.tf != null && (
+        <p className="m-0">{t("menagesSexeChef", { h: nombre(rg.th, 1), f: nombre(rg.tf, 1) })}</p>
+      )}
+      {rg.tu != null && rg.tr != null && (
+        <p className="m-0">{t("menagesMilieu", { u: nombre(rg.tu, 1), r: nombre(rg.tr, 1) })}</p>
+      )}
+    </div>
   );
 }
 
@@ -127,17 +144,21 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
           </span>
         ))}
       </nav>
-      <div>
-        <p className="etiquette m-0">{t(`unite.${niveau}` as Cle)}</p>
-        <h2 className="m-0 text-2xl font-bold leading-tight">{u.n}</h2>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="etiquette m-0">{t(`unite.${niveau}` as Cle)}</p>
+          <h2 className="m-0 text-2xl font-bold leading-tight">{u.n}</h2>
+        </div>
+        {NIVEAUX_FICHE.includes(niveau) && (
+          <a href={`#fiche/${niveau}/${i}`} title={t("ficheOuvrirAide")}
+            className="shrink-0 rounded-lg border border-trait-fort px-3 py-1.5 text-sm font-semibold text-accent no-underline hover:bg-accent-doux">
+            {t("ficheOuvrir")}
+          </a>
+        )}
       </div>
       <Chiffres elements={chiffres} />
       {niveau === "fokontany" && <p className="m-0 text-[0.82rem] text-discret">{t("troisEstimations")}</p>}
-      {recense && u.rg!.m != null && (
-        <p className="m-0 text-[0.86rem] text-encre-2">
-          {t("menagesPhrase", { m: entier(u.rg!.m), t: nombre(u.rg!.t, 1), f: pct(u.rg!.f, 0) })}
-        </p>
-      )}
+      {recense && u.rg!.m != null && <Menages rg={u.rg!} />}
       {recense && u.rg!.e != null && (
         <p className="m-0 text-[0.82rem] text-discret">
           {t("ecartHdx", { p: entier(u.p), e: `${u.rg!.e > 0 ? "+" : ""}${nombre(u.rg!.e, 1)} %` })}
@@ -148,11 +169,7 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
           {u.rg ? (
             <>
               <p className="m-0">{t("recensementCommune", { p: entier(u.rg.p), u: pct(u.rg.u, 0) })}</p>
-              {u.rg.m != null && (
-                <p className="m-0 text-[0.86rem] text-encre-2">
-                  {t("menagesPhrase", { m: entier(u.rg.m), t: nombre(u.rg.t, 1), f: pct(u.rg.f, 0) })}
-                </p>
-              )}
+              {u.rg.m != null && <Menages rg={u.rg} />}
               {!u.rg.id && <p className="m-0 text-[0.82rem] text-discret">{t("decoupageChange")}</p>}
             </>
           ) : <p className="m-0 text-[0.82rem] text-discret">{t("pasDeCorrespondance")}</p>}
