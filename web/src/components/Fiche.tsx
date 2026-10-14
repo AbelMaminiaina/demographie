@@ -4,6 +4,7 @@ import type { Cle } from "../i18n/fr";
 import { croissance } from "../lib/indicateurs";
 import { compact, densite, entier, nombre, pct } from "../lib/format";
 import type { Base, Niveau, Recensement, Selection, Unite } from "../lib/types";
+import { EstimationDate } from "./Estimation";
 import { NIVEAUX_FICHE } from "./FicheTerritoire";
 import { Courbes } from "./Graphiques";
 
@@ -77,6 +78,7 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
   const AN = Math.min(new Date().getFullYear(), meta.annees_wp[meta.annees_wp.length - 1]);
   const iAn = meta.annees_wp.indexOf(AN);
   const [vueFk, setVueFk] = useState<"2018" | "wp">("2018");
+  const [anneeEst, setAnneeEst] = useState(AN);
 
   if (!selection || !unites[selection.niveau]) {
     const regions = base.niveaux.regions;
@@ -175,6 +177,9 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
           ) : <p className="m-0 text-[0.82rem] text-discret">{t("pasDeCorrespondance")}</p>}
         </Bloc>
       )}
+      <Bloc titre={t("estTitre")}>
+        <EstimationDate base={base} unites={[u]} niveau={niveau} annee={anneeEst} onAnnee={setAnneeEst} />
+      </Bloc>
       <Bloc titre={t("evolution", { debut: meta.annees_wp[0], fin: meta.annees_wp[meta.annees_wp.length - 1] })}>
         <Courbes hauteur={170} series={[{ nom: "wp", couleur: "var(--accent)", points }]} repere={{ x: meta.annee_ref, y: ref, libelle: refNom }}
           infobulle={(a) => (

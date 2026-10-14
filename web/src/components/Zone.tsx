@@ -3,8 +3,10 @@ import { useLangue } from "../i18n";
 import type { Cle } from "../i18n/fr";
 import { compact, dateLongue, densite, entier, nombre, pct } from "../lib/format";
 import type { Base, Contours, Niveau, Unite } from "../lib/types";
-import { adresseZone, resumer, telechargerCsv, type Resume, type Zone } from "../lib/zone";
+import { telechargerCsv } from "../lib/csv";
+import { adresseZone, resumer, type Resume, type Zone } from "../lib/zone";
 import { ADRESSE_SITE, BarreImpression, Bloc, Situation, useTitre } from "./FicheTerritoire";
+import { EstimationDate } from "./Estimation";
 import { Courbes } from "./Graphiques";
 
 /** Rattachement d'une unité, pour les listes : « district · région », ou le seul parent direct (`court`). */
@@ -50,6 +52,7 @@ export function PanneauZone({ base, unitesNiveau, zone, niveauCarte, annee, onRe
 }) {
   const { t } = useLangue();
   const [copie, setCopie] = useState(false);
+  const [anneeEst, setAnneeEst] = useState(annee);
   const meta = base.meta;
   const FIN = meta.annees_wp[meta.annees_wp.length - 1];
   const unitesNom = t(`niveau.${zone.niveau}` as Cle).toLowerCase();
@@ -124,6 +127,12 @@ export function PanneauZone({ base, unitesNiveau, zone, niveauCarte, annee, onRe
               ))}
             </div>
           )}
+          {r && (
+            <section className="grid gap-2 border-t border-trait pt-3">
+              <h3 className="etiquette m-0">{t("estTitre")}</h3>
+              <EstimationDate base={base} unites={r.unites} niveau={zone.niveau} annee={anneeEst} onAnnee={setAnneeEst} />
+            </section>
+          )}
           <div className="flex flex-wrap gap-2">
             <a href={adresseZone(zone, "fiche-zone")} className={`${bouton} no-underline`}>{t("ficheOuvrir")}</a>
             <button type="button" className={bouton} onClick={exporter}>{t("zoneExporter")}</button>
@@ -170,6 +179,7 @@ export function FicheZone({ base, unitesNiveau, contours, zone }: {
   const aujourdhui = dateLongue(new Date(), langue);
   const titre = `${t("zoneTitre")} – ${nom}`;
   useTitre(titre);
+  const [anneeEst, setAnneeEst] = useState(AN);
 
   const fk = zone.niveau === "fokontany";
   const R = base.niveaux.regions, D = base.niveaux.districts;
@@ -218,6 +228,10 @@ export function FicheZone({ base, unitesNiveau, contours, zone }: {
               {t(fk ? "zoneCouvertureCalee" : "zoneCouverture", { k: r.recenses, n: r.n })} {t(fk ? "zoneNoteCalee" : "zoneNoteCouverture")}
             </p>
           )}
+        </Bloc>
+
+        <Bloc titre={t("estTitre")}>
+          <EstimationDate base={base} unites={r.unites} niveau={zone.niveau} annee={anneeEst} onAnnee={setAnneeEst} />
         </Bloc>
 
         <Bloc titre={t("zoneListe", { n: r.n })}>

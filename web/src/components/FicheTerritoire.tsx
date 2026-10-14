@@ -1,9 +1,10 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useLangue } from "../i18n";
 import type { Cle } from "../i18n/fr";
 import { croissance } from "../lib/indicateurs";
 import { compact, dateLongue, densite, entier, nombre, pct } from "../lib/format";
 import type { Base, Contours, Niveau, Recensement, Selection, Unite } from "../lib/types";
+import { EstimationDate } from "./Estimation";
 import { Courbes } from "./Graphiques";
 
 /** Niveaux pour lesquels une fiche imprimable existe. */
@@ -96,6 +97,7 @@ export function FicheTerritoire({ base, unites, contours, selection, fokontanyPa
   const titre = `${t("ficheTitre")} – ${u.n}`;
 
   useTitre(titre);
+  const [anneeEst, setAnneeEst] = useState(AN);
 
   // Colonnes de comparaison : territoire, district et région de rattachement, pays
   const region = niveau === "regions" ? null : R[u.r!];
@@ -217,6 +219,10 @@ export function FicheTerritoire({ base, unites, contours, selection, fokontanyPa
               ))}
             </tbody>
           </table>
+        </Bloc>
+
+        <Bloc titre={t("estTitre")}>
+          <EstimationDate base={base} unites={[u]} niveau={niveau} annee={anneeEst} onAnnee={setAnneeEst} />
         </Bloc>
 
         <Bloc titre={t("evolution", { debut: meta.annees_wp[0], fin: FIN })}>
