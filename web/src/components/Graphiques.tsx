@@ -54,6 +54,12 @@ export function Courbes({ series, hauteur = 260, formatY = compact, minY = 0, re
   const y = scaleLinear().domain([minY, Math.max(...ys) * 1.08]).nice(5).range([hauteur - m.b, m.h]);
   const annees = [...new Set(xs)].sort((a, b) => a - b);
   const pasX = x.ticks(Math.min(8, annees.length)).filter((t) => Number.isInteger(t));
+  // Libellés de fin de courbe écartés d'au moins 14 px pour ne pas se chevaucher
+  const yLibelles = series.map((s) => y(s.points[s.points.length - 1]?.[1] ?? 0));
+  const ordre = yLibelles.map((_, k) => k).sort((a, b) => yLibelles[a] - yLibelles[b]);
+  for (let k = 1; k < ordre.length; k++) {
+    yLibelles[ordre[k]] = Math.max(yLibelles[ordre[k]], yLibelles[ordre[k - 1]] + 14);
+  }
 
   return (
     <div className="relative">
@@ -78,12 +84,12 @@ export function Courbes({ series, hauteur = 260, formatY = compact, minY = 0, re
           <path key={s.nom} d={line<[number, number]>().x((p) => x(p[0])).y((p) => y(p[1]))(s.points) ?? ""}
             fill="none" stroke={s.couleur} strokeWidth={2} strokeDasharray={s.pointille ? "5 4" : undefined} />
         ))}
-        {series.map((s) => {
+        {series.map((s, k) => {
           const p = s.points[s.points.length - 1];
           return p && (
             <g key={`fin-${s.nom}`}>
               <circle cx={x(p[0])} cy={y(p[1])} r={4.5} fill={s.couleur} stroke="var(--surface)" strokeWidth={2} />
-              {libelleFin && <text x={x(p[0]) - 8} y={y(p[1]) - 10} textAnchor="end" fontSize={12} fontWeight={600} fill="var(--encre)">{libelleFin(s, p)}</text>}
+              {libelleFin && <text x={x(p[0]) - 8} y={yLibelles[k] - 10} textAnchor="end" fontSize={12} fontWeight={600} fill="var(--encre)">{libelleFin(s, p)}</text>}
             </g>
           );
         })}

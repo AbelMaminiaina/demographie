@@ -17,6 +17,8 @@
   --homme: #2a78d6;
   --femme: #eb6834;
   --serie-3: #1baf7a;
+  --serie-4: #eda100;
+  --serie-5: #e87ba4;
   --vide: #e4e7e5;
   --selection: #13201d;
   --q1: #cde2fb; --q2: #9ec5f4; --q3: #6da7ec; --q4: #3987e5; --q5: #256abf; --q6: #184f95; --q7: #0d366b;
@@ -28,7 +30,7 @@
   :root:not([data-theme="light"]) {
     --fond: #0e1413; --surface: #161e1c; --surface-2: #1c2523; --encre: #eef2f0; --encre-2: #b9c3bf;
     --discret: #87918d; --trait: #26302d; --trait-fort: #38433f; --accent: #5598e7; --accent-doux: #182b3e;
-    --homme: #3987e5; --femme: #d95926; --serie-3: #199e70; --vide: #232c2a; --selection: #ffffff;
+    --homme: #3987e5; --femme: #d95926; --serie-3: #199e70; --serie-4: #c98500; --serie-5: #d55181; --vide: #232c2a; --selection: #ffffff;
     --q1: #12304f; --q2: #104281; --q3: #184f95; --q4: #256abf; --q5: #3987e5; --q6: #6da7ec; --q7: #b7d3f6;
     --d1: #9ec5f4; --d2: #3987e5; --d3: #184f95; --d4: #383835; --d5: #7a2626; --d6: #c94a4a; --d7: #f09a99;
     --ombre: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
@@ -38,7 +40,7 @@
 :root[data-theme="dark"] {
   --fond: #0e1413; --surface: #161e1c; --surface-2: #1c2523; --encre: #eef2f0; --encre-2: #b9c3bf;
   --discret: #87918d; --trait: #26302d; --trait-fort: #38433f; --accent: #5598e7; --accent-doux: #182b3e;
-  --homme: #3987e5; --femme: #d95926; --serie-3: #199e70; --vide: #232c2a; --selection: #ffffff;
+  --homme: #3987e5; --femme: #d95926; --serie-3: #199e70; --serie-4: #c98500; --serie-5: #d55181; --vide: #232c2a; --selection: #ffffff;
   --q1: #12304f; --q2: #104281; --q3: #184f95; --q4: #256abf; --q5: #3987e5; --q6: #6da7ec; --q7: #b7d3f6;
   --d1: #9ec5f4; --d2: #3987e5; --d3: #184f95; --d4: #383835; --d5: #7a2626; --d6: #c94a4a; --d7: #f09a99;
   --ombre: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
@@ -60,7 +62,8 @@
   --color-accent-doux: var(--accent-doux);
 }
 
-html { background: var(--fond); }
+/* Les sections atteintes par lien ou par l'accueil ne passent pas sous l'en-tête collant */
+html { background: var(--fond); scroll-padding-top: 96px; }
 body { margin: 0; background: var(--fond); color: var(--encre); font-family: var(--font-sans); font-size: 15px; line-height: 1.5; }
 h1, h2, h3 { text-wrap: balance; }
 .chiffre { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }

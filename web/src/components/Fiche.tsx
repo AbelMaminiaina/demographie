@@ -5,8 +5,10 @@ import { croissance } from "../lib/indicateurs";
 import { compact, densite, entier, nombre, pct } from "../lib/format";
 import type { Base, Niveau, Recensement, Selection, Unite } from "../lib/types";
 import { EstimationDate } from "./Estimation";
+import { MAX_LIEUX } from "../lib/comparaison";
 import { NIVEAUX_FICHE } from "./FicheTerritoire";
 import { Courbes } from "./Graphiques";
+import { AppelDevis } from "./Services";
 
 type Unites = Record<Niveau, Unite[] | null>;
 
@@ -69,9 +71,10 @@ function Menages({ rg }: { rg: Recensement }) {
   );
 }
 
-export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir, onReinitialiser, fkRepere }: {
+export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir, onReinitialiser, fkRepere, comparaison, onComparer }: {
   base: Base; unites: Unites; selection: Selection | null; fokontanyParCommune: number[][] | null;
   onChoisir: (s: Selection, centrer?: boolean) => void; onReinitialiser: () => void; fkRepere: string | null;
+  comparaison: { niveau: Niveau; i: number }[]; onComparer: (s: Selection) => void;
 }) {
   const { t } = useLangue();
   const meta = base.meta;
@@ -151,12 +154,25 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
           <p className="etiquette m-0">{t(`unite.${niveau}` as Cle)}</p>
           <h2 className="m-0 text-2xl font-bold leading-tight">{u.n}</h2>
         </div>
-        {NIVEAUX_FICHE.includes(niveau) && (
-          <a href={`#fiche/${niveau}/${i}`} title={t("ficheOuvrirAide")}
-            className="shrink-0 rounded-lg border border-trait-fort px-3 py-1.5 text-sm font-semibold text-accent no-underline hover:bg-accent-doux">
-            {t("ficheOuvrir")}
-          </a>
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          {NIVEAUX_FICHE.includes(niveau) && (
+            <a href={`#fiche/${niveau}/${i}`} title={t("ficheOuvrirAide")}
+              className="rounded-lg border border-trait-fort px-3 py-1.5 text-sm font-semibold text-accent no-underline hover:bg-accent-doux">
+              {t("ficheOuvrir")}
+            </a>
+          )}
+          {(() => {
+            const dedans = comparaison.some((l) => l.niveau === niveau && l.i === i);
+            const plein = comparaison.length >= MAX_LIEUX;
+            return (
+              <button type="button" disabled={dedans || plein} onClick={() => onComparer({ niveau, i })}
+                title={plein && !dedans ? t("compPlein", { n: MAX_LIEUX }) : t("compAjouterAide")}
+                className="cursor-pointer rounded-lg border border-trait-fort bg-surface px-3 py-1.5 text-sm font-semibold text-accent hover:bg-accent-doux disabled:cursor-default disabled:opacity-60">
+                {dedans ? t("compDejaAjoute") : t("compAjouter")}
+              </button>
+            );
+          })()}
+        </div>
       </div>
       <Chiffres elements={chiffres} />
       {niveau === "fokontany" && <p className="m-0 text-[0.82rem] text-discret">{t("troisEstimations")}</p>}
@@ -235,6 +251,9 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
           </Bloc>
         );
       })()}
+      <AppelDevis texte={t("devisLieu", { nom: u.n })}
+        lieux={[`${t(`unite.${niveau}` as Cle)} ${u.n}`, ...fil.slice(1).map((f) => f.nom).reverse()].join(", ")}
+        lien={NIVEAUX_FICHE.includes(niveau) ? `${window.location.href.split("#")[0]}#fiche/${niveau}/${i}` : ""} />
     </div>
   );
 }

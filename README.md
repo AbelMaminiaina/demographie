@@ -23,6 +23,9 @@ Elle offre aussi :
 - une fiche par lieu (évolution 2015-2030, indicateurs DHS de la région, liste des fokontany d'une commune) ;
 - une **fiche territoire imprimable**, à enregistrer en PDF, pour chaque région, district et commune : chiffres clés, comparaison avec le district, la région et le pays, carte de situation, liste des sous-unités, sources et citation (bouton « Fiche PDF », ou adresse `#fiche/<niveau>/<indice>`) ;
 - la **population à une date** (2015-2030) pour chaque lieu ou zone : trois estimations et leur fourchette, et les groupes d'âge utiles aux campagnes (moins de 5 ans, femmes de 15 à 49 ans…) ;
+- un **accueil par besoin** (« Que voulez-vous faire ? ») qui mène directement à l'outil adapté : préparer une campagne, présenter son territoire, choisir où intervenir, comparer, télécharger ;
+- des **services sur mesure, sur devis** (analyse, rapport territorial, formation, accompagnement de projet) : formulaire qui prépare l'e-mail de demande, et bouton « Demander un devis » dans chaque fiche et dans la zone d'intervention, avec le lieu et son lien déjà remplis ;
+- un **comparateur** de 2 à 5 lieux (tous les indicateurs, croissance en base 100, lien de partage) et une **recherche de lieux sur critères** pour choisir où intervenir ou s'implanter (résultats exportables, comparables ou transformés en zone d'intervention) ;
 - le **téléchargement des données** : classement exporté en CSV (tous les indicateurs, avec les P-codes), chaque fichier traité en CSV, une archive ZIP et un classeur Excel ;
 - une **zone d'intervention** composée sur la carte (régions, districts, communes ou fokontany) : totaux de population, de ménages et d'estimations, fiche PDF de la zone, export CSV et lien de partage (bouton « Zone d'intervention ») ;
 - la population de 1960 à 2050 et une pyramide des âges année par année ;

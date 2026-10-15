@@ -8,6 +8,11 @@ import { Infobulle } from "./components/Graphiques";
 import { Recherche } from "./components/Recherche";
 import { Classement, Enquetes, Tendances, Tuiles } from "./components/Sections";
 import { Telechargements } from "./components/Telechargements";
+import { Parcours, type Besoin } from "./components/Parcours";
+import { CONTACT, Services } from "./components/Services";
+import { defilerVers } from "./lib/defilement";
+import { Ciblage, Comparateur } from "./components/Comparer";
+import { ajouterLieu, comparaisonDepuisAdresse, comparaisonMemorisee, memoriserComparaison, type Lieu } from "./lib/comparaison";
 import { useLangue, type Langue } from "./i18n";
 import type { Cle } from "./i18n/fr";
 import { chargerBase, chargerContours, chargerFokontany } from "./lib/donnees";
@@ -79,6 +84,16 @@ export default function App() {
   }, []);
   useEffect(() => { if (zoneLien) ouvrirZone(zoneLien); }, [zoneLien, ouvrirZone]);
 
+  // Comparateur : lieux lus dans un lien partagé (#comparer?…), sinon repris de la dernière visite
+  const [lieux, setLieux] = useState<Lieu[]>(() => comparaisonDepuisAdresse(window.location.hash) ?? comparaisonMemorisee());
+  useEffect(() => memoriserComparaison(lieux), [lieux]);
+  const montrerComparateur = () => setTimeout(() => document.getElementById("comparateur")?.scrollIntoView({ behavior: "smooth" }), 50);
+  useEffect(() => {
+    if (!window.location.hash.startsWith("#comparer?")) return;
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    montrerComparateur();
+  }, []);
+
   const [demandeFiche, setDemandeFiche] = useState(ficheDemandee);
   const [demandeFicheZone, setDemandeFicheZone] = useState(() => zoneDepuisAdresse(window.location.hash, "fiche-zone"));
   useEffect(() => {
@@ -87,6 +102,8 @@ export default function App() {
       setDemandeFicheZone(zoneDepuisAdresse(window.location.hash, "fiche-zone"));
       const z = zoneDepuisAdresse(window.location.hash, "zone");
       if (z) ouvrirZone(z);
+      const c = comparaisonDepuisAdresse(window.location.hash);
+      if (c) { setLieux(c); montrerComparateur(); }
     };
     window.addEventListener("hashchange", lire);
     return () => window.removeEventListener("hashchange", lire);
@@ -95,6 +112,9 @@ export default function App() {
   useEffect(() => {
     if (window.location.hash.startsWith("#zone?")) history.replaceState(null, "", window.location.pathname + window.location.search);
   }, [zone]);
+  // Les fokontany du comparateur ont besoin de leurs données
+  const fokontanyCompares = lieux.some((l) => l.niveau === "fokontany");
+  useEffect(() => { if (base && fokontanyCompares) chargerNiveau("fokontany"); }, [base, fokontanyCompares, chargerNiveau]);
   // Contours et fokontany nécessaires à la zone (carte, panneau, fiche)
   const niveauZone = (demandeFicheZone ?? zone)?.niveau;
   useEffect(() => {
@@ -149,6 +169,16 @@ export default function App() {
     return { ...z, indices: [...z.indices, s.i] };
   });
   const zoneAccepte = (n: Niveau) => !zone?.indices.length || zone.niveau === n;
+  // Accueil par besoin : amène à l'outil qui répond au besoin choisi
+  const suivreBesoin = (b: Besoin) => {
+    if (b === "campagne") { setModeZone(true); defilerVers("carte"); }
+    else if (b === "territoire") document.getElementById("recherche")?.focus();
+    else if (b === "implanter") defilerVers("ciblage");
+    else if (b === "comparer") defilerVers("comparateur", "recherche-comparer");
+    else if (b === "donnees") defilerVers("donnees");
+    else defilerVers("services");
+  };
+  const anneeCourante = Math.min(new Date().getFullYear(), base?.meta.annees_wp.at(-1) ?? new Date().getFullYear());
 
   if (erreur) return <p className="p-8 text-encre">{t("erreurChargement", { erreur })}</p>;
   if (!base || !indicateur) return <p className="p-8 text-encre-2">{t("chargement")}</p>;
@@ -201,16 +231,19 @@ export default function App() {
                 <button key={m} type="button" aria-pressed={theme.mode === m} onClick={() => theme.setMode(m)}>{t(c)}</button>
               ))}
             </div>
+            <a href="#services" onClick={(e) => { e.preventDefault(); suivreBesoin("services"); }}
+              className="rounded-lg px-2 py-1 text-sm font-semibold text-accent underline underline-offset-2">{t("navServices")}</a>
             <a href="./classique/" className="rounded-lg px-2 py-1 text-sm text-accent underline underline-offset-2">{t("versionClassique")}</a>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-[1440px] gap-5 px-4 py-5 sm:px-6">
+      <main className="mx-auto grid max-w-[1440px] grid-cols-[minmax(0,1fr)] gap-5 px-4 py-5 sm:px-6">
         <p className="m-0 max-w-[75ch] text-encre-2">{t("sousTitre")} {dateCollecte && t("collecte", { date: dateCollecte })}</p>
+        <Parcours onChoisir={suivreBesoin} />
         <Tuiles base={base} />
 
-        <section className="grid gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,1fr)]">
+        <section id="carte" className="grid gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(340px,1fr)]">
           <div className="carte-ui relative min-w-0 overflow-hidden">
             <div className="relative h-[72vh] min-h-[520px]">
               <Carte niveau={niveau} contours={contours} couleurs={couleurs} selection={selection} zone={zone} centrage={centrage}
@@ -279,19 +312,31 @@ export default function App() {
                 onNiveau={changerNiveau} onQuitter={() => setModeZone(false)} />
             ) : (
               <Fiche base={base} unites={unites} selection={selection} fokontanyParCommune={fokontanyParCommune} fkRepere={fkRepere}
-                onChoisir={choisir} onReinitialiser={() => { setSelection(null); setCentrage((c) => c + 1); }} />
+                onChoisir={choisir} onReinitialiser={() => { setSelection(null); setCentrage((c) => c + 1); }}
+                comparaison={lieux} onComparer={(s) => setLieux((l) => ajouterLieu(l, s.niveau, s.i))} />
             )}
           </aside>
         </section>
 
+        <Comparateur base={base} unites={unites} fokontany={fokontany} indicateurs={indicateurs} annee={anneeCourante} lieux={lieux}
+          onAjouter={(s) => setLieux((l) => ajouterLieu(l, s.niveau, s.i))} onVider={() => setLieux([])}
+          onRetirer={(x) => setLieux((l) => l.filter((y) => y !== x))}
+          onChoisir={(s) => { choisir(s); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          onDemanderFokontany={() => chargerNiveau("fokontany")} />
+        <Ciblage base={base} unites={unites} indicateurs={indicateurs} annee={anneeCourante}
+          onChoisir={(s) => { choisir(s); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          onComparer={(liste) => { setLieux(liste.reduce<Lieu[]>((l, s) => ajouterLieu(l, s.niveau, s.i), [])); montrerComparateur(); }}
+          onZone={(n, indices) => { ouvrirZone({ niveau: n, indices, nom: "" }); chargerNiveau(n); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
         <Tendances base={base} />
         <Enquetes base={base} />
         <Classement niveau={niveau} unites={unitesNiveau} indicateur={indicateur} indicateurs={indicateurs} annee={annee} base={base}
           selection={selection} onChoisir={(s) => choisir(s)} />
+        <Services />
         <Telechargements />
 
         <footer className="grid gap-1 pb-6 text-[0.82rem] text-discret">
           <span>{t("sources")}</span>
+          <span>{t("contact", { email: "" })}<a className="text-accent" href={`mailto:${CONTACT}`}>{CONTACT}</a></span>
           <span>
             <a className="text-accent" href="https://github.com/AbelMaminiaina/demographie/blob/main/DONNEES.md">{t("catalogue")}</a>
             {" · "}<a className="text-accent" href="https://github.com/AbelMaminiaina/demographie">{t("depot")}</a>

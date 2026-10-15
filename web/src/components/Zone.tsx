@@ -7,6 +7,7 @@ import { telechargerCsv } from "../lib/csv";
 import { adresseZone, resumer, type Resume, type Zone } from "../lib/zone";
 import { ADRESSE_SITE, BarreImpression, Bloc, Situation, useTitre } from "./FicheTerritoire";
 import { EstimationDate } from "./Estimation";
+import { AppelDevis } from "./Services";
 import { Courbes } from "./Graphiques";
 
 /** Rattachement d'une unité, pour les listes : « district · région », ou le seul parent direct (`court`). */
@@ -139,6 +140,9 @@ export function PanneauZone({ base, unitesNiveau, zone, niveauCarte, annee, onRe
             <button type="button" className={bouton} onClick={copier}>{copie ? t("zoneLienCopie") : t("zoneCopierLien")}</button>
             <button type="button" className={bouton} onClick={onVider}>{t("zoneVider")}</button>
           </div>
+          <AppelDevis texte={t("devisZone")}
+            lieux={`${nom} (${zone.indices.length} ${unitesNom})${unitesNiveau ? ` : ${zone.indices.slice(0, 12).map((i) => unitesNiveau[i].n).join(", ")}${zone.indices.length > 12 ? "…" : ""}` : ""}`}
+            lien={window.location.href.split("#")[0] + adresseZone(zone, "zone")} />
           {unitesNiveau && (
             <section className="grid gap-1 border-t border-trait pt-3">
               <h3 className="etiquette m-0">{t("zoneListe", { n: zone.indices.length })}</h3>
