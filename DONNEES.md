@@ -16,6 +16,7 @@ Les fichiers de `data/` ne sont pas versionnés dans git : ils sont recréés pa
 | [Enquête démographique et de santé](#dhs--enquête-démographique-et-de-santé-2021) | INSTAT, avec l'appui d'ICF (programme DHS) | API du programme DHS | 8 indicateurs de santé et de fécondité | 2021 | Régions | Données agrégées publiques, citation obligatoire |
 | [Emploi (ENEMPSI, ENESI, EPM)](#oit--emploi-daprès-les-enquêtes-enempsi-enesi-et-epm) | INSTAT (enquêtes) ; OIT (calcul des indicateurs) | OIT, ILOSTAT (API SDMX) | Activité, emploi, chômage, informalité, jeunes NEET, emploi par secteur et par statut | 2001-2022 | Pays | CC BY 4.0 (OIT) |
 | [Pauvreté (EPM)](#banque-mondiale--pauvreté-daprès-les-enquêtes-epm) | INSTAT (enquêtes) ; Banque mondiale (calcul) | Banque mondiale, Poverty and Inequality Platform (API) | Taux et écart de pauvreté à 3 seuils, indice de Gini | 1980-2021 | Pays | CC BY 4.0 |
+| [Établissements de santé publics](#établissements-de-santé-publics-liste-de-2019) | Maina et al. (KEMRI-Wellcome Trust), à partir des listes des ministères de la Santé | HDX (`health-facilities-in-sub-saharan-africa`) | Centres de santé, postes de santé et hôpitaux publics géolocalisés | 2019 | Points, rattachés aux communes | CC BY 4.0 |
 | [Grilles de population](#worldpop--estimations-sur-grilles-de-1-km-et-de-100-m) | WorldPop (université de Southampton) | WorldPop Hub | Habitants par carré de 1 km et de 100 m | 2015-2030 | Grilles, agrégées aux fokontany (100 m) et aux communes, districts et régions (1 km) | CC BY 4.0 |
 
 ## Fiches par source
@@ -186,6 +187,15 @@ Quand l'API donne plusieurs périodes de référence pour un même indicateur, s
 - **Fichier brut :** `data/brut/banque_mondiale_pip/pauvrete_madagascar.json`.
 - **Seuil national :** le rapport de l'EPM 2021-2022 de l'INSTAT donne un taux de pauvreté de 77 % selon le seuil national. Ce chiffre n'est publié que dans le rapport PDF, sur le site de l'INSTAT, et n'est pas collecté.
 
+### Établissements de santé publics (liste de 2019)
+
+- **Producteur :** Maina J. et al., *A spatial database of health facilities managed by the public health sector in sub Saharan Africa*, Scientific Data 6:134 (2019). La liste a été compilée à partir des listes officielles des ministères de la Santé et d'autres sources, puis géolocalisée (GPS, Google Earth, répertoires de lieux).
+- **Accès :** HDX, jeu `health-facilities-in-sub-saharan-africa`, classeur Excel de 50 pays, dont 2 677 établissements à Madagascar.
+- **Conditions :** CC BY 4.0, citation obligatoire.
+- **Fichier brut :** `data/brut/sante_etablissements/etablissements_publics_afrique_subsaharienne.xlsx`. Publication définitive : le fichier est gardé d'un mois à l'autre.
+- **Contenu :** pour chaque établissement, le nom, le type (centre de santé, poste de santé, hôpital), la région, les coordonnées et la méthode de géolocalisation. Les établissements privés et confessionnels ne sont pas inclus.
+- **Limites :** la liste date de 2019. Les établissements ouverts depuis manquent, et certains centres de santé de base (CSB) peuvent être absents ou mal placés. Les ratios « habitants par établissement » sont donc des ordres de grandeur.
+
 ### Microdonnées des enquêtes
 
 Les microdonnées (réponses individuelles anonymisées) de l'EPM 2021-2022 et de l'ENEMPSI 2012 sont diffusées sur des catalogues qui demandent une inscription et l'acceptation de conditions d'utilisation : la plateforme de l'INSTAT (microdata.instat.mg) et le catalogue de l'OIT. Le pipeline ne les télécharge pas automatiquement. Les indicateurs de l'OIT et de la Banque mondiale en sont tirés.
@@ -222,6 +232,8 @@ data/
 │   │   └── pauvrete_madagascar.json
 │   ├── dhs/
 │   │   └── indicateurs_regions.json
+│   ├── sante_etablissements/
+│   │   └── etablissements_publics_afrique_subsaharienne.xlsx
 │   ├── worldpop/
 │   │   └── population_2015_1km.tif … population_2030_1km.tif
 │   └── worldpop_100m/
@@ -238,7 +250,8 @@ data/
     │   ├── regions.csv, districts.csv, communes.csv, fokontany.csv
     │   └── <niveau>_series_2009_2018.csv
     ├── sante/
-    │   └── dhs_regions.csv
+    │   ├── dhs_regions.csv
+    │   └── etablissements_sante_publics.csv
     ├── enquetes/                       Emploi (OIT) et pauvreté (Banque mondiale) d'après les enquêtes
     │   ├── emploi_oit.csv, emploi_synthese.csv
     │   └── pauvrete_epm.csv
@@ -377,6 +390,9 @@ Une ligne par enquête : `annee`, `enquete`, `mesure_du_bien_etre` (consommation
 ### `sante/dhs_regions.csv`
 Une ligne par région : `pcode`, `nom` et les 8 indicateurs du [tableau DHS](#dhs--enquête-démographique-et-de-santé-2021).
 
+### `sante/etablissements_sante_publics.csv`
+Une ligne par établissement de santé public : `nom` (tel que dans la source), `type` (centre de santé, poste de santé, hôpital), `latitude`, `longitude`, `region_source` (région donnée par la source), `source_coordonnees` (méthode de géolocalisation), `distance_commune_km` (0 si l'établissement est dans le contour de sa commune, sinon distance au contour le plus proche), puis le rattachement à la carte : `commune_pcode`, `commune`, `district_pcode`, `district`, `region_pcode`, `region`.
+
 ### `estimations/worldpop_<niveau>.csv`
 Une ligne par région, district ou commune : `pcode`, `nom`, puis `wp_2015` à `wp_2030` (habitants estimés, arrondis à l'unité).
 
@@ -390,6 +406,7 @@ Une ligne par fokontany (17 464) : `pcode`, `nom`, le rattachement (`commune_pco
 - **Rattachement des contours :** les communes et les fokontany sont rattachés à leur unité parente en cherchant le contour parent qui contient un point intérieur de l'unité (`src/geometrie.py`), puis par le couple (unité parente, nom).
 - **Superficies :** calculées sur les contours simplifiés, en projection équirectangulaire locale. La superficie totale obtenue (591 000 km²) est proche de la superficie officielle de Madagascar (587 000 km²).
 - **WorldPop 100 m :** chaque carré de 100 m est affecté au fokontany qui contient son centre. Les grilles sont lues par bandes de lignes pour limiter la mémoire.
+- **Établissements de santé :** chaque établissement est rattaché à la commune dont le contour le contient. Les contours simplifiés coupent parfois le littoral : un établissement situé à moins de 10 km d'une commune lui est alors rattaché ; au-delà, il est écarté (coordonnées hors de la carte).
 - **WorldPop :** chaque carré de 1 km est affecté à la commune qui le contient, puis les sommes sont agrégées aux districts et aux régions.
 - **Contrôles qualité :** le pipeline s'arrête si l'une de ces conditions n'est pas remplie :
   - le nombre d'unités attendu à chaque niveau ;
@@ -401,7 +418,8 @@ Une ligne par fokontany (17 464) : `pcode`, `nom`, le rattachement (`commune_pco
   - chaque commune calée retrouve exactement sa population recensée dans la somme de ses fokontany ;
   - la pyramide des âges cohérente avec la population totale, à 1 % près ;
   - le total WorldPop proche de celui de l'ONU, à 5 % près, avec moins de 2 % de la population hors des contours ;
-  - pour la grille à 100 m : le même total national qu'à 1 km, à 2 % près, et moins de 1 % de la population hors des fokontany.
+  - pour la grille à 100 m : le même total national qu'à 1 km, à 2 % près, et moins de 1 % de la population hors des fokontany ;
+  - pour les établissements de santé : des types connus, moins de 1 % des établissements hors de la carte, et la même région que la source pour au moins 97 % d'entre eux.
 
 ## Citer ces données
 
@@ -415,4 +433,5 @@ Toute réutilisation des fichiers de ce projet doit mentionner les sources d'ori
 - INSTAT et BNGRC, *Madagascar - Subnational Population Statistics*, diffusé par OCHA sur HDX (CC BY 3.0 IGO).
 - geoBoundaries (Runfola et al., 2020) ; régions © contributeurs OpenStreetMap (ODbL 1.0) ; districts, communes et fokontany : BNGRC et OCHA (CC BY 3.0 IGO).
 - INSTAT et ICF, *Enquête démographique et de santé de Madagascar 2021* (The DHS Program, API publique).
+- Maina J., Ouma P. O., Macharia P. M. et al. (2019), *A spatial database of health facilities managed by the public health sector in sub Saharan Africa*, Scientific Data 6:134, doi:10.1038/s41597-019-0142-2 (CC BY 4.0).
 - Bondarenko M. et al. (2025), *Constrained estimates of 2015-2030 total number of people per grid square*, WorldPop, université de Southampton, R2025A v1, doi:10.5258/SOTON/WP00840 (1 km) et doi:10.5258/SOTON/WP00839 (100 m) (CC BY 4.0).

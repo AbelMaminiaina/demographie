@@ -15,7 +15,8 @@ L'application propose une carte de Madagascar à quatre niveaux (régions, distr
 - les résultats du recensement de 2018, jusqu'à la commune (population, part urbaine, taille des ménages, ménages dirigés par une femme) ;
 - les estimations et la croissance WorldPop, année par année (grille de 100 m pour les fokontany) ;
 - la population des fokontany calée sur le recensement ;
-- les indicateurs de santé DHS.
+- les indicateurs de santé DHS ;
+- les **établissements de santé publics** (2 664 centres de santé, postes de santé et hôpitaux, liste de 2019) : couche de points sur la carte, nombre d'établissements et habitants par établissement pour chaque région, district et commune.
 
 Elle offre aussi :
 

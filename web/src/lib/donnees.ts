@@ -24,6 +24,12 @@ export async function chargerFokontany(communes: Unite[]): Promise<Unite[]> {
   return unites;
 }
 
+/** Établissements de santé publics : [longitude, latitude, type (0 centre, 1 poste, 2 hôpital), nom]. */
+export type PointSante = [number, number, 0 | 1 | 2, string];
+export async function chargerSante(): Promise<PointSante[]> {
+  return (await lire<{ points: PointSante[] }>("sante.json")).points;
+}
+
 /** Contours d'un niveau. Ceux des fokontany sont compressés : entiers, écarts entre points successifs. */
 export async function chargerContours(niveau: Niveau): Promise<Contours> {
   if (niveau !== "fokontany") {

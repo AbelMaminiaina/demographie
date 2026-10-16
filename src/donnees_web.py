@@ -7,6 +7,7 @@ import json
 
 import telechargements
 from config import DOSSIER_SORTIES
+from config import TYPES_SANTE
 from tableau_de_bord import NOMS_DHS, _national, _niveaux, annee_courante_wp100, brut
 
 DOSSIER = DOSSIER_SORTIES / "web" / "donnees"
@@ -64,6 +65,7 @@ def generer(donnees):
                      "rgph_communes": len(donnees["rgph3"]["communes"]),
                      "annee_wp100": annee_courante_wp100(donnees["worldpop_100m"]),
                      "nb_fokontany": len(fokontany["unites"]),
+                     "nb_sante": len(donnees["sante"]),
                      "rg_national": _recensement_national(donnees)},
             **_national(donnees),
             "enquetes": _enquetes(donnees),
@@ -71,6 +73,10 @@ def generer(donnees):
             "niveaux": {n: d["unites"] for n, d in niveaux.items()},
         }),
         "fokontany.json": _ecrire("fokontany.json", {"unites": fokontany["unites"]}),
+        # Points de la carte : [longitude, latitude, type (0 centre, 1 poste, 2 hôpital), nom]
+        "sante.json": _ecrire("sante.json", {"points": [
+            [round(e.longitude, 4), round(e.latitude, 4), list(TYPES_SANTE.values()).index(e.type), e.nom]
+            for e in donnees["sante"].itertuples()]}),
         "contours_fokontany.json": _ecrire("contours_fokontany.json",
                                            {"echelle": fokontany["echelle"], "anneaux": fokontany["anneaux"]}),
     }

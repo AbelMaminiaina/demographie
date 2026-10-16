@@ -1,11 +1,12 @@
-import { Map as CarteMapLibre, NavigationControl, setWorkerUrl, type ExpressionSpecification, type StyleSpecification } from "maplibre-gl";
+import { Map as CarteMapLibre, NavigationControl, Popup, setWorkerUrl, type ExpressionSpecification, type StyleSpecification } from "maplibre-gl";
 // Le calcul des tuiles se fait dans un « worker » : Vite le compile et en donne l'adresse
 import adresseWorker from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 
 setWorkerUrl(adresseWorker);
 import { useEffect, useRef, useState } from "react";
 import { useLangue } from "../i18n";
-import { boite } from "../lib/donnees";
+import type { Cle } from "../i18n/fr";
+import { boite, type PointSante } from "../lib/donnees";
 import type { Contours, Niveau, Selection } from "../lib/types";
 import { NIVEAUX } from "../lib/types";
 
@@ -31,7 +32,10 @@ const EPAISSEUR: Record<Niveau, ExpressionSpecification | number> = {
 
 export interface Survol { niveau: Niveau; i: number; x: number; y: number }
 
-export function Carte({ niveau, contours, couleurs, selection, zone, centrage, sombre, fondActif, onSurvol, onChoisir }: {
+/** Couleur des établissements de santé par type : centre, poste, hôpital (reprise dans la légende). */
+export const COULEURS_SANTE = ["var(--serie-3)", "var(--serie-4)", "var(--femme)"];
+
+export function Carte({ niveau, contours, couleurs, selection, zone, centrage, sombre, fondActif, sante, santeVisible, onSurvol, onChoisir }: {
   niveau: Niveau;
   contours: Partial<Record<Niveau, Contours>>;
   couleurs: string[] | null;
@@ -40,6 +44,8 @@ export function Carte({ niveau, contours, couleurs, selection, zone, centrage, s
   centrage: number;               // change à chaque demande de recentrage sur la sélection
   sombre: boolean;
   fondActif: boolean;
+  sante: PointSante[] | null;     // établissements de santé publics, chargés à la première demande
+  santeVisible: boolean;
   onSurvol: (s: Survol | null) => void;
   onChoisir: (s: Selection) => void;
 }) {
@@ -48,7 +54,7 @@ export function Carte({ niveau, contours, couleurs, selection, zone, centrage, s
   const carte = useRef<CarteMapLibre | null>(null);
   const [styleCharge, setStyleCharge] = useState(0);   // incrémenté à chaque (re)chargement du style
   const [fondEnErreur, setFondEnErreur] = useState(false);
-  const etat = useRef({ niveau, onSurvol, onChoisir, survol: null as number | null, choisi: null as Selection | null,
+  const etat = useRef({ niveau, onSurvol, onChoisir, t, survol: null as number | null, choisi: null as Selection | null,
     zone: null as { niveau: Niveau; indices: number[] } | null });
   // Vrai entre l'événement « style.load » et le prochain changement de style. On ne peut pas se fier à
   // isStyleLoaded(), qui reste faux tant que les tuiles du fond de carte se chargent.
@@ -56,6 +62,7 @@ export function Carte({ niveau, contours, couleurs, selection, zone, centrage, s
   etat.current.niveau = niveau;
   etat.current.onSurvol = onSurvol;
   etat.current.onChoisir = onChoisir;
+  etat.current.t = t;
 
   const styleVoulu = () => (fondActif && !fondEnErreur ? FONDS[sombre ? "sombre" : "clair"] : styleVide());
 
@@ -88,6 +95,18 @@ export function Carte({ niveau, contours, couleurs, selection, zone, centrage, s
       etat.current.onSurvol(i == null ? null : { niveau: n, i, x: e.originalEvent.clientX, y: e.originalEvent.clientY });
     });
     m.on("mouseout", () => etat.current.onSurvol(null));
+    // Établissement de santé survolé : son nom et son type (texte inséré sans HTML)
+    const bulle = new Popup({ closeButton: false, closeOnClick: false, offset: 8 });
+    m.on("mousemove", "points-sante", (e) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const contenu = document.createElement("div");
+      const nom = document.createElement("strong");
+      nom.textContent = String(f.properties.n);
+      contenu.append(nom, document.createElement("br"), etat.current.t(`sante.type.${f.properties.t}` as Cle));
+      bulle.setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number]).setDOMContent(contenu).addTo(m);
+    });
+    m.on("mouseleave", "points-sante", () => bulle.remove());
     m.on("click", (e) => {
       const n = etat.current.niveau;
       if (!m.getLayer(premiereCouche(n))) return;
@@ -133,6 +152,25 @@ export function Carte({ niveau, contours, couleurs, selection, zone, centrage, s
         paint: { "line-color": jeton("--encre"), "line-opacity": 0.45, "line-width": 0.9 } }, premierSymbole);
     }
   }, [contours, styleCharge, fondActif, fondEnErreur]);
+
+  // Établissements de santé : points au-dessus des découpages
+  useEffect(() => {
+    const m = carte.current;
+    if (!m || !stylePret.current || !sante || m.getSource("src-sante")) return;
+    m.addSource("src-sante", { type: "geojson", data: { type: "FeatureCollection", features: sante.map(([x, y, type, n]) => (
+      { type: "Feature", properties: { t: type, n }, geometry: { type: "Point", coordinates: [x, y] } })) } });
+    m.addLayer({ id: "points-sante", type: "circle", source: "src-sante", layout: { visibility: santeVisible ? "visible" : "none" },
+      paint: {
+        "circle-color": ["match", ["get", "t"], 0, jeton("--serie-3"), 1, jeton("--serie-4"), jeton("--femme")],
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "t"], 2, 4, 2.4], 11, ["match", ["get", "t"], 2, 9, 6]],
+        "circle-stroke-color": jeton("--surface"), "circle-stroke-width": 0.8,
+      } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sante, styleCharge]);
+  useEffect(() => {
+    const m = carte.current;
+    if (m?.getLayer("points-sante")) m.setLayoutProperty("points-sante", "visibility", santeVisible ? "visible" : "none");
+  }, [santeVisible, sante, styleCharge]);
 
   // Seul le découpage choisi est visible ; les limites de régions restent en repère
   useEffect(() => {

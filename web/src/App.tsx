@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Carte, type Survol } from "./components/Carte";
+import { Carte, COULEURS_SANTE, type Survol } from "./components/Carte";
 import { Fiche } from "./components/Fiche";
 import { FicheTerritoire, NIVEAUX_FICHE } from "./components/FicheTerritoire";
 import { FicheZone, PanneauZone } from "./components/Zone";
@@ -15,7 +15,7 @@ import { Ciblage, Comparateur } from "./components/Comparer";
 import { ajouterLieu, comparaisonDepuisAdresse, comparaisonMemorisee, memoriserComparaison, type Lieu } from "./lib/comparaison";
 import { useLangue, type Langue } from "./i18n";
 import type { Cle } from "./i18n/fr";
-import { chargerBase, chargerContours, chargerFokontany } from "./lib/donnees";
+import { chargerBase, chargerContours, chargerFokontany, chargerSante, type PointSante } from "./lib/donnees";
 import { dateLongue } from "./lib/format";
 import { construireEchelle, construireIndicateurs, INDICATEUR_PAR_DEFAUT, type Indicateur } from "./lib/indicateurs";
 import { useTheme, type ModeTheme } from "./lib/theme";
@@ -42,6 +42,8 @@ export default function App() {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [centrage, setCentrage] = useState(0);
   const [fondActif, setFondActif] = useState(true);
+  const [sante, setSante] = useState<PointSante[] | null>(null);
+  const [santeVisible, setSanteVisible] = useState(false);
   const [survol, setSurvol] = useState<Survol | null>(null);
   const [fkRepere, setFkRepere] = useState<string | null>(null);
   // Les couleurs de la carte lisent les jetons CSS : on les recalcule une fois le thème appliqué
@@ -190,6 +192,7 @@ export default function App() {
   const groupes: { cle: Cle; liste: Indicateur[]; params?: Record<string, string> }[] = [
     { cle: "groupeRecensement", liste: indicateurs.filter((i) => i.groupe === "recensement") },
     { cle: "groupeEstimations", liste: indicateurs.filter((i) => i.groupe === "estimations") },
+    { cle: "groupeEquipements", liste: indicateurs.filter((i) => i.groupe === "equipements") },
     { cle: "groupeSante", liste: indicateurs.filter((i) => i.groupe === "sante"), params: { enquete: base.meta.enquete_dhs } },
   ];
   const dateCollecte = base.meta.collecte ? dateLongue(new Date(base.meta.collecte), langue) : "";
@@ -247,7 +250,7 @@ export default function App() {
           <div className="carte-ui relative min-w-0 overflow-hidden">
             <div className="relative h-[72vh] min-h-[520px]">
               <Carte niveau={niveau} contours={contours} couleurs={couleurs} selection={selection} zone={zone} centrage={centrage}
-                sombre={theme.sombre} fondActif={fondActif} onSurvol={setSurvol}
+                sombre={theme.sombre} fondActif={fondActif} sante={sante} santeVisible={santeVisible} onSurvol={setSurvol}
                 onChoisir={(s) => (modeZone && zoneAccepte(s.niveau) ? basculerDansZone(s) : choisir(s, false))} />
               <div className="pointer-events-none absolute left-3 right-14 top-3 flex flex-wrap items-start gap-2">
                 <div className="segments pointer-events-auto max-w-full overflow-x-auto shadow-sm" role="group" aria-label="Découpage">
@@ -297,6 +300,18 @@ export default function App() {
                   <label className="mt-1 flex items-center gap-1.5 text-[0.75rem] text-encre-2">
                     <input type="checkbox" checked={fondActif} onChange={(e) => setFondActif(e.target.checked)} />
                     {t("fondDeCarte")}
+                  </label>
+                  <label className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.75rem] text-encre-2">
+                    <input type="checkbox" checked={santeVisible} onChange={(e) => {
+                      setSanteVisible(e.target.checked);
+                      if (e.target.checked && !sante) chargerSante().then(setSante).catch((err) => setErreur(String(err.message ?? err)));
+                    }} />
+                    {t("coucheSante")}
+                    {santeVisible && ([0, 1, 2] as const).map((k) => (
+                      <span key={k} className="ml-1 inline-flex items-center gap-1 text-discret">
+                        <i className="inline-block h-2 w-2 rounded-full" style={{ background: COULEURS_SANTE[k] }} />{t(`sante.type.${k}`)}
+                      </span>
+                    ))}
                   </label>
                 </div>
               )}

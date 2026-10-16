@@ -24,6 +24,7 @@ LICENCES = {
     "onu": "CC BY 3.0 IGO (ONU, World Population Prospects)",
     "dhs": "Données publiques du programme DHS, citation obligatoire",
     "oit": "CC BY 4.0 (OIT, ILOSTAT)",
+    "sante": "CC BY 4.0 (Maina et al., 2019, Scientific Data, diffusion HDX)",
 }
 
 # (chemin dans data/traite, thème, description, licence, nom de feuille Excel)
@@ -47,6 +48,7 @@ FICHIERS = [
     ("national/projections_onu.csv", "national", "Projections de population de l'ONU jusqu'en 2050", "onu", "Projections ONU"),
     ("national/pyramide_ages.csv", "national", "Population par groupe d'âge de 5 ans et par sexe, chaque année", "bm", "Pyramide des âges"),
     ("sante/dhs_regions.csv", "sante", "Santé et fécondité par région (enquête DHS 2021)", "dhs", "Santé DHS régions"),
+    ("sante/etablissements_sante_publics.csv", "sante", "Établissements de santé publics géolocalisés (liste de 2019) : type, coordonnées, commune, district et région", "sante", "Établissements de santé"),
     ("enquetes/pauvrete_epm.csv", "enquetes", "Pauvreté et inégalités par enquête EPM (Banque mondiale)", "bm", "Pauvreté"),
     ("enquetes/emploi_synthese.csv", "enquetes", "Emploi : synthèse par enquête (activité, chômage, informalité, NEET)", "oit", "Emploi synthèse"),
     ("enquetes/emploi_oit.csv", "enquetes", "Emploi : toutes les observations de l'OIT (par sexe, âge, secteur, statut)", "oit", None),

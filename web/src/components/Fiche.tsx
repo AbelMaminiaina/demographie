@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLangue } from "../i18n";
 import type { Cle } from "../i18n/fr";
-import { croissance } from "../lib/indicateurs";
+import { croissance, nbSante } from "../lib/indicateurs";
 import { compact, densite, entier, nombre, pct } from "../lib/format";
 import type { Base, Niveau, Recensement, Selection, Unite } from "../lib/types";
 import { EstimationDate } from "./Estimation";
@@ -202,6 +202,18 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
             <><strong className="block">{a}</strong>{entier(u.wp[meta.annees_wp.indexOf(a)])} {t("habitantsWorldPop")}</>
           )} formatY={compact} />
       </Bloc>
+      {u.es && (() => {
+        const n = nbSante(u)!;
+        return (
+          <Bloc titre={t("ficheSante")}>
+            {n === 0 ? <p className="m-0">{t("santeAucun")}</p> : (
+              <Chiffres elements={[[entier(u.es[0]), t("santeCentres")], [entier(u.es[1]), t("santePostes")],
+                [entier(u.es[2]), t("santeHopitaux")], [entier(Math.round(u.wp[iAn] / n)), t("santeHabitants", { annee: AN })]]} />
+            )}
+            <p className="m-0 text-[0.78rem] text-discret">{t("santeNote")}</p>
+          </Bloc>
+        );
+      })()}
       {region.dhs && (
         <Bloc titre={niveau === "regions" ? meta.enquete_dhs : t("dhsRegion", { enquete: meta.enquete_dhs, region: region.n })}>
           <dl className="m-0 grid gap-2">

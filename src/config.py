@@ -19,6 +19,7 @@ BRUT = {
     "rgph3": "instat_rgph3/resultats_globaux_tome2.pdf",
     "emploi": "oit_ilostat/{indicateur}.csv",
     "pauvrete": "banque_mondiale_pip/pauvrete_madagascar.json",
+    "sante_etablissements": "sante_etablissements/etablissements_publics_afrique_subsaharienne.xlsx",
     "journal": "journal_collecte.json",
 }
 # Données traitées : un dossier par thème, fichiers CSV prêts à l'emploi.
@@ -36,6 +37,7 @@ TRAITE = {
     "emploi": "enquetes/emploi_oit.csv",
     "emploi_synthese": "enquetes/emploi_synthese.csv",
     "pauvrete": "enquetes/pauvrete_epm.csv",
+    "sante_etablissements": "sante/etablissements_sante_publics.csv",
 }
 
 
@@ -129,3 +131,8 @@ INDICATEURS_EMPLOI = {
 # Seuils internationaux en dollars par jour et par personne, en parité de pouvoir d'achat 2021.
 PIP_URL = "https://api.worldbank.org/pip/v1/pip"
 SEUILS_PAUVRETE = (3.00, 4.20, 8.30)
+
+# Établissements de santé publics : liste géolocalisée de 50 pays d'Afrique subsaharienne
+# (Maina et al., 2019, Scientific Data), compilée à partir de sources gouvernementales.
+HDX_SANTE_DATASET = "health-facilities-in-sub-saharan-africa"
+TYPES_SANTE = {"Health Centre": "centre de santé", "Health Post": "poste de santé", "Hospital": "hôpital"}

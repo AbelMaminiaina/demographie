@@ -13,7 +13,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from config import (BANQUE_MONDIALE_URL, DHS_PAYS, DHS_URL, DOSSIER_BRUT, GEOBOUNDARIES_URL,
-                    HDX_DATASET, HDX_URL, ILO_SDMX_URL, INDICATEURS, INDICATEURS_DHS, INDICATEURS_EMPLOI,
+                    HDX_DATASET, HDX_SANTE_DATASET, HDX_URL, ILO_SDMX_URL, INDICATEURS, INDICATEURS_DHS, INDICATEURS_EMPLOI,
                     PIP_URL, SEUILS_PAUVRETE,
                     INDICATEURS_PROJECTIONS, NIVEAUX, PAYS, RGPH3_URL, SOURCE_PROJECTIONS, WORLDPOP_100M_URL,
                     WORLDPOP_URL, brut)
@@ -228,6 +228,23 @@ def contours(niveau):
                    meta["simplifiedGeometryGeoJSON"])
 
 
+def etablissements_sante():
+    """Établissements de santé publics géolocalisés (liste de 2019 diffusée sur HDX)."""
+    print("Établissements de santé publics (HDX)...")
+    fichier = brut("sante_etablissements")
+    source = "Maina et al. 2019, établissements de santé publics d'Afrique subsaharienne (HDX, CC BY 4.0)"
+    r = SESSION.get(f"{HDX_URL}/package_show", params={"id": HDX_SANTE_DATASET}, timeout=TIMEOUT)
+    r.raise_for_status()
+    url = next(x["url"] for x in r.json()["result"]["resources"] if x["format"].upper() == "XLSX")
+    if fichier.exists():  # liste publiée en 2019, définitive
+        _consigner(fichier, source, url, telecharge=False)
+        return fichier
+    _telecharger_gros_fichier(url, fichier)
+    _consigner(fichier, source, url)
+    print(f"  -> data/brut/{fichier.relative_to(DOSSIER_BRUT).as_posix()}")
+    return fichier
+
+
 def tout_collecter():
     JOURNAL.clear()
     debut = _maintenant()
@@ -239,6 +256,7 @@ def tout_collecter():
     rgph3()
     emploi_oit()
     pauvrete_pip()
+    etablissements_sante()
     for niveau in NIVEAUX:
         instat_population(niveau)
         contours(niveau)

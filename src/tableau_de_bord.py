@@ -2,7 +2,7 @@
 import json
 from datetime import date
 
-from config import DOSSIER_SORTIES, INDICATEURS_DHS, RACINE, brut
+from config import DOSSIER_SORTIES, INDICATEURS_DHS, RACINE, TYPES_SANTE, brut
 from geometrie import simplifier
 
 MODELE = RACINE / "src" / "modele_tableau_de_bord.html"
@@ -84,6 +84,12 @@ def _niveaux(donnees):
     rgph = donnees["rgph3"]
     rg_par_cle = {n: rgph[n].set_index("cle") for n in ("regions", "districts")}
     rg_communes = rgph["communes"].dropna(subset=["cle_hdx"]).set_index("cle_hdx")
+    # Établissements de santé publics par unité : [centres de santé, postes de santé, hôpitaux]
+    sante = donnees["sante"]
+    types_sante = list(TYPES_SANTE.values())
+    sante_par = {"regions": sante.groupby(["region_pcode", "type"]).size(),
+                 "districts": sante.groupby(["district_pcode", "type"]).size(),
+                 "communes": sante.groupby(["cle", "type"]).size()}
 
     resultat = {}
     for niveau in TOLERANCES:
@@ -107,6 +113,9 @@ def _niveaux(donnees):
                 r = rg_communes.loc[u["cle"]]
                 ligne["rg"] = {"p": int(r["population"]), "u": round(float(r["part_urbaine_pct"]), 1),
                                "c": r["correspondance"], "id": bool(r["decoupage_identique"]), **_menages(r)}
+            comptes = sante_par[niveau]
+            cle_sante = u["cle"] if niveau == "communes" else u["pcode"]
+            ligne["es"] = [int(comptes.get((cle_sante, t), 0)) for t in types_sante]
             if niveau == "regions":
                 ligne["dhs"] = {c: (None if v != v else float(v)) for c, v in dhs_par_cle.loc[u["cle"]].items()}
             lignes.append(ligne)

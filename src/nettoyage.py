@@ -1,6 +1,7 @@
 """Étape 2 : mise en forme et harmonisation des données brutes."""
 import difflib
 import json
+import math
 import re
 import unicodedata
 
@@ -11,8 +12,8 @@ from rasterio.features import rasterize
 from rasterio.windows import Window
 
 from config import (DOSSIER_TRAITE, INDICATEURS, INDICATEURS_DHS, INDICATEURS_EMPLOI, INDICATEURS_PROJECTIONS,
-                    NIVEAUX, PARENTS, RGPH3_TOTAL, brut, traite)
-from geometrie import boite, contient, point_interieur, superficie_km2
+                    NIVEAUX, PARENTS, RGPH3_TOTAL, TYPES_SANTE, brut, traite)
+from geometrie import anneaux, boite, contient, point_interieur, superficie_km2
 import rgph3
 
 # Variantes d'orthographe connues -> forme normalisée de référence
@@ -22,6 +23,8 @@ ALIAS_NOMS = {
     "anamoroniimania": "amoronimania",      # DHS
     "toliarai": "toliaryi",                 # RGPH-3
     "toliaraii": "toliaryii",               # RGPH-3
+    "vakinakaratra": "vakinankaratra",      # établissements de santé
+    "analanjorofo": "analanjirofo",         # établissements de santé
 }
 
 
@@ -697,6 +700,55 @@ def pauvrete():
     return table.sort_values("annee")
 
 
+def etablissements_sante(niveaux, distance_max_km=10):
+    """Établissements de santé publics, chacun rattaché à la commune de la carte qui le contient.
+
+    Les contours simplifiés coupent parfois le littoral : un établissement situé juste à côté est
+    rattaché à la commune la plus proche s'il en est à moins de `distance_max_km`.
+    """
+    brute = pd.read_excel(brut("sante_etablissements"))
+    brute = brute[brute["Country"] == "Madagascar"]
+    inconnus = set(brute["Facility_t"]) - set(TYPES_SANTE)
+    if inconnus:
+        raise ValueError(f"Établissements de santé : types inconnus {inconnus}")
+    table = pd.DataFrame({
+        "nom": brute["Facility_n"].str.strip(), "type": brute["Facility_t"].map(TYPES_SANTE),
+        "latitude": brute["Lat"].round(5), "longitude": brute["Long"].round(5),
+        "region_source": brute["Admin1"], "source_coordonnees": brute["LL_source"],
+    }).reset_index(drop=True)
+
+    communes = niveaux["communes"]["unites"].set_index("cle")
+    contours = [(cle, geo, boite(geo)) for cle, geo in niveaux["communes"]["contours"].items()]
+    sommets = [(cle, x, y) for cle, geo, _ in contours for a in anneaux(geo) for x, y, *_ in a[::4]]
+
+    def rattacher(x, y):
+        for cle, geo, b in contours:
+            if b[0] <= x <= b[2] and b[1] <= y <= b[3] and contient(geo, (x, y)):
+                return cle, 0.0
+        proches = [(cle, sx, sy) for cle, sx, sy in sommets if abs(sx - x) < 0.2 and abs(sy - y) < 0.2]
+        if not proches:
+            return None, None
+        cle, sx, sy = min(proches, key=lambda s: (s[1] - x) ** 2 + (s[2] - y) ** 2)
+        return cle, math.hypot((sx - x) * 111.32 * math.cos(math.radians(y)), (sy - y) * 110.57)
+
+    rattachements = [rattacher(x, y) for x, y in zip(table["longitude"], table["latitude"])]
+    table["cle"] = [c if d is not None and d <= distance_max_km else None for c, d in rattachements]
+    table["distance_commune_km"] = [round(d, 1) if d else 0.0 for _, d in rattachements]
+    hors = table["cle"].isna()
+    if hors.mean() > 0.01:
+        raise ValueError(f"Établissements de santé : {hors.sum()} hors des communes de la carte")
+    table = table[~hors].copy()
+    infos = communes.loc[table["cle"], ["pcode", "nom", "district_pcode", "district", "region_pcode", "region"]]
+    table[["commune_pcode", "commune", "district_pcode", "district", "region_pcode", "region"]] = infos.values
+    # Contrôle : la région déduite de la position doit être celle que donne la source
+    meme_region = float((table["region_source"].map(cle_nom) == table["region"].map(cle_nom)).mean())
+    if meme_region < 0.97:
+        raise ValueError(f"Établissements de santé : région différente de la source pour {1 - meme_region:.1%}")
+    table.attrs |= {"hors_carte": int(hors.sum()), "pres_du_contour": int((table["distance_commune_km"] > 0).sum()),
+                    "meme_region": meme_region}
+    return table.sort_values(["region", "district", "commune", "type", "nom"]).reset_index(drop=True)
+
+
 def tout_nettoyer():
     """Renvoie un dictionnaire avec :
     - series, pyramide : indicateurs nationaux (Banque mondiale) ;
@@ -708,7 +760,8 @@ def tout_nettoyer():
     - fokontany_cales : population 2018 des fokontany estimée en calant sur le recensement ;
     - worldpop_100m : estimations WorldPop à 100 m par fokontany, 2015-2030 ;
     - emploi, emploi_detail : indicateurs d'emploi de l'OIT par enquête (ENEMPSI, ENESI, EPM) ;
-    - pauvrete : pauvreté et inégalités par enquête EPM (Banque mondiale).
+    - pauvrete : pauvreté et inégalités par enquête EPM (Banque mondiale) ;
+    - sante : établissements de santé publics géolocalisés, rattachés aux communes.
     """
     DOSSIER_TRAITE.mkdir(parents=True, exist_ok=True)
     series, pyramide = indicateurs_nationaux()
@@ -749,7 +802,14 @@ def tout_nettoyer():
     print(f"  Fokontany calés sur le recensement : {n_cales} sur {len(cales)} "
           f"({cales['population_calee'].sum():,.0f} habitants)".replace(",", " "))
 
+    sante = etablissements_sante(niveaux)
+    print(f"  Établissements de santé publics : {len(sante)} ("
+          + ", ".join(f"{t} : {n}" for t, n in sante["type"].value_counts().items())
+          + f"), {sante.attrs['pres_du_contour']} rattachés à la commune la plus proche, "
+          f"{sante.attrs['hors_carte']} hors carte ; région identique à la source : {sante.attrs['meme_region']:.0%}")
+
     series.to_csv(traite("indicateurs"))
+    sante.drop(columns="cle").to_csv(traite("sante_etablissements"), index=False)
     pyramide.to_csv(traite("pyramide"), index=False)
     proj.to_csv(traite("projections"))
     table_dhs.drop(columns="cle").to_csv(traite("dhs"), index=False)
@@ -779,4 +839,4 @@ def tout_nettoyer():
     return {"series": series, "pyramide": pyramide, "projections": proj, "niveaux": niveaux,
             "dhs": table_dhs, "worldpop": estimations, "rgph3": rgph, "fokontany_cales": cales,
             "worldpop_100m": wp100, "emploi": emploi_synthese, "emploi_detail": emploi_detail,
-            "pauvrete": table_pauvrete}
+            "pauvrete": table_pauvrete, "sante": sante}

@@ -6,7 +6,7 @@ import type { Meta, Niveau, Unite } from "./types";
 export interface Indicateur {
   id: string;
   nom: Cle;
-  groupe: "recensement" | "estimations" | "sante";
+  groupe: "recensement" | "estimations" | "sante" | "equipements";
   note: Cle;
   val: (u: Unite, annee: number) => number | null | undefined;
   fmt: (v: number) => string;
@@ -27,6 +27,9 @@ export function croissance(u: Unite, annee: number, meta: Meta): number | null {
   if (!a || b == null) return null;
   return (Math.pow(b / a, 1 / (annee - ref)) - 1) * 100;
 }
+
+/** Nombre d'établissements de santé publics de l'unité (liste de 2019). */
+export const nbSante = (u: Unite) => (u.es ? u.es[0] + u.es[1] + u.es[2] : null);
 
 export function construireIndicateurs(meta: Meta): Indicateur[] {
   const iAn = (annee: number) => meta.annees_wp.indexOf(annee);
@@ -56,6 +59,10 @@ export function construireIndicateurs(meta: Meta): Indicateur[] {
       val: (u, a) => croissance(u, a, meta), fmt: pourcent },
     { id: "ca", nom: "ind.ca", groupe: "estimations", note: "note.ca", niveaux: ["fokontany"],
       val: (u) => u.ca, fmt: entier, court: compact },
+    { id: "es", nom: "ind.es", groupe: "equipements", note: "note.es", niveaux: JUSQU_AUX_COMMUNES,
+      val: nbSante, fmt: entier },
+    { id: "esh", nom: "ind.esh", groupe: "equipements", note: "note.esh", niveaux: JUSQU_AUX_COMMUNES, annee: true,
+      val: (u, a) => { const n = nbSante(u); return n ? u.wp[iAn(a)] / n : null; }, fmt: (v) => entier(Math.round(v)), court: compact },
     ...Object.keys(meta.noms_dhs).map((cle): Indicateur => ({
       id: `dhs:${cle}`, nom: `dhs.${cle}` as Cle, groupe: "sante", note: "note.dhs", niveaux: ["regions"],
       val: (u) => u.dhs?.[cle], fmt: (v) => nombre(v, Number.isInteger(v) ? 0 : 1),

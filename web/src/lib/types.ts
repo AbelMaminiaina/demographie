@@ -32,6 +32,7 @@ export interface Unite {
   ca?: number | null;   // estimation 2018 calée sur le recensement (fokontany)
   rg?: Recensement;
   dhs?: Record<string, number | null>;
+  es?: [number, number, number];   // établissements de santé publics : centres, postes, hôpitaux (liste 2019)
 }
 
 export interface Meta {
@@ -44,6 +45,7 @@ export interface Meta {
   rgph_communes: number;
   annee_wp100: number;
   nb_fokontany: number;
+  nb_sante: number;
   rg_national: Recensement;
 }
 
