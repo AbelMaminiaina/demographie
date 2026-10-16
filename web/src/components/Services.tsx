@@ -10,9 +10,10 @@ const CATEGORIES: Record<Categorie, string> = {
   comprendre: "var(--accent)", planifier: "var(--serie-3)", outiller: "var(--femme)", former: "var(--serie-5)",
 };
 const SERVICES = [
-  { id: "analyse", cat: "comprendre" }, { id: "rapport", cat: "comprendre" },
+  { id: "analyse", cat: "comprendre" }, { id: "rapport", cat: "comprendre" }, { id: "financement", cat: "comprendre" },
   { id: "microplan", cat: "planifier" }, { id: "implantation", cat: "planifier" }, { id: "projections", cat: "planifier" },
-  { id: "tableau", cat: "outiller" }, { id: "enquete", cat: "outiller" }, { id: "formation", cat: "former" },
+  { id: "risques", cat: "planifier" }, { id: "tableau", cat: "outiller" }, { id: "suivi", cat: "outiller" },
+  { id: "cartes", cat: "outiller" }, { id: "enquete", cat: "outiller" }, { id: "formation", cat: "former" },
 ] as const satisfies readonly { id: string; cat: Categorie }[];
 type Service = (typeof SERVICES)[number]["id"] | "partenaire" | "autre";
 
@@ -25,6 +26,10 @@ const ICONES: Record<string, ReactNode> = {
   projections: <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />,
   tableau: <><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></>,
   enquete: <><path d="M9 3h6v3H9zM7 4.5H5V21h14V4.5h-2" /><path d="M9 13.5l2 2 4-4" /></>,
+  financement: <><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="3" /><path d="M6 12h.01M18 12h.01" /></>,
+  risques: <path d="M12 3l10 18H2zM12 10v4.5M12 17.5h.01" />,
+  suivi: <path d="M3 12h4l3-8 4 16 3-8h4" />,
+  cartes: <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14" />,
   formation: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v5" /></>,
   partenaire: <path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.4 12 20 12 20z" />,
   coche: <path d="M5 12.5l4.5 4.5L19 7" />,
