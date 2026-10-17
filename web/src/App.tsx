@@ -218,7 +218,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-trait backdrop-blur" style={{ background: "color-mix(in srgb, var(--fond) 85%, transparent)" }}>
+      <header className="relative z-30 border-b sm:sticky sm:top-0 border-trait backdrop-blur" style={{ background: "color-mix(in srgb, var(--fond) 85%, transparent)" }}>
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
           <div className="min-w-0">
             <p className="etiquette m-0">{t("surtitre")}</p>
@@ -293,6 +293,14 @@ export default function App() {
                   </label>
                 )}
               </div>
+              {/* Sur téléphone, la fiche s'affiche sous la carte, hors de l'écran : un bouton y mène */}
+              {selection && !modeZone && (
+                <button type="button" onClick={() => defilerVers("panneau")}
+                  className="pointer-events-auto absolute right-3 top-24 cursor-pointer rounded-xl border-0 px-3 py-2 text-sm font-semibold text-white shadow-md lg:hidden"
+                  style={{ background: "var(--accent)" }}>
+                  {t("voirFiche")} ↓
+                </button>
+              )}
               {echelle && (
                 <div className="carte-ui absolute bottom-9 left-3 max-w-[calc(100%-1.5rem)] px-3 py-2 sm:bottom-3 sm:max-w-[420px]">
                   <div className="flex">
@@ -334,7 +342,7 @@ export default function App() {
               )}
             </div>
           </div>
-          <aside className="carte-ui min-w-0 p-5 lg:max-h-[72vh] lg:min-h-[520px] lg:overflow-y-auto" aria-live="polite">
+          <aside id="panneau" className="carte-ui min-w-0 p-5 lg:max-h-[72vh] lg:min-h-[520px] lg:overflow-y-auto" aria-live="polite">
             {modeZone ? (
               <PanneauZone base={base} unitesNiveau={zone ? unites[zone.niveau] : null} niveauCarte={niveau}
                 zone={zone ?? { niveau, indices: [], nom: "" }} annee={Math.min(new Date().getFullYear(), base.meta.annees_wp[base.meta.annees_wp.length - 1])}

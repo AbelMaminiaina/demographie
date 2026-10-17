@@ -32,10 +32,11 @@ export function Parcours({ onChoisir }: { onChoisir: (b: Besoin) => void }) {
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         {BESOINS.map((b) => (
           <button key={b} type="button" onClick={() => onChoisir(b)}
-            className="grid cursor-pointer content-start gap-1 rounded-xl border border-trait bg-surface-2 p-4 text-left text-encre hover:border-trait-fort hover:bg-accent-doux">
-            <span className="font-semibold">{t(`parcours.${b}` as Cle)}</span>
-            <span className="text-[0.84rem] leading-snug text-encre-2">{t(`parcours.${b}.texte` as Cle, { fiche: t("ficheOuvrir") })}</span>
-            <span className="mt-1 text-sm font-semibold text-accent">{t("parcoursCommencer")} →</span>
+            className="grid cursor-pointer content-start gap-1 rounded-xl border border-trait bg-surface-2 px-4 py-3 text-left text-encre hover:border-trait-fort hover:bg-accent-doux sm:p-4">
+            {/* Sur téléphone, le titre seul : les six besoins tiennent sur un écran */}
+            <span className="flex items-center justify-between gap-2 font-semibold">{t(`parcours.${b}` as Cle)}<span className="text-accent sm:hidden" aria-hidden="true">→</span></span>
+            <span className="hidden text-[0.84rem] leading-snug text-encre-2 sm:block">{t(`parcours.${b}.texte` as Cle, { fiche: t("ficheOuvrir") })}</span>
+            <span className="mt-1 hidden text-sm font-semibold text-accent sm:block">{t("parcoursCommencer")} →</span>
           </button>
         ))}
       </div>

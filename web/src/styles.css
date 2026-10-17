@@ -76,6 +76,8 @@ h1, h2, h3 { text-wrap: balance; }
 .segments { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--trait); }
 .segments button { border: 0; background: transparent; color: var(--encre-2); padding: 5px 11px; border-radius: 7px; cursor: pointer; font: inherit; font-size: 0.86rem; white-space: nowrap; }
 .segments button[aria-pressed="true"] { background: var(--surface); color: var(--encre); box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); font-weight: 600; }
+/* Téléphones : les quatre découpages tiennent sur la carte sans défilement caché */
+@media (max-width: 480px) { .segments button { padding: 5px 6px; font-size: 0.78rem; } }
 
 /* Ajustements de MapLibre aux thèmes */
 .maplibregl-ctrl-group { background: var(--surface) !important; border: 1px solid var(--trait); }

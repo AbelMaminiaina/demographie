@@ -21,6 +21,19 @@ const SERVICES = [
 ] as const satisfies readonly { id: string; cat: Categorie }[];
 type Service = (typeof SERVICES)[number]["id"] | "partenaire" | "autre";
 
+// Publics visés : le filtre « Vous êtes » n'affiche que les services utiles au profil choisi
+const PROFILS = ["ong", "etat", "bailleur", "entreprise", "recherche"] as const;
+type Profil = (typeof PROFILS)[number];
+const PUBLICS: Record<(typeof SERVICES)[number]["id"], readonly Profil[]> = {
+  analyse: ["ong", "bailleur", "entreprise", "recherche"], rapport: ["etat", "ong"], financement: ["ong", "etat"],
+  dividende: ["etat", "bailleur"], acces: ["etat", "ong", "bailleur"], marche: ["entreprise"],
+  microplan: ["ong", "etat", "bailleur"], implantation: ["etat", "ong"], projections: ["etat", "bailleur"],
+  risques: ["ong", "etat", "bailleur"], sante: ["ong", "etat", "bailleur"], jeunesse: ["etat", "ong"],
+  urbanisation: ["etat", "bailleur", "entreprise"], ciblage: ["ong", "bailleur"], listes: ["ong", "bailleur"],
+  tableau: ["ong", "etat", "entreprise"], suivi: ["ong", "bailleur"], cartes: ["ong", "etat", "bailleur", "entreprise", "recherche"],
+  enquete: ["ong", "entreprise", "recherche"], formation: ["etat", "ong", "recherche"],
+};
+
 // Icônes au trait (24 × 24), dessinées avec currentColor
 const ICONES: Record<string, ReactNode> = {
   analyse: <path d="M3 21h18M6 17v-6M11 17V5M16 17v-9M21 17v-3" />,
@@ -82,6 +95,9 @@ export function Services() {
   const [lien, setLien] = useState("");
   const [copie, setCopie] = useState(false);
   const [etat, setEtat] = useState<"pret" | "envoi" | "envoye" | "erreur">("pret");
+  const [profil, setProfil] = useState<Profil | null>(null);
+  const visibles = SERVICES.filter((s) => !profil || PUBLICS[s.id].includes(profil));
+  const choisirProfil = (p: Profil | null) => { setProfil(p); if (p) compter(`profil/${p}`); };
   const formulaire = useRef<HTMLFormElement>(null);
   const nomService = (s: Service) => t(s === "autre" ? "formAutre" : s === "partenaire" ? "partenaireTitre" : (`service.${s}` as Cle));
 
@@ -182,9 +198,25 @@ export function Services() {
         </div>
       </div>
 
+      {/* Filtre par profil */}
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t("profilTitre")}>
+        <span className="mr-1 text-sm font-semibold">{t("profilTitre")}</span>
+        {([null, ...PROFILS] as (Profil | null)[]).map((p) => {
+          const actif = profil === p;
+          return (
+            <button key={p ?? "tous"} type="button" aria-pressed={actif} onClick={() => choisirProfil(p)}
+              className={`cursor-pointer rounded-full border px-3.5 py-1.5 text-[0.86rem] font-medium transition ${actif ? "border-transparent text-white" : "border-trait-fort bg-surface text-encre hover:bg-accent-doux"}`}
+              style={actif ? { background: "var(--accent)" } : undefined}>
+              {t(p ? (`profil.${p}` as Cle) : "profil.tous")}
+            </button>
+          );
+        })}
+        <span className="text-[0.8rem] text-discret" aria-live="polite">{t("profilNombre", { n: visibles.length })}</span>
+      </div>
+
       {/* Offres */}
       <div id="offres" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {SERVICES.map(({ id, cat }) => {
+        {visibles.map(({ id, cat }) => {
           const c = CATEGORIES[cat];
           return (
             <article key={id} className="carte-ui group flex flex-col gap-3 p-5 transition hover:-translate-y-1 hover:shadow-lg">

@@ -73,6 +73,12 @@ export function Carte({ niveau, contours, couleurs, selection, zone, centrage, s
   const stylePret = useRef(false);
   etat.current.niveau = niveau;
   etat.current.onSurvol = onSurvol;
+  // L'infobulle suit le pointeur en position fixe : on la retire dès que la page défile
+  useEffect(() => {
+    const cacher = () => etat.current.onSurvol(null);
+    window.addEventListener("scroll", cacher, { passive: true });
+    return () => window.removeEventListener("scroll", cacher);
+  }, []);
   etat.current.onChoisir = onChoisir;
   etat.current.t = t;
 
@@ -104,6 +110,8 @@ export function Carte({ niveau, contours, couleurs, selection, zone, centrage, s
         etat.current.survol = i;
       }
       m.getCanvas().style.cursor = i != null ? "pointer" : "";
+      // Écran tactile : pas d'infobulle, elle resterait affichée faute de « sortie » de la souris
+      if (matchMedia("(hover: none)").matches) return;
       etat.current.onSurvol(i == null ? null : { niveau: n, i, x: e.originalEvent.clientX, y: e.originalEvent.clientY });
     });
     m.on("mouseout", () => etat.current.onSurvol(null));

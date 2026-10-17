@@ -1,6 +1,6 @@
 import { scaleLinear } from "d3-scale";
 import { area, line } from "d3-shape";
-import { useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { compact, entier } from "../lib/format";
 
 /** Petite courbe d'évolution, sans axes. */
@@ -46,14 +46,24 @@ export function Courbes({ series, hauteur = 260, formatY = compact, minY = 0, re
   infobulle: (annee: number) => ReactNode;
 }) {
   const [survol, setSurvol] = useState<{ annee: number; px: number; py: number } | null>(null);
-  const L = 640, m = { h: 16, d: 24, b: 26, g: 48 };
+  // Largeur de dessin : celle du conteneur sous 640 px, pour garder des libellés lisibles sur téléphone ;
+  // au-delà, le dessin de 640 px est agrandi comme avant.
+  const [L, setL] = useState(640);
+  const observateur = useRef<ResizeObserver | null>(null);
+  const mesurer = useCallback((el: HTMLDivElement | null) => {
+    observateur.current?.disconnect();
+    if (!el) return;
+    observateur.current = new ResizeObserver(([e]) => setL(Math.max(300, Math.min(640, Math.round(e.contentRect.width)))));
+    observateur.current.observe(el);
+  }, []);
+  const m = { h: 16, d: 24, b: 26, g: 48 };
   const tous = series.flatMap((s) => s.points);
   if (!tous.length) return null;
   const xs = tous.map((p) => p[0]), ys = tous.map((p) => p[1]).concat(repere ? [repere.y] : []);
   const x = scaleLinear().domain([Math.min(...xs), Math.max(...xs)]).range([m.g, L - m.d]);
   const y = scaleLinear().domain([minY, Math.max(...ys) * 1.08]).nice(5).range([hauteur - m.b, m.h]);
   const annees = [...new Set(xs)].sort((a, b) => a - b);
-  const pasX = x.ticks(Math.min(8, annees.length)).filter((t) => Number.isInteger(t));
+  const pasX = x.ticks(Math.min(L < 480 ? 5 : 8, annees.length)).filter((t) => Number.isInteger(t));
   // Libellés de fin de courbe écartés d'au moins 14 px pour ne pas se chevaucher
   const yLibelles = series.map((s) => y(s.points[s.points.length - 1]?.[1] ?? 0));
   const ordre = yLibelles.map((_, k) => k).sort((a, b) => yLibelles[a] - yLibelles[b]);
@@ -61,16 +71,18 @@ export function Courbes({ series, hauteur = 260, formatY = compact, minY = 0, re
     yLibelles[ordre[k]] = Math.max(yLibelles[ordre[k]], yLibelles[ordre[k - 1]] + 14);
   }
 
+  // Survol à la souris comme au doigt (un appui affiche l'infobulle de l'année la plus proche)
+  const survoler = (e: PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const vx = ((e.clientX - r.left) / r.width) * L;
+    const a = annees.reduce((p, c) => (Math.abs(c - x.invert(vx)) < Math.abs(p - x.invert(vx)) ? c : p), annees[0]);
+    setSurvol({ annee: a, px: e.clientX, py: e.clientY });
+  };
+
   return (
-    <div className="relative">
+    <div ref={mesurer} className="relative">
       <svg viewBox={`0 0 ${L} ${hauteur}`} className="block h-auto w-full overflow-visible" role="img"
-        onMouseMove={(e) => {
-          const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-          const vx = ((e.clientX - r.left) / r.width) * L;
-          const a = annees.reduce((p, c) => (Math.abs(c - x.invert(vx)) < Math.abs(p - x.invert(vx)) ? c : p), annees[0]);
-          setSurvol({ annee: a, px: e.clientX, py: e.clientY });
-        }}
-        onMouseLeave={() => setSurvol(null)}>
+        onPointerMove={survoler} onPointerDown={survoler} onPointerLeave={() => setSurvol(null)}>
         {y.ticks(5).map((t) => (
           <g key={t}>
             <line x1={m.g} x2={L - m.d} y1={y(t)} y2={y(t)} stroke="var(--trait)" />
