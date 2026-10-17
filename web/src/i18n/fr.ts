@@ -376,7 +376,7 @@ export const fr = {
   servicesVoirOffres: "Voir les offres",
   servicesAtout1: "17 464 fokontany couverts",
   servicesAtout2: "Sources officielles : INSTAT, ONU, DHS, WorldPop",
-  servicesAtout3: "En français et en malgache",
+  servicesAtout3: "En français, en malgache et en anglais",
   serviceDevis: "Demander un devis",
   servicePour: "Pour : {public}",
   "categorie.comprendre": "Comprendre",

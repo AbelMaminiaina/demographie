@@ -13,7 +13,7 @@ import { CONTACT, Services } from "./components/Services";
 import { defilerVers } from "./lib/defilement";
 import { Ciblage, Comparateur } from "./components/Comparer";
 import { ajouterLieu, comparaisonDepuisAdresse, comparaisonMemorisee, memoriserComparaison, type Lieu } from "./lib/comparaison";
-import { useLangue, type Langue } from "./i18n";
+import { LANGUES, useLangue, type Langue } from "./i18n";
 import type { Cle } from "./i18n/fr";
 import { chargerBase, chargerContours, chargerFokontany, chargerPoints, type CoucheId } from "./lib/donnees";
 import { dateLongue } from "./lib/format";
@@ -233,8 +233,8 @@ export default function App() {
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <div className="segments" role="group" aria-label={t("langue")}>
-              {(["fr", "mg"] as Langue[]).map((l) => (
-                <button key={l} type="button" lang={l} aria-pressed={langue === l} onClick={() => setLangue(l)}>{l === "fr" ? "Français" : "Malagasy"}</button>
+              {(Object.keys(LANGUES) as Langue[]).map((l) => (
+                <button key={l} type="button" lang={l} aria-pressed={langue === l} onClick={() => setLangue(l)}>{LANGUES[l]}</button>
               ))}
             </div>
             <div className="segments" role="group" aria-label={t("theme")}>

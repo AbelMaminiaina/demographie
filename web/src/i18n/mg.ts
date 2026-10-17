@@ -336,7 +336,7 @@ export const mg: Partial<Record<Cle, string>> = {
   servicesVoirOffres: "Jereo ny tolotra",
   servicesAtout1: "Fokontany 17 464 voarakotra",
   servicesAtout2: "Loharano ofisialy: INSTAT, ONU, DHS, WorldPop",
-  servicesAtout3: "Amin'ny teny frantsay sy malagasy",
+  servicesAtout3: "Amin'ny teny frantsay, malagasy ary anglisy",
   serviceDevis: "Hangataka tolo-bidy",
   servicePour: "Ho an'ny: {public}",
   "categorie.comprendre": "Hahatakatra",
