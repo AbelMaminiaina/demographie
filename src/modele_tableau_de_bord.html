@@ -173,6 +173,9 @@ tbody tr.choisie { background: var(--accent-doux); font-weight: 600; }
 .infobulle strong { display: block; }
 footer { color: var(--discret); font-size: 0.82rem; display: grid; gap: 4px; }
 footer a { color: var(--accent); }
+.langues { font-size: 0.86rem; }
+.langues a { color: var(--accent); }
+.langues a[aria-current] { color: var(--encre); font-weight: 600; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -180,44 +183,45 @@ footer a { color: var(--accent); }
 <div class="page">
   <header class="entete">
     <div>
-      <span class="etiquette">Repoblikan'i Madagasikara · données ouvertes</span>
-      <h1>Démographie de Madagascar</h1>
-      <p>Population, densité, croissance et santé, de la région <span class="malgache">(faritra)</span> au fokontany. Données collectées le <span id="date-collecte" class="tab"></span>.</p>
-      <p><a href="../" style="color: var(--accent)">Nouvelle version de l'application</a> (carte avec fond, français et malgache).</p>
+      <span class="etiquette" data-en="Repoblikan'i Madagasikara · open data">Repoblikan'i Madagasikara · données ouvertes</span>
+      <h1 data-en="Demography of Madagascar">Démographie de Madagascar</h1>
+      <p><span data-en="Population, density, growth and health, from the region">Population, densité, croissance et santé, de la région</span> <span class="malgache">(faritra)</span> <span data-en="to the fokontany. Data collected on">au fokontany. Données collectées le</span> <span id="date-collecte" class="tab"></span>.</p>
+      <p><a id="lien-application" href="../" style="color: var(--accent)" data-en="New version of the application">Nouvelle version de l'application</a> <span data-en="(map with basemap, in French, Malagasy and English).">(carte avec fond, en français, malgache et anglais).</span></p>
+      <p class="langues"><a href="?lang=fr" hreflang="fr" lang="fr">Français</a> · <a href="?lang=en" hreflang="en" lang="en">English</a></p>
     </div>
     <div class="recherche" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="suggestions">
-      <label class="etiquette" for="champ-recherche">Rechercher un lieu</label>
-      <input id="champ-recherche" type="search" autocomplete="off" placeholder="Région, district, commune ou fokontany" aria-controls="suggestions">
+      <label class="etiquette" for="champ-recherche" data-en="Search for a place">Rechercher un lieu</label>
+      <input id="champ-recherche" type="search" autocomplete="off" placeholder="Région, district, commune ou fokontany" data-en-placeholder="Region, district, commune or fokontany" aria-controls="suggestions">
       <ul id="suggestions" class="suggestions" role="listbox" hidden></ul>
     </div>
   </header>
 
-  <section class="tuiles" id="tuiles" aria-label="Indicateurs nationaux"></section>
+  <section class="tuiles" id="tuiles" aria-label="Indicateurs nationaux" data-en-aria-label="National indicators"></section>
 
   <section class="principal">
     <div class="panneau">
       <div class="commandes">
-        <div class="onglets" role="group" aria-label="Découpage">
-          <button type="button" id="niveau-regions" data-niveau="regions" aria-pressed="true">Régions</button>
+        <div class="onglets" role="group" aria-label="Découpage" data-en-aria-label="Level">
+          <button type="button" id="niveau-regions" data-niveau="regions" aria-pressed="true" data-en="Regions">Régions</button>
           <button type="button" id="niveau-districts" data-niveau="districts" aria-pressed="false">Districts</button>
           <button type="button" id="niveau-communes" data-niveau="communes" aria-pressed="false">Communes</button>
           <button type="button" id="niveau-fokontany" data-niveau="fokontany" aria-pressed="false">Fokontany</button>
         </div>
-        <label class="etiquette" for="indicateur" hidden>Indicateur</label>
-        <select id="indicateur" aria-label="Indicateur affiché"></select>
+        <label class="etiquette" for="indicateur" hidden data-en="Indicator">Indicateur</label>
+        <select id="indicateur" aria-label="Indicateur affiché" data-en-aria-label="Indicator shown"></select>
         <div class="curseur" id="bloc-annee" hidden>
-          <label for="annee" class="etiquette">Année</label>
+          <label for="annee" class="etiquette" data-en="Year">Année</label>
           <input id="annee" type="range" min="2015" max="2030" step="1" value="2026">
           <span id="annee-valeur" class="tab"></span>
         </div>
       </div>
       <div class="zone-carte">
         <canvas id="canevas-fk" aria-hidden="true"></canvas>
-        <svg id="carte" viewBox="0 0 600 860" role="img" aria-label="Carte de Madagascar"></svg>
+        <svg id="carte" viewBox="0 0 600 860" role="img" aria-label="Carte de Madagascar" data-en-aria-label="Map of Madagascar"></svg>
         <div class="boutons-zoom">
-          <button type="button" id="zoom-plus" aria-label="Zoomer">+</button>
-          <button type="button" id="zoom-moins" aria-label="Dézoomer">−</button>
-          <button type="button" id="zoom-reinit" aria-label="Vue d'ensemble">⟲</button>
+          <button type="button" id="zoom-plus" aria-label="Zoomer" data-en-aria-label="Zoom in">+</button>
+          <button type="button" id="zoom-moins" aria-label="Dézoomer" data-en-aria-label="Zoom out">−</button>
+          <button type="button" id="zoom-reinit" aria-label="Vue d'ensemble" data-en-aria-label="Overview">⟲</button>
         </div>
       </div>
       <div class="legende" id="legende"></div>
@@ -229,25 +233,25 @@ footer a { color: var(--accent); }
 
   <section class="tendances">
     <div class="panneau graphique">
-      <h2>Population de 1960 à 2050</h2>
-      <svg id="graphique-population" viewBox="0 0 640 300" role="img" aria-label="Population observée et projetée"></svg>
+      <h2 data-en="Population from 1960 to 2050">Population de 1960 à 2050</h2>
+      <svg id="graphique-population" viewBox="0 0 640 300" role="img" aria-label="Population observée et projetée" data-en-aria-label="Observed and projected population"></svg>
       <div class="legende-ligne">
-        <span><i></i>Estimations</span><span><i class="pointille"></i>Projection de l'ONU</span>
+        <span><i></i><span data-en="Estimates">Estimations</span></span><span><i class="pointille"></i><span data-en="UN projection">Projection de l'ONU</span></span>
       </div>
     </div>
     <div class="panneau graphique">
       <div class="commandes" style="justify-content: space-between; margin-bottom: 4px;">
-        <h2>Pyramide des âges</h2>
+        <h2 data-en="Population pyramid">Pyramide des âges</h2>
         <div class="curseur">
-          <label for="annee-pyramide" class="etiquette">Année</label>
+          <label for="annee-pyramide" class="etiquette" data-en="Year">Année</label>
           <input id="annee-pyramide" type="range" step="1">
           <span id="annee-pyramide-valeur" class="tab"></span>
         </div>
       </div>
-      <svg id="graphique-pyramide" viewBox="0 0 440 320" role="img" aria-label="Pyramide des âges"></svg>
+      <svg id="graphique-pyramide" viewBox="0 0 440 320" role="img" aria-label="Pyramide des âges" data-en-aria-label="Population pyramid"></svg>
       <div class="legende-ligne">
-        <span><i class="carre" style="background: var(--homme)"></i>Hommes</span>
-        <span><i class="carre" style="background: var(--femme)"></i>Femmes</span>
+        <span><i class="carre" style="background: var(--homme)"></i><span data-en="Men">Hommes</span></span>
+        <span><i class="carre" style="background: var(--femme)"></i><span data-en="Women">Femmes</span></span>
       </div>
     </div>
   </section>
@@ -255,7 +259,7 @@ footer a { color: var(--accent); }
   <section class="panneau">
     <div class="commandes" style="justify-content: space-between;">
       <h2 id="titre-classement">Classement</h2>
-      <input id="filtre-classement" type="search" placeholder="Filtrer par nom" aria-label="Filtrer le classement"
+      <input id="filtre-classement" type="search" placeholder="Filtrer par nom" aria-label="Filtrer le classement" data-en-placeholder="Filter by name" data-en-aria-label="Filter the ranking"
         style="padding: 6px 10px; border: 1px solid var(--trait-fort); border-radius: 8px; background: var(--surface);">
     </div>
     <div class="classement">
@@ -268,26 +272,55 @@ footer a { color: var(--accent); }
   </section>
 
   <footer>
-    <span>Sources : recensement RGPH-3 2018 (INSTAT, résultats globaux) · estimations INSTAT/BNGRC 2018, base 2009 (via OCHA/HDX) · Banque mondiale · ONU, World Population Prospects · enquête DHS · WorldPop (R2025A) · contours geoBoundaries.</span>
-    <span>Les chiffres WorldPop sont des estimations modélisées : fiables par région ou district, plus incertaines par commune.</span>
-    <span>Détail des sources, licences et méthodes : <a href="https://github.com/AbelMaminiaina/demographie/blob/main/DONNEES.md">catalogue des données</a>. Page générée automatiquement chaque mois par le dépôt <a href="https://github.com/AbelMaminiaina/demographie">AbelMaminiaina/demographie</a>.</span>
+    <span data-en="Sources: RGPH-3 census 2018 (INSTAT, overall results) · INSTAT/BNGRC 2018 estimates, 2009 base (via OCHA/HDX) · World Bank · UN, World Population Prospects · DHS survey · WorldPop (R2025A) · geoBoundaries outlines.">Sources : recensement RGPH-3 2018 (INSTAT, résultats globaux) · estimations INSTAT/BNGRC 2018, base 2009 (via OCHA/HDX) · Banque mondiale · ONU, World Population Prospects · enquête DHS · WorldPop (R2025A) · contours geoBoundaries.</span>
+    <span data-en="WorldPop figures are modelled estimates: reliable by region or district, less certain by commune.">Les chiffres WorldPop sont des estimations modélisées : fiables par région ou district, plus incertaines par commune.</span>
+    <span><span data-en="Sources, licences and methods in detail:">Détail des sources, licences et méthodes :</span> <a href="https://github.com/AbelMaminiaina/demographie/blob/main/DONNEES.md" data-en="data catalogue">catalogue des données</a>. <span data-en="Page generated automatically every month by the repository">Page générée automatiquement chaque mois par le dépôt</span> <a href="https://github.com/AbelMaminiaina/demographie">AbelMaminiaina/demographie</a>.</span>
   </footer>
 </div>
 <div class="infobulle" id="infobulle" hidden></div>
+<script>
+// Langue : ?lang=fr|en, sinon celle choisie dans l'application (même clé de stockage), sinon le français.
+// Le malgache de l'application n'existe pas ici : la page reste alors en français.
+const LANGUE = (() => {
+  const p = new URLSearchParams(location.search).get("lang");
+  if (p === "fr" || p === "en") { try { localStorage.setItem("mdg-langue", p); } catch (e) { } return p; }
+  try { return localStorage.getItem("mdg-langue") === "en" ? "en" : "fr"; } catch (e) { return "fr"; }
+})();
+const EN = LANGUE === "en";
+const tr = (fr, en) => EN ? en : fr;
+document.querySelectorAll(".langues a").forEach(a => { if (a.lang === LANGUE) a.setAttribute("aria-current", "true"); });
+if (EN) {
+  document.documentElement.lang = "en";
+  document.title = "Demography of Madagascar";
+  document.querySelector('meta[name="description"]').content = "Population, density, growth and health of Madagascar, from the region to the fokontany.";
+  document.querySelectorAll("[data-en]").forEach(e => { e.textContent = e.dataset.en; });
+  for (const a of ["placeholder", "aria-label"]) document.querySelectorAll(`[data-en-${a}]`).forEach(e => e.setAttribute(a, e.getAttribute(`data-en-${a}`)));
+  document.getElementById("lien-application").href = "../?lang=en";
+}
+</script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script id="donnees" type="application/json">/*__DONNEES__*/null</script>
 <script>
 "use strict";
 const D = JSON.parse(document.getElementById("donnees").textContent);
-const fr = d3.formatLocale({ decimal: ",", thousands: " ", grouping: [3], currency: ["", " €"] });
-const entier = fr.format(",.0f");
-const fmt = (v, dec = 0) => v == null || Number.isNaN(v) ? "n.d." : fr.format(`,.${dec}f`)(v);
+const locale = d3.formatLocale(EN ? { decimal: ".", thousands: ",", grouping: [3], currency: ["", ""] }
+                                   : { decimal: ",", thousands: " ", grouping: [3], currency: ["", " €"] });
+const entier = locale.format(",.0f");
+const fmt = (v, dec = 0) => v == null || Number.isNaN(v) ? tr("n.d.", "n/a") : locale.format(`,.${dec}f`)(v);
 const compact = v => v >= 1e6 ? `${fmt(v / 1e6, 1)} M` : v >= 1e4 ? `${fmt(v / 1e3, 0)} k` : entier(v);
 const ANNEES_WP = D.meta.annees_wp;
 const REF = D.meta.annee_ref;
 const ANNEE_COURANTE = Math.min(new Date().getFullYear(), ANNEES_WP[ANNEES_WP.length - 1]);
-const NOMS_NIVEAU = { regions: ["Région", "faritra"], districts: ["District", "distrika"], communes: ["Commune", "kaominina"], fokontany: ["Fokontany", "fokontany"] };
+const NOMS_NIVEAU = { regions: [tr("Région", "Region"), "faritra"], districts: ["District", "distrika"], communes: ["Commune", "kaominina"], fokontany: ["Fokontany", "fokontany"] };
+// Noms des indicateurs DHS : fournis en français par le pipeline, traduits ici
+const NOMS_DHS_EN = {
+  fecondite_isf: "Children per woman (TFR)", age_median_premiere_naissance: "Median age at first birth",
+  contraception_moderne_pct: "Modern contraception (%)", accouchement_etablissement_pct: "Births in a health facility (%)",
+  mortalite_infantile_pour_mille: "Infant mortality (‰)", mortalite_moins_5_ans_pour_mille: "Under-5 mortality (‰)",
+  retard_croissance_pct: "Stunting (%)", alphabetisation_femmes_pct: "Literate women (%)",
+};
+const NOMS_DHS = Object.fromEntries(Object.entries(D.meta.noms_dhs).map(([id, nom]) => [id, EN ? NOMS_DHS_EN[id] || nom : nom]));
 const couleur = nom => getComputedStyle(document.documentElement).getPropertyValue(nom).trim();
 
 // Fokontany : contours compressés (entiers, écarts entre points) et rattachement par la commune
@@ -307,30 +340,36 @@ D.niveaux.fokontany.unites.forEach((u, i) => FK_PAR_COMMUNE[u.c].push(i));
 const rampe = () => [1, 2, 3, 4, 5, 6, 7].map(i => couleur(`--q${i}`));
 
 // ---------- Indicateurs de la carte ----------
-const NOTE_RGPH = "Recensement général de la population et de l'habitation (RGPH-3), INSTAT, 2018. Disponible par région et par district.";
+const NOTE_RGPH = tr("Recensement général de la population et de l'habitation (RGPH-3), INSTAT, 2018. Disponible par région et par district.",
+  "General Population and Housing Census (RGPH-3), INSTAT, 2018. Available by region and district.");
 const INDICATEURS = [
-  { id: "rg", nom: "Population 2018 (recensement)", recensement: true, val: u => u.rg ? u.rg.p : null, fmt: v => entier(v), court: v => compact(v), note: NOTE_RGPH },
-  { id: "rgd", nom: "Densité 2018, recensement (hab/km²)", recensement: true, val: u => u.rg ? u.rg.d : null, fmt: v => fmt(v, v < 10 ? 1 : 0), note: NOTE_RGPH },
-  { id: "rgu", nom: "Population urbaine, recensement (%)", recensement: true, val: u => u.rg ? u.rg.u : null, fmt: v => `${fmt(v, 1)} %`, note: NOTE_RGPH },
-  { id: "rgm", nom: "Hommes pour 100 femmes, recensement", recensement: true, val: u => u.rg ? u.rg.rm : null, fmt: v => fmt(v, 1), note: NOTE_RGPH },
-  { id: "rge", nom: "Écart estimation HDX / recensement (%)", recensement: true, divergent: true, val: u => u.rg ? u.rg.e : null,
+  { id: "rg", nom: tr("Population 2018 (recensement)", "Population 2018 (census)"), recensement: true, val: u => u.rg ? u.rg.p : null, fmt: v => entier(v), court: v => compact(v), note: NOTE_RGPH },
+  { id: "rgd", nom: tr("Densité 2018, recensement (hab/km²)", "Density 2018, census (pop/km²)"), recensement: true, val: u => u.rg ? u.rg.d : null, fmt: v => fmt(v, v < 10 ? 1 : 0), note: NOTE_RGPH },
+  { id: "rgu", nom: tr("Population urbaine, recensement (%)", "Urban population, census (%)"), recensement: true, val: u => u.rg ? u.rg.u : null, fmt: v => `${fmt(v, 1)} %`, note: NOTE_RGPH },
+  { id: "rgm", nom: tr("Hommes pour 100 femmes, recensement", "Men per 100 women, census"), recensement: true, val: u => u.rg ? u.rg.rm : null, fmt: v => fmt(v, 1), note: NOTE_RGPH },
+  { id: "rge", nom: tr("Écart estimation HDX / recensement (%)", "Gap HDX estimate / census (%)"), recensement: true, divergent: true, val: u => u.rg ? u.rg.e : null,
     fmt: v => `${v > 0 ? "+" : ""}${fmt(v, 1)} %`,
-    note: "Écart entre l'estimation 2018 diffusée sur HDX (calculée à partir des données de 2009) et le recensement. Positif : l'estimation dépasse le recensement." },
-  { id: "p", nom: `Population ${REF} (estimation HDX)`, val: u => u.p, fmt: v => entier(v), court: v => compact(v),
-    note: `Estimation ${REF} de l'INSTAT et du BNGRC, projetée depuis les données de 2009 (diffusion OCHA). Ce ne sont pas les résultats du recensement RGPH-3.` },
-  { id: "d", nom: `Densité ${REF}, estimation HDX (hab/km²)`, val: u => u.d, fmt: v => fmt(v, v < 10 ? 1 : 0),
-    note: "Habitants par km², superficie calculée à partir des contours." },
-  { id: "wp", nom: "Population estimée (WorldPop)", annee: true, val: u => u.wp[ANNEES_WP.indexOf(etat.annee)], fmt: v => entier(v), court: v => compact(v),
-    note: "Estimation WorldPop ajustée aux totaux de l'ONU (grille de 1 km ; grille de 100 m pour les fokontany)." },
-  { id: "wpd", nom: "Densité estimée, WorldPop (hab/km²)", annee: true, val: u => u.s > 0 ? u.wp[ANNEES_WP.indexOf(etat.annee)] / u.s : null,
-    fmt: v => fmt(v, v < 10 ? 1 : 0), note: "Population WorldPop de l'année choisie rapportée à la superficie calculée à partir des contours." },
-  { id: "ca", nom: "Population 2018 calée sur le recensement", fokontanySeul: true, val: u => u.ca ?? null, fmt: v => entier(v), court: v => compact(v),
-    note: "Population recensée de la commune répartie entre ses fokontany selon leur poids dans l'estimation HDX : le total communal est exact, la répartition est estimée. Grisé : commune sans équivalent dans le recensement." },
-  { id: "cr", nom: `Croissance estimée depuis ${REF} (%/an)`, annee: true, val: u => croissance(u, etat.annee), fmt: v => `${fmt(v, 1)} %`,
-    note: `Croissance annuelle moyenne entre ${REF} et l'année choisie, d'après WorldPop.` },
-  ...Object.entries(D.meta.noms_dhs).map(([id, nom]) => ({
+    note: tr("Écart entre l'estimation 2018 diffusée sur HDX (calculée à partir des données de 2009) et le recensement. Positif : l'estimation dépasse le recensement.",
+             "Gap between the 2018 estimate published on HDX (computed from 2009 data) and the census. Positive: the estimate exceeds the census.") },
+  { id: "p", nom: tr(`Population ${REF} (estimation HDX)`, `Population ${REF} (HDX estimate)`), val: u => u.p, fmt: v => entier(v), court: v => compact(v),
+    note: tr(`Estimation ${REF} de l'INSTAT et du BNGRC, projetée depuis les données de 2009 (diffusion OCHA). Ce ne sont pas les résultats du recensement RGPH-3.`,
+             `${REF} estimate by INSTAT and BNGRC, projected from 2009 data (published by OCHA). These are not the RGPH-3 census results.`) },
+  { id: "d", nom: tr(`Densité ${REF}, estimation HDX (hab/km²)`, `Density ${REF}, HDX estimate (pop/km²)`), val: u => u.d, fmt: v => fmt(v, v < 10 ? 1 : 0),
+    note: tr("Habitants par km², superficie calculée à partir des contours.", "Inhabitants per km², area computed from the outlines.") },
+  { id: "wp", nom: tr("Population estimée (WorldPop)", "Estimated population (WorldPop)"), annee: true, val: u => u.wp[ANNEES_WP.indexOf(etat.annee)], fmt: v => entier(v), court: v => compact(v),
+    note: tr("Estimation WorldPop ajustée aux totaux de l'ONU (grille de 1 km ; grille de 100 m pour les fokontany).",
+             "WorldPop estimate adjusted to UN totals (1 km grid; 100 m grid for fokontany).") },
+  { id: "wpd", nom: tr("Densité estimée, WorldPop (hab/km²)", "Estimated density, WorldPop (pop/km²)"), annee: true, val: u => u.s > 0 ? u.wp[ANNEES_WP.indexOf(etat.annee)] / u.s : null,
+    fmt: v => fmt(v, v < 10 ? 1 : 0), note: tr("Population WorldPop de l'année choisie rapportée à la superficie calculée à partir des contours.",
+    "WorldPop population for the chosen year divided by the area computed from the outlines.") },
+  { id: "ca", nom: tr("Population 2018 calée sur le recensement", "Population 2018 aligned with the census"), fokontanySeul: true, val: u => u.ca ?? null, fmt: v => entier(v), court: v => compact(v),
+    note: tr("Population recensée de la commune répartie entre ses fokontany selon leur poids dans l'estimation HDX : le total communal est exact, la répartition est estimée. Grisé : commune sans équivalent dans le recensement.",
+             "The commune's census population split between its fokontany by their weight in the HDX estimate: the commune total is exact, the split is estimated. Grey: commune with no match in the census.") },
+  { id: "cr", nom: tr(`Croissance estimée depuis ${REF} (%/an)`, `Estimated growth since ${REF} (%/year)`), annee: true, val: u => croissance(u, etat.annee), fmt: v => `${fmt(v, 1)} %`,
+    note: tr(`Croissance annuelle moyenne entre ${REF} et l'année choisie, d'après WorldPop.`, `Average annual growth between ${REF} and the chosen year, from WorldPop.`) },
+  ...Object.entries(NOMS_DHS).map(([id, nom]) => ({
     id: `dhs:${id}`, nom, dhs: true, val: u => u.dhs ? u.dhs[id] : null, fmt: v => fmt(v, Number.isInteger(v) ? 0 : 1),
-    note: `Enquête ${D.meta.enquete_dhs}, disponible par région uniquement.` })),
+    note: tr(`Enquête ${D.meta.enquete_dhs}, disponible par région uniquement.`, `${D.meta.enquete_dhs} survey, available by region only.`) })),
 ];
 function croissance(u, annee) {
   if (annee === REF) return 0;
@@ -372,11 +411,11 @@ function tuiles() {
   const N = D.national;
   const defs = [
     ["Population", "population", v => compact(v)],
-    ["Croissance annuelle", "croissance", v => `${fmt(v, 2)} %`],
-    ["Enfants par femme", "isf", v => fmt(v, 2)],
-    ["Espérance de vie", "esperance", v => `${fmt(v, 1)} ans`],
-    ["Population urbaine", "urbanisation", v => `${fmt(v, 1)} %`],
-    ["Mortalité infantile", "mortalite_infantile", v => `${fmt(v, 1)} ‰`],
+    [tr("Croissance annuelle", "Annual growth"), "croissance", v => `${fmt(v, 2)} %`],
+    [tr("Enfants par femme", "Children per woman"), "isf", v => fmt(v, 2)],
+    [tr("Espérance de vie", "Life expectancy"), "esperance", v => `${fmt(v, 1)} ${tr("ans", "years")}`],
+    [tr("Population urbaine", "Urban population"), "urbanisation", v => `${fmt(v, 1)} %`],
+    [tr("Mortalité infantile", "Infant mortality"), "mortalite_infantile", v => `${fmt(v, 1)} ‰`],
   ];
   const conteneur = d3.select("#tuiles").html("");
   for (const [titre, cle, f] of defs) {
@@ -384,7 +423,7 @@ function tuiles() {
     const t = conteneur.append("div").attr("class", "tuile");
     t.append("span").attr("class", "etiquette").text(titre);
     t.append("span").attr("class", "valeur").text(f(serie[i]));
-    t.append("span").attr("class", "annee").text(`${N.annees[i]} · depuis ${N.annees[0]}`);
+    t.append("span").attr("class", "annee").text(`${N.annees[i]} · ${tr("depuis", "since")} ${N.annees[0]}`);
     const pts = N.annees.map((a, j) => [a, serie[j]]).filter(p => p[1] != null);
     const svg = t.append("svg").attr("viewBox", "0 0 160 30").attr("preserveAspectRatio", "none").attr("aria-hidden", "true");
     const x = d3.scaleLinear().domain(d3.extent(pts, p => p[0])).range([2, 156]);
@@ -565,14 +604,15 @@ function parentTexte(niveau, u) {
 function legende(echelle, ind) {
   const conteneur = d3.select("#legende").html("");
   if (ind.divergent) {
-    const libelles = ["< −15", "−15", "−7,5", "−2,5", "+2,5", "+7,5", "+15"];
+    const libelles = ["< −15", "−15", "−7,5", "−2,5", "+2,5", "+7,5", "+15"].map(l => EN ? l.replace(",", ".") : l);
     echelle.range().forEach((c, i) => {
       const d = conteneur.append("div");
       d.append("span").attr("class", "case").style("background", c);
       d.append("span").attr("class", "borne").text(libelles[i]);
     });
     document.getElementById("note-indicateur").textContent =
-      `${ind.note} Gris : écart inférieur à 2,5 %. Glisser pour déplacer la carte, molette ou boutons pour zoomer.`;
+      `${ind.note} ${tr("Gris : écart inférieur à 2,5 %. Glisser pour déplacer la carte, molette ou boutons pour zoomer.",
+                         "Grey: gap below 2.5%. Drag to move the map, scroll wheel or buttons to zoom.")}`;
     return;
   }
   const bornes = [d3.min(echelle.domain()), ...echelle.quantiles(), d3.max(echelle.domain())];
@@ -585,16 +625,17 @@ function legende(echelle, ind) {
   fin.append("span").attr("class", "case");
   fin.append("span").attr("class", "borne").text((ind.court || ind.fmt)(bornes[bornes.length - 1]));
   document.getElementById("note-indicateur").textContent =
-    `${ind.note} Classes de même effectif (quantiles). Glisser pour déplacer la carte, molette ou boutons pour zoomer.`;
+    `${ind.note} ${tr("Classes de même effectif (quantiles). Glisser pour déplacer la carte, molette ou boutons pour zoomer.",
+                       "Classes of equal size (quantiles). Drag to move the map, scroll wheel or buttons to zoom.")}`;
 }
 
 // ---------- Commandes ----------
 const selectIndicateur = document.getElementById("indicateur");
 function remplirIndicateurs() {
   selectIndicateur.innerHTML = "";
-  const groupes = [["Recensement 2018 (régions et districts)", INDICATEURS.filter(i => i.recensement)],
-                   ["Estimations", INDICATEURS.filter(i => !i.dhs && !i.recensement)],
-                   [`Santé et fécondité (${D.meta.enquete_dhs}, régions)`, INDICATEURS.filter(i => i.dhs)]];
+  const groupes = [[tr("Recensement 2018 (régions et districts)", "Census 2018 (regions and districts)"), INDICATEURS.filter(i => i.recensement)],
+                   [tr("Estimations", "Estimates"), INDICATEURS.filter(i => !i.dhs && !i.recensement)],
+                   [tr(`Santé et fécondité (${D.meta.enquete_dhs}, régions)`, `Health and fertility (${D.meta.enquete_dhs}, regions)`), INDICATEURS.filter(i => i.dhs)]];
   for (const [nom, liste] of groupes) {
     const g = document.createElement("optgroup"); g.label = nom;
     for (const i of liste) {
@@ -643,7 +684,7 @@ function fiche() {
   if (!etat.choix) return ficheNationale(el);
   const { niveau, i } = etat.choix;
   const u = D.niveaux[niveau].unites[i];
-  const fil = el.append("nav").attr("class", "fil").attr("aria-label", "Rattachement");
+  const fil = el.append("nav").attr("class", "fil").attr("aria-label", tr("Rattachement", "Location"));
   fil.append("button").attr("type", "button").text("Madagascar").on("click", () => { etat.choix = null; dessinerCarte(); classement(); fiche(); });
   if (niveau !== "regions") {
     fil.append("span").text("›");
@@ -666,16 +707,16 @@ function fiche() {
   const recense = (niveau === "regions" || niveau === "districts") && u.rg;
   const densiteWp = u.s > 0 ? u.wp[iEst] / u.s : null;
   const chiffres = niveau === "fokontany"
-    ? [[entier(u.wp[iEst]), `estimés en ${ANNEE_COURANTE} (WorldPop 100 m)`], [fmt(densiteWp, densiteWp < 10 ? 1 : 0), "hab/km² (WorldPop)"],
-       [fmt(u.s, u.s < 10 ? 1 : 0), "km²"], [u.ca != null ? entier(u.ca) : "n.d.", "en 2018, calée sur le recensement"],
-       [entier(u.p), `en ${REF}, estimation HDX`], [`${fmt(croissance(u, ANNEE_COURANTE), 1)} %`, `par an depuis ${REF} (WorldPop)`]]
+    ? [[entier(u.wp[iEst]), tr(`estimés en ${ANNEE_COURANTE} (WorldPop 100 m)`, `estimated in ${ANNEE_COURANTE} (WorldPop 100 m)`)], [fmt(densiteWp, densiteWp < 10 ? 1 : 0), tr("hab/km² (WorldPop)", "pop/km² (WorldPop)")],
+       [fmt(u.s, u.s < 10 ? 1 : 0), "km²"], [u.ca != null ? entier(u.ca) : fmt(null), tr("en 2018, calée sur le recensement", "in 2018, aligned with the census")],
+       [entier(u.p), tr(`en ${REF}, estimation HDX`, `in ${REF}, HDX estimate`)], [`${fmt(croissance(u, ANNEE_COURANTE), 1)} %`, tr(`par an depuis ${REF} (WorldPop)`, `per year since ${REF} (WorldPop)`)]]
     : recense
-    ? [[entier(u.rg.p), "habitants recensés en 2018"], [fmt(u.rg.d, u.rg.d < 10 ? 1 : 0), "hab/km² (recensement)"],
-       [`${fmt(u.rg.u, 1)} %`, "population urbaine"], [fmt(u.rg.rm, 1), "hommes pour 100 femmes"],
-       [entier(u.s), "km²"], [entier(u.wp[iEst]), `estimés en ${ANNEE_COURANTE} (WorldPop)`]]
-    : [[entier(u.p), `habitants en ${REF} (estimation HDX)`], [fmt(u.d, u.d < 10 ? 1 : 0), "hab/km²"],
-       [entier(u.s), "km²"], [entier(u.wp[iEst]), `estimés en ${ANNEE_COURANTE} (WorldPop)`],
-       [`${fmt(croissance(u, ANNEE_COURANTE), 1)} %`, `par an depuis ${REF}`], [entier(FK_PAR_COMMUNE[i].length), "fokontany"]];
+    ? [[entier(u.rg.p), tr("habitants recensés en 2018", "inhabitants counted in 2018")], [fmt(u.rg.d, u.rg.d < 10 ? 1 : 0), tr("hab/km² (recensement)", "pop/km² (census)")],
+       [`${fmt(u.rg.u, 1)} %`, tr("population urbaine", "urban population")], [fmt(u.rg.rm, 1), tr("hommes pour 100 femmes", "men per 100 women")],
+       [entier(u.s), "km²"], [entier(u.wp[iEst]), tr(`estimés en ${ANNEE_COURANTE} (WorldPop)`, `estimated in ${ANNEE_COURANTE} (WorldPop)`)]]
+    : [[entier(u.p), tr(`habitants en ${REF} (estimation HDX)`, `inhabitants in ${REF} (HDX estimate)`)], [fmt(u.d, u.d < 10 ? 1 : 0), tr("hab/km²", "pop/km²")],
+       [entier(u.s), "km²"], [entier(u.wp[iEst]), tr(`estimés en ${ANNEE_COURANTE} (WorldPop)`, `estimated in ${ANNEE_COURANTE} (WorldPop)`)],
+       [`${fmt(croissance(u, ANNEE_COURANTE), 1)} %`, tr(`par an depuis ${REF}`, `per year since ${REF}`)], [entier(FK_PAR_COMMUNE[i].length), "fokontany"]];
   for (const [v, l] of chiffres) {
     const d = cles.append("div");
     d.append("span").attr("class", "chiffre").text(v);
@@ -683,46 +724,52 @@ function fiche() {
   }
   if (niveau === "fokontany") {
     el.append("p").attr("class", "note").style("margin", 0).text(
-      "Aucune source publique ne compte la population par fokontany : ces trois chiffres sont des estimations, qui divergent parfois fortement.");
+      tr("Aucune source publique ne compte la population par fokontany : ces trois chiffres sont des estimations, qui divergent parfois fortement.",
+         "No public source counts the population by fokontany: these three figures are estimates, which sometimes differ widely."));
   }
   if (recense) {
     el.append("p").attr("class", "note").style("margin", 0).html(
-      `Estimation 2018 diffusée sur HDX : <span class="tab">${entier(u.p)}</span>, soit ${u.rg.e > 0 ? "+" : ""}${fmt(u.rg.e, 1)} % par rapport au recensement.`);
+      tr(`Estimation 2018 diffusée sur HDX : <span class="tab">${entier(u.p)}</span>, soit ${u.rg.e > 0 ? "+" : ""}${fmt(u.rg.e, 1)} % par rapport au recensement.`,
+         `2018 estimate published on HDX: <span class="tab">${entier(u.p)}</span>, i.e. ${u.rg.e > 0 ? "+" : ""}${fmt(u.rg.e, 1)}% compared with the census.`));
   }
   if (niveau === "communes") {
     const b = el.append("div").attr("class", "bloc");
-    b.append("span").attr("class", "etiquette").text("Recensement 2018 (RGPH-3)");
+    b.append("span").attr("class", "etiquette").text(tr("Recensement 2018 (RGPH-3)", "Census 2018 (RGPH-3)"));
     if (u.rg) {
-      b.append("p").style("margin", 0).html(`<span class="chiffre">${entier(u.rg.p)}</span> habitants recensés, dont ${fmt(u.rg.u, 0)} % en milieu urbain.`);
+      b.append("p").style("margin", 0).html(tr(`<span class="chiffre">${entier(u.rg.p)}</span> habitants recensés, dont ${fmt(u.rg.u, 0)} % en milieu urbain.`,
+        `<span class="chiffre">${entier(u.rg.p)}</span> inhabitants counted, ${fmt(u.rg.u, 0)}% of them in urban areas.`));
       if (!u.rg.id) b.append("p").attr("class", "note").style("margin", 0)
-        .text("Le découpage communal de ce district a changé depuis le tracé utilisé ici : le chiffre du recensement peut ne pas couvrir exactement le même territoire.");
+        .text(tr("Le découpage communal de ce district a changé depuis le tracé utilisé ici : le chiffre du recensement peut ne pas couvrir exactement le même territoire.",
+                 "The commune boundaries of this district have changed since the outline used here: the census figure may not cover exactly the same area."));
     } else {
       b.append("p").attr("class", "note").style("margin", 0)
-        .text("Pas de correspondance dans le recensement : la commune a pu être divisée ou renommée depuis le découpage utilisé pour la carte.");
+        .text(tr("Pas de correspondance dans le recensement : la commune a pu être divisée ou renommée depuis le découpage utilisé pour la carte.",
+                 "No match in the census: the commune may have been split or renamed since the boundaries used for the map."));
     }
   }
 
   const bloc = el.append("div").attr("class", "bloc");
-  bloc.append("span").attr("class", "etiquette").text(`Population estimée ${ANNEES_WP[0]}-${ANNEES_WP[ANNEES_WP.length - 1]}`);
+  bloc.append("span").attr("class", "etiquette").text(`${tr("Population estimée", "Estimated population")} ${ANNEES_WP[0]}-${ANNEES_WP[ANNEES_WP.length - 1]}`);
   courbeEvolution(bloc, u);
 
   const reg = regionDe(niveau, u);
   if (reg.dhs) {
     const b = el.append("div").attr("class", "bloc");
     b.append("span").attr("class", "etiquette").text(
-      `${D.meta.enquete_dhs}${niveau === "regions" ? "" : ` · région ${reg.n}`}`);
+      `${D.meta.enquete_dhs}${niveau === "regions" ? "" : ` · ${tr("région", "region")} ${reg.n}`}`);
     const dl = b.append("dl").attr("class", "dhs");
-    for (const [id, nom] of Object.entries(D.meta.noms_dhs)) {
+    for (const [id, nom] of Object.entries(NOMS_DHS)) {
       const v = reg.dhs[id]; if (v == null) continue;
       const valeurs = D.niveaux.regions.unites.map(r => r.dhs[id]).filter(x => x != null);
       const [mn, mx] = d3.extent(valeurs);
       const ligne = dl.append("div");
       ligne.append("dt").text(nom);
       ligne.append("dd").text(fmt(v, Number.isInteger(v) ? 0 : 1));
-      ligne.append("span").attr("class", "echelle").attr("title", `De ${fmt(mn, 1)} à ${fmt(mx, 1)} selon les régions`)
+      ligne.append("span").attr("class", "echelle").attr("title", tr(`De ${fmt(mn, 1)} à ${fmt(mx, 1)} selon les régions`, `From ${fmt(mn, 1)} to ${fmt(mx, 1)} across regions`))
         .append("i").style("left", `${mx > mn ? 100 * (v - mn) / (mx - mn) : 50}%`);
     }
-    b.append("small").attr("class", "note").style("margin", 0).text("Repère : position de la région entre la valeur régionale la plus basse et la plus haute.");
+    b.append("small").attr("class", "note").style("margin", 0).text(tr("Repère : position de la région entre la valeur régionale la plus basse et la plus haute.",
+                                                                       "Marker: the region's position between the lowest and highest regional values."));
   }
 
   if (niveau === "communes") {
@@ -731,30 +778,35 @@ function fiche() {
     const calee = fk.length && fk[0][1].ca != null;
     const AN = ANNEE_COURANTE, iAN = ANNEES_WP.indexOf(AN), i18 = ANNEES_WP.indexOf(2018), i30 = ANNEES_WP.length - 1;
     const vues = {
-      "2018": { titre: calee ? "2018, calée sur le recensement" : `${REF}, estimation HDX`, val: ([, f]) => calee ? f.ca : f.p,
-                note: calee ? "La population recensée de la commune est répartie entre ses fokontany selon leur poids dans l'estimation HDX : le total est exact, la répartition est estimée."
-                            : "Cette commune n'a pas d'équivalent dans le recensement : les chiffres sont ceux de l'estimation HDX." },
+      "2018": { titre: calee ? tr("2018, calée sur le recensement", "2018, aligned with the census") : tr(`${REF}, estimation HDX`, `${REF}, HDX estimate`), val: ([, f]) => calee ? f.ca : f.p,
+                note: calee ? tr("La population recensée de la commune est répartie entre ses fokontany selon leur poids dans l'estimation HDX : le total est exact, la répartition est estimée.",
+                                 "The commune's census population is split between its fokontany by their weight in the HDX estimate: the total is exact, the split is estimated.")
+                            : tr("Cette commune n'a pas d'équivalent dans le recensement : les chiffres sont ceux de l'estimation HDX.",
+                                 "This commune has no match in the census: the figures are those of the HDX estimate.") },
       wp: { titre: `${AN}, WorldPop 100 m`, val: ([, f]) => f.wp[iAN],
-            note: `Estimation WorldPop sur grille de 100 m, sommée par fokontany. Cliquez sur un fokontany pour afficher sa fiche.` },
+            note: tr(`Estimation WorldPop sur grille de 100 m, sommée par fokontany. Cliquez sur un fokontany pour afficher sa fiche.`,
+                     `WorldPop estimate on a 100 m grid, summed by fokontany. Click a fokontany to show its profile.`) },
     };
     if (!(etat.vueFk in vues)) etat.vueFk = "2018";
     const b = el.append("div").attr("class", "bloc");
     const tete = b.append("div").style("display", "flex").style("flex-wrap", "wrap").style("gap", "8px")
       .style("align-items", "center").style("justify-content", "space-between");
     tete.append("span").attr("class", "etiquette").text(`${fk.length} fokontany`);
-    const choix = tete.append("div").attr("class", "onglets").attr("role", "group").attr("aria-label", "Source des chiffres");
+    const choix = tete.append("div").attr("class", "onglets").attr("role", "group").attr("aria-label", tr("Source des chiffres", "Source of the figures"));
     for (const [cle, v] of Object.entries(vues)) {
       choix.append("button").attr("type", "button").attr("aria-pressed", etat.vueFk === cle).style("font-size", "0.8rem")
         .text(cle === "wp" ? `WorldPop ${AN}` : "2018").on("click", () => { etat.vueFk = cle; fiche(); });
     }
     const vue = vues[etat.vueFk], valeur = vue.val;
-    b.append("small").attr("class", "note").style("margin", 0).text(`Population ${vue.titre}`);
+    b.append("small").attr("class", "note").style("margin", 0).text(`${tr("Population", "Population,")} ${vue.titre}`);
     const max = d3.max(fk, valeur) || 1;
     const ul = b.append("ul").attr("class", "liste-fk");
     fk.slice().sort((a, b2) => valeur(b2) - valeur(a)).forEach(([j, f]) => {
       const li = ul.append("li").classed("repere", f.n === etat.fkRepere).style("cursor", "pointer")
         .on("click", () => choisir("fokontany", j, true))
-        .attr("title", `Estimation HDX ${REF} : ${entier(f.p)}${f.ca != null ? ` · calée : ${entier(f.ca)}` : ""} · WorldPop 2018 : ${entier(f.wp[i18])}, ${AN} : ${entier(f.wp[iAN])}, 2030 : ${entier(f.wp[i30])}`);
+        .attr("title", EN
+          ? `HDX estimate ${REF}: ${entier(f.p)}${f.ca != null ? ` · aligned: ${entier(f.ca)}` : ""} · WorldPop 2018: ${entier(f.wp[i18])}, ${AN}: ${entier(f.wp[iAN])}, 2030: ${entier(f.wp[i30])}`
+          : `Estimation HDX ${REF} : ${entier(f.p)}${f.ca != null ? ` · calée : ${entier(f.ca)}` : ""} · WorldPop 2018 : ${entier(f.wp[i18])}, ${AN} : ${entier(f.wp[iAN])}, 2030 : ${entier(f.wp[i30])}`);
       li.append("span").text(f.n);
       li.append("span").attr("class", "tab").text(entier(valeur([j, f])));
       li.append("span").attr("class", "barre").style("width", `${100 * valeur([j, f]) / max}%`);
@@ -767,21 +819,21 @@ function fiche() {
 }
 
 function ficheNationale(el) {
-  el.append("span").attr("class", "etiquette").text("Vue d'ensemble");
+  el.append("span").attr("class", "etiquette").text(tr("Vue d'ensemble", "Overview"));
   el.append("h2").style("font-size", "1.4rem").text("Madagascar");
   const cles = el.append("div").attr("class", "chiffres-cles");
   const total = D.meta.rgph_total;
   const est = d3.sum(D.niveaux.regions.unites, r => r.wp[ANNEES_WP.indexOf(ANNEE_COURANTE)]);
-  for (const [v, l] of [[entier(total), "habitants recensés en 2018"], [entier(est), `estimés en ${ANNEE_COURANTE} (WorldPop)`],
-                         [fmt(total / d3.sum(D.niveaux.regions.unites, r => r.s), 0), "hab/km² en 2018"],
-                         [D.niveaux.regions.unites.length, "régions"], [entier(D.meta.rgph_communes), "communes au recensement"],
+  for (const [v, l] of [[entier(total), tr("habitants recensés en 2018", "inhabitants counted in 2018")], [entier(est), tr(`estimés en ${ANNEE_COURANTE} (WorldPop)`, `estimated in ${ANNEE_COURANTE} (WorldPop)`)],
+                         [fmt(total / d3.sum(D.niveaux.regions.unites, r => r.s), 0), tr("hab/km² en 2018", "pop/km² in 2018")],
+                         [D.niveaux.regions.unites.length, tr("régions", "regions")], [entier(D.meta.rgph_communes), tr("communes au recensement", "communes in the census")],
                          [entier(D.niveaux.fokontany.unites.length), "fokontany"]]) {
     const d = cles.append("div");
     d.append("span").attr("class", "chiffre").text(v);
     d.append("small").text(l);
   }
   const bloc = el.append("div").attr("class", "bloc");
-  bloc.append("span").attr("class", "etiquette").text("Les régions les plus peuplées au recensement");
+  bloc.append("span").attr("class", "etiquette").text(tr("Les régions les plus peuplées au recensement", "Most populous regions in the census"));
   const top = D.niveaux.regions.unites.map((u, i) => [u, i]).sort((a, b) => b[0].rg.p - a[0].rg.p).slice(0, 5);
   const ul = bloc.append("ul").attr("class", "liste-fk");
   const max = top[0][0].rg.p;
@@ -792,17 +844,18 @@ function ficheNationale(el) {
     li.append("span").attr("class", "barre").style("width", `${100 * u.rg.p / max}%`);
   });
   el.append("p").attr("class", "note").style("margin", 0)
-    .text("Cliquez sur la carte, dans le classement ou cherchez un lieu pour afficher sa fiche.");
+    .text(tr("Cliquez sur la carte, dans le classement ou cherchez un lieu pour afficher sa fiche.",
+             "Click the map or the ranking, or search for a place, to show its profile."));
 }
 
 function courbeEvolution(conteneur, u) {
   const L = 420, H = 130, m = { h: 10, d: 12, b: 22, g: 52 };
   const svg = conteneur.append("svg").attr("id", "evolution").attr("viewBox", `0 0 ${L} ${H}`).attr("role", "img")
-    .attr("aria-label", `Population estimée de ${u.n}`);
+    .attr("aria-label", tr(`Population estimée de ${u.n}`, `Estimated population of ${u.n}`));
   const pts = ANNEES_WP.map((a, j) => [a, u.wp[j]]);
   const x = d3.scaleLinear().domain(d3.extent(ANNEES_WP)).range([m.g, L - m.d]);
   const ref = u.rg ? u.rg.p : (u.ca != null ? u.ca : u.p);
-  const refNom = u.rg ? "recensement" : u.ca != null ? "calée 2018" : "estimation HDX";
+  const refNom = u.rg ? tr("recensement", "census") : u.ca != null ? tr("calée 2018", "aligned 2018") : tr("estimation HDX", "HDX estimate");
   const y = d3.scaleLinear().domain([0, d3.max([...pts.map(p => p[1]), ref]) * 1.08]).nice(4).range([H - m.b, m.h]);
   svg.append("g").attr("class", "grille").selectAll("line").data(y.ticks(4)).join("line")
     .attr("x1", m.g).attr("x2", L - m.d).attr("y1", y).attr("y2", y);
@@ -824,7 +877,7 @@ function courbeEvolution(conteneur, u) {
       if (!p) return;
       repere.style("display", null).attr("transform", `translate(${x(a)},0)`);
       repere.select("circle").attr("cy", y(p[1]));
-      montrerBulle(evt, `<strong>${a}</strong><span class="tab">${entier(p[1])}</span> habitants (WorldPop)${a === REF ? `<br>${u.rg ? `Recensement : <span class="tab">${entier(u.rg.p)}</span><br>` : ""}Estimation HDX : <span class="tab">${entier(u.p)}</span>` : ""}`);
+      montrerBulle(evt, `<strong>${a}</strong><span class="tab">${entier(p[1])}</span> ${tr("habitants", "inhabitants")} (WorldPop)${a === REF ? `<br>${u.rg ? `${tr("Recensement :", "Census:")} <span class="tab">${entier(u.rg.p)}</span><br>` : ""}${tr("Estimation HDX :", "HDX estimate:")} <span class="tab">${entier(u.p)}</span>` : ""}`);
     })
     .on("mouseleave", () => { repere.style("display", "none"); cacherBulle(); });
 }
@@ -836,8 +889,8 @@ function classement() {
   const niveau = etat.niveau, ind = indicateurCourant();
   const unites = D.niveaux[niveau].unites;
   document.getElementById("titre-classement").textContent = `${NOMS_NIVEAU[niveau][0]}s · ${ind.nom}${ind.annee ? ` · ${etat.annee}` : ""}`;
-  const colonnes = [["rang", "Rang", true], ["n", NOMS_NIVEAU[niveau][0], false]];
-  if (niveau !== "regions") colonnes.push(["parent", { districts: "Région", communes: "District", fokontany: "Commune" }[niveau], false]);
+  const colonnes = [["rang", tr("Rang", "Rank"), true], ["n", NOMS_NIVEAU[niveau][0], false]];
+  if (niveau !== "regions") colonnes.push(["parent", { districts: NOMS_NIVEAU.regions[0], communes: "District", fokontany: "Commune" }[niveau], false]);
   colonnes.push(["v", ind.nom.replace(/ \(.*\)$/, ""), true]);
   const lignes = unites.map((u, i) => ({ i, u, n: u.n, v: ind.val(u),
     parent: niveau === "districts" ? D.niveaux.regions.unites[u.r].n : niveau === "communes" ? D.niveaux.districts.unites[u.di].n
@@ -854,7 +907,9 @@ function classement() {
   const MAX_LIGNES = 400, visibles = filtrees.slice(0, MAX_LIGNES);
   const reste = document.getElementById("classement-reste");
   reste.hidden = filtrees.length <= MAX_LIGNES;
-  reste.textContent = `${entier(MAX_LIGNES)} lignes affichées sur ${entier(filtrees.length)}. Filtrez par nom ou par ${colonnes[2] ? colonnes[2][1].toLowerCase() : "nom"} pour voir les autres.`;
+  const parNom = colonnes[2] ? colonnes[2][1].toLowerCase() : tr("nom", "name");
+  reste.textContent = tr(`${entier(MAX_LIGNES)} lignes affichées sur ${entier(filtrees.length)}. Filtrez par nom ou par ${parNom} pour voir les autres.`,
+                         `${entier(MAX_LIGNES)} rows shown out of ${entier(filtrees.length)}. Filter by name or by ${parNom} to see the others.`);
 
   d3.select("#entete-classement").selectAll("th").data(colonnes).join("th")
     .attr("class", c => c[2] ? "num" : null)
@@ -874,7 +929,7 @@ const normaliser = s => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLow
 const INDEX = [];
 for (const niveau of ["regions", "districts", "communes"]) {
   D.niveaux[niveau].unites.forEach((u, i) => INDEX.push({ niveau, i, n: u.n, cle: normaliser(u.n),
-    detail: niveau === "regions" ? "Région" : niveau === "districts" ? `District · ${D.niveaux.regions.unites[u.r].n}` : `Commune · ${D.niveaux.districts.unites[u.di].n}` }));
+    detail: niveau === "regions" ? NOMS_NIVEAU.regions[0] : niveau === "districts" ? `District · ${D.niveaux.regions.unites[u.r].n}` : `Commune · ${D.niveaux.districts.unites[u.di].n}` }));
 }
 D.niveaux.fokontany.unites.forEach((u, i) => INDEX.push({ niveau: "fokontany", i, n: u.n, cle: normaliser(u.n),
   detail: `Fokontany · ${D.niveaux.communes.unites[u.c].n}` }));
@@ -893,7 +948,7 @@ champ.oninput = () => {
 function afficherSuggestions() {
   liste.innerHTML = "";
   if (!resultats.length) {
-    const li = document.createElement("li"); li.textContent = "Aucun lieu ne correspond."; li.setAttribute("aria-disabled", "true");
+    const li = document.createElement("li"); li.textContent = tr("Aucun lieu ne correspond.", "No matching place."); li.setAttribute("aria-disabled", "true");
     liste.append(li);
   }
   resultats.forEach((r, k) => {
@@ -940,7 +995,7 @@ function graphiquePopulation() {
   for (const p of [obs[obs.length - 1], proj[proj.length - 1]]) {
     svg.append("circle").attr("cx", x(p[0])).attr("cy", y(p[1])).attr("r", 4.5).attr("fill", "var(--accent)").attr("stroke", "var(--surface)").attr("stroke-width", 2);
     svg.append("text").attr("x", x(p[0]) - 8).attr("y", y(p[1]) - 10).attr("text-anchor", "end").attr("fill", "var(--encre)")
-      .attr("font-weight", 600).attr("font-size", 12).text(`${fmt(p[1] / 1e6, 1)} M en ${p[0]}`);
+      .attr("font-weight", 600).attr("font-size", 12).text(`${fmt(p[1] / 1e6, 1)} M ${tr("en", "in")} ${p[0]}`);
   }
   const repere = svg.append("g").style("display", "none");
   repere.append("line").attr("y1", m.h).attr("y2", H - m.b).attr("stroke", "var(--trait-fort)");
@@ -952,8 +1007,8 @@ function graphiquePopulation() {
       const v = o || pr; if (!v) return;
       repere.style("display", null).attr("transform", `translate(${x(a)},0)`);
       repere.select("circle").attr("cy", y(v[1]));
-      const parts = pr ? `<br>0-14 ans : ${fmt(pr[2], 1)} % · 65 ans et plus : ${fmt(pr[3], 1)} %` : "";
-      montrerBulle(evt, `<strong>${a}${o ? "" : " · projection"}</strong><span class="tab">${entier(v[1])}</span> habitants${parts}`);
+      const parts = pr ? tr(`<br>0-14 ans : ${fmt(pr[2], 1)} % · 65 ans et plus : ${fmt(pr[3], 1)} %`, `<br>Aged 0-14: ${fmt(pr[2], 1)}% · 65 and over: ${fmt(pr[3], 1)}%`) : "";
+      montrerBulle(evt, `<strong>${a}${o ? "" : " · projection"}</strong><span class="tab">${entier(v[1])}</span> ${tr("habitants", "inhabitants")}${parts}`);
     })
     .on("mouseleave", () => { repere.style("display", "none"); cacherBulle(); });
 }
@@ -982,7 +1037,9 @@ function pyramide() {
   const groupes = svg.append("g");
   PY.groupes.forEach((g, i) => {
     const h = PY.H[k][i], f = PY.F[k][i];
-    const info = evt => montrerBulle(evt, `<strong>${g} ans · ${PY.annees[k]}</strong>Hommes : <span class="tab">${entier(h)}</span><br>Femmes : <span class="tab">${entier(f)}</span><br>${fmt(100 * (h + f) / total, 1)} % de la population`);
+    const info = evt => montrerBulle(evt, EN
+      ? `<strong>Aged ${g} · ${PY.annees[k]}</strong>Men: <span class="tab">${entier(h)}</span><br>Women: <span class="tab">${entier(f)}</span><br>${fmt(100 * (h + f) / total, 1)}% of the population`
+      : `<strong>${g} ans · ${PY.annees[k]}</strong>Hommes : <span class="tab">${entier(h)}</span><br>Femmes : <span class="tab">${entier(f)}</span><br>${fmt(100 * (h + f) / total, 1)} % de la population`);
     groupes.append("rect").attr("x", xg(h)).attr("y", y(g)).attr("width", Math.max(0, L / 2 - m.centre - xg(h))).attr("height", y.bandwidth())
       .attr("rx", 2).attr("fill", "var(--homme)").on("mousemove", info).on("mouseleave", cacherBulle);
     groupes.append("rect").attr("x", xd(0)).attr("y", y(g)).attr("width", Math.max(0, xd(f) - xd(0))).attr("height", y.bandwidth())
@@ -998,7 +1055,7 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redessiner
 new MutationObserver(redessiner).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
 // ---------- Démarrage ----------
-document.getElementById("date-collecte").textContent = new Date(D.meta.collecte).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+document.getElementById("date-collecte").textContent = new Date(D.meta.collecte).toLocaleDateString(EN ? "en-GB" : "fr-FR", { day: "numeric", month: "long", year: "numeric" });
 tuiles(); majCommandes(); dessinerCarte(); fiche(); classement(); graphiquePopulation(); pyramide();
 </script>
 </body>
