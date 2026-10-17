@@ -81,6 +81,7 @@ jobs:
           mkdir -p site/classique
           cp -r web/dist/. site/
           cp sorties/tableau_de_bord/index.html site/classique/index.html
+          cp docs/apercu.png site/apercu.png   # image des aperçus de liens (og:image)
 
       - name: Préparer le site pour GitHub Pages
         uses: actions/upload-pages-artifact@v5

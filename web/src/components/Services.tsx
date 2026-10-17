@@ -1,9 +1,11 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { CONTACT, FORMULAIRE, WHATSAPP } from "../config";
 import { useLangue } from "../i18n";
 import type { Cle } from "../i18n/fr";
 import { defilerVers } from "../lib/defilement";
+import { compter } from "../lib/statistiques";
 
-export const CONTACT = "a.maminiaina@gmail.com";
+const lienWhatsapp = (texte?: string) => `https://wa.me/${WHATSAPP}${texte ? `?text=${encodeURIComponent(texte)}` : ""}`;
 
 type Categorie = "comprendre" | "planifier" | "outiller" | "former";
 const CATEGORIES: Record<Categorie, string> = {
@@ -79,9 +81,11 @@ export function Services() {
   const [lieux, setLieux] = useState("");
   const [lien, setLien] = useState("");
   const [copie, setCopie] = useState(false);
+  const [etat, setEtat] = useState<"pret" | "envoi" | "envoye" | "erreur">("pret");
+  const formulaire = useRef<HTMLFormElement>(null);
   const nomService = (s: Service) => t(s === "autre" ? "formAutre" : s === "partenaire" ? "partenaireTitre" : (`service.${s}` as Cle));
 
-  const choisir = (s: Service) => { setService(s); defilerVers("demande", "demande-nom"); };
+  const choisir = (s: Service) => { setService(s); compter(`devis-choix/${s}`); defilerVers("demande", "demande-nom"); };
   useEffect(() => {
     const recevoir = (e: Event) => {
       const d = (e as CustomEvent<Demande>).detail;
@@ -92,22 +96,56 @@ export function Services() {
     return () => window.removeEventListener(EVENEMENT, recevoir);
   }, []);
 
-  const envoyer = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
+  // Texte de la demande : les champs facultatifs vides sont omis ; les lignes vides séparent les paragraphes
+  const rediger = (form: HTMLFormElement) => {
+    const f = new FormData(form);
     const v = (k: string) => String(f.get(k) ?? "").trim();
-    // Les champs facultatifs vides sont omis ; les lignes vides séparent les paragraphes
     const lignes = [
       t("mailIntro", { service: nomService(service) }), "",
       `${t("formNom")} : ${v("nom")}`,
       v("organisation") ? `${t("formOrganisation")} : ${v("organisation")}` : null,
+      v("email") ? `${t("formEmail")} : ${v("email")}` : null,
+      v("telephone") ? `${t("formTelephone")} : ${v("telephone")}` : null,
       v("lieux") ? `${t("formLieux")} : ${v("lieux")}` : null,
       v("echeance") ? `${t("formEcheance")} : ${v("echeance")}` : null,
       lien ? `${t("formLien")} : ${lien}` : null,
       "", `${t("formMessage")} :`, v("message"),
     ].filter((l) => l != null);
-    const sujet = t("mailSujet", { service: nomService(service) });
-    window.location.href = `mailto:${CONTACT}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(lignes.join("\n"))}`;
+    return { v, texte: lignes.join("\n"), sujet: t("mailSujet", { service: nomService(service) }) };
+  };
+
+  const envoyer = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const { v, texte, sujet } = rediger(form);
+    if (!FORMULAIRE) {
+      compter("devis-envoye/email");
+      window.location.href = `mailto:${CONTACT}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(texte)}`;
+      return;
+    }
+    if (v("_gotcha")) return;   // champ invisible rempli : robot
+    setEtat("envoi");
+    try {
+      const r = await fetch(FORMULAIRE, {
+        method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ _subject: sujet, _replyto: v("email"), service: nomService(service), nom: v("nom"),
+          organisation: v("organisation"), email: v("email"), telephone: v("telephone"), lieux: v("lieux"),
+          echeance: v("echeance"), lien, message: v("message"), demande: texte }),
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      compter("devis-envoye/formulaire");
+      setEtat("envoye"); form.reset(); setLieux(""); setLien("");
+    } catch {
+      setEtat("erreur");
+    }
+  };
+  // WhatsApp ne demande que le nom et le besoin : l'e-mail reste facultatif sur ce canal
+  const envoyerWhatsapp = () => {
+    const form = formulaire.current;
+    if (!form) return;
+    for (const nom of ["nom", "message"]) if (!(form.elements.namedItem(nom) as HTMLInputElement).reportValidity()) return;
+    compter("devis-envoye/whatsapp");
+    window.open(lienWhatsapp(rediger(form).texte), "_blank", "noopener");
   };
   const copier = async () => {
     try { await navigator.clipboard.writeText(CONTACT); setCopie(true); setTimeout(() => setCopie(false), 2000); } catch { /* adresse visible à l'écran */ }
@@ -214,10 +252,15 @@ export function Services() {
                 {copie ? t("adresseCopiee") : t("copierAdresse")}
               </button>
             </span>
+            {WHATSAPP && (
+              <a className="font-semibold text-accent" href={lienWhatsapp()} target="_blank" rel="noopener" onClick={() => compter("contact/whatsapp")}>
+                {t("ecrireWhatsapp")} : +{WHATSAPP}
+              </a>
+            )}
           </div>
         </div>
 
-        <form id="demande" onSubmit={envoyer} className="grid content-start gap-3">
+        <form id="demande" ref={formulaire} onSubmit={envoyer} className="grid content-start gap-3">
           <h3 className="m-0 text-xl font-bold">{t("formTitre")}</h3>
           <label className="grid gap-1 text-sm">
             <span className="font-medium">{t("formService")}</span>
@@ -240,6 +283,16 @@ export function Services() {
               <span className="font-medium">{t("formOrganisation")}</span>
               <input name="organisation" autoComplete="organization" className={champ} />
             </label>
+            {FORMULAIRE && <>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">{t("formEmail")} *</span>
+                <input name="email" type="email" required autoComplete="email" className={champ} />
+              </label>
+              <label className="grid gap-1 text-sm">
+                <span className="font-medium">{t("formTelephone")}</span>
+                <input name="telephone" type="tel" autoComplete="tel" className={champ} />
+              </label>
+            </>}
             <label className="grid gap-1 text-sm">
               <span className="font-medium">{t("formLieux")}</span>
               <input name="lieux" value={lieux} placeholder={t("formLieuxAide")} className={champ}
@@ -254,9 +307,27 @@ export function Services() {
             <span className="font-medium">{t("formMessage")} *</span>
             <textarea name="message" required rows={4} placeholder={t("formMessageAide")} className={champ} />
           </label>
-          <button type="submit" className="w-full cursor-pointer rounded-xl border-0 px-5 py-3 text-[0.95rem] font-semibold text-white shadow-md transition hover:-translate-y-0.5 sm:w-fit"
-            style={{ background: "var(--accent)" }}>{t("formEnvoyer")}</button>
-          <p className="m-0 text-[0.78rem] text-discret">{t("formAide")}</p>
+          {/* Piège à robots : invisible pour les visiteurs, rempli par les scripts de spam */}
+          {FORMULAIRE && <input name="_gotcha" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />}
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" disabled={etat === "envoi"}
+              className="w-full cursor-pointer rounded-xl border-0 px-5 py-3 text-[0.95rem] font-semibold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70 sm:w-fit"
+              style={{ background: "var(--accent)" }}>
+              {etat === "envoi" ? t("formEnvoi") : FORMULAIRE ? t("formEnvoyerDirect") : t("formEnvoyer")}
+            </button>
+            {WHATSAPP && (
+              <button type="button" onClick={envoyerWhatsapp}
+                className="w-full cursor-pointer rounded-xl border-0 px-5 py-3 text-[0.95rem] font-semibold text-white shadow-md transition hover:-translate-y-0.5 sm:w-fit"
+                style={{ background: "#1a8d4a" }}>{t("formWhatsapp")}</button>
+            )}
+          </div>
+          {etat === "envoye" && <p role="status" className="m-0 rounded-xl bg-accent-doux p-3 text-sm font-medium text-encre">{t("formEnvoye")}</p>}
+          {etat === "erreur" && (
+            <p role="alert" className="m-0 rounded-xl border border-trait-fort p-3 text-sm text-encre">
+              {t("formErreur", { email: "" })}<a className="font-semibold text-accent" href={`mailto:${CONTACT}`}>{CONTACT}</a>.
+            </p>
+          )}
+          <p className="m-0 text-[0.78rem] text-discret">{FORMULAIRE ? t("formAideDirect") : t("formAide")}</p>
         </form>
       </div>
     </section>

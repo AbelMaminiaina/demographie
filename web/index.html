@@ -5,6 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Démographie de Madagascar</title>
     <meta name="description" content="Population, densité, croissance, santé, pauvreté et emploi à Madagascar, de la région au fokontany." />
+    <!-- Aperçu des liens partagés (Facebook, WhatsApp, LinkedIn…) : les adresses doivent être absolues -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Démographie de Madagascar" />
+    <meta property="og:title" content="Démographie de Madagascar : données ouvertes et services" />
+    <meta property="og:description" content="Carte interactive de la population, de la région au fokontany : recensement 2018, estimations, santé, écoles. Données gratuites, en français, malgache et anglais." />
+    <meta property="og:url" content="https://abelmaminiaina.github.io/demographie/" />
+    <meta property="og:image" content="https://abelmaminiaina.github.io/demographie/apercu.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Chiffres clés de la population de Madagascar et carte des régions" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:locale:alternate" content="mg_MG" />
+    <meta property="og:locale:alternate" content="en_GB" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href="https://abelmaminiaina.github.io/demographie/" />
+    <link rel="alternate" hreflang="fr" href="https://abelmaminiaina.github.io/demographie/?lang=fr" />
+    <link rel="alternate" hreflang="mg" href="https://abelmaminiaina.github.io/demographie/?lang=mg" />
+    <link rel="alternate" hreflang="en" href="https://abelmaminiaina.github.io/demographie/?lang=en" />
+    <link rel="alternate" hreflang="x-default" href="https://abelmaminiaina.github.io/demographie/" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M19 3c4 3 6 8 5 13-1 6-4 11-9 13-3-2-4-6-3-10 1-6 3-11 7-16z' fill='%232a78d6'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,8 +34,8 @@
         var t = localStorage.getItem("mdg-theme");
         if (t === "clair") document.documentElement.dataset.theme = "light";
         if (t === "sombre") document.documentElement.dataset.theme = "dark";
-        var l = localStorage.getItem("mdg-langue");
-        if (l === "mg") document.documentElement.lang = "mg";
+        var l = new URLSearchParams(location.search).get("lang") || localStorage.getItem("mdg-langue");
+        if (l === "mg" || l === "en") document.documentElement.lang = l;
       } catch (e) {}
     </script>
   </head>

@@ -28,6 +28,7 @@ export function FournisseurLangue({ children }: { children: ReactNode }) {
   choisirLangueNombres(langue);
   useEffect(() => {
     document.documentElement.lang = langue;
+    document.title = TEXTES[langue].titre ?? fr.titre;
     try { localStorage.setItem("mdg-langue", langue); } catch { /* stockage indisponible */ }
   }, [langue]);
   const t = useCallback<Traduire>((cle, valeurs) => {
