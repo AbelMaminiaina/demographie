@@ -11,8 +11,10 @@ const CATEGORIES: Record<Categorie, string> = {
 };
 const SERVICES = [
   { id: "analyse", cat: "comprendre" }, { id: "rapport", cat: "comprendre" }, { id: "financement", cat: "comprendre" },
+  { id: "dividende", cat: "comprendre" }, { id: "acces", cat: "comprendre" }, { id: "marche", cat: "comprendre" },
   { id: "microplan", cat: "planifier" }, { id: "implantation", cat: "planifier" }, { id: "projections", cat: "planifier" },
-  { id: "risques", cat: "planifier" }, { id: "tableau", cat: "outiller" }, { id: "suivi", cat: "outiller" },
+  { id: "risques", cat: "planifier" }, { id: "sante", cat: "planifier" }, { id: "jeunesse", cat: "planifier" },
+  { id: "urbanisation", cat: "planifier" }, { id: "ciblage", cat: "planifier" }, { id: "listes", cat: "outiller" }, { id: "tableau", cat: "outiller" }, { id: "suivi", cat: "outiller" },
   { id: "cartes", cat: "outiller" }, { id: "enquete", cat: "outiller" }, { id: "formation", cat: "former" },
 ] as const satisfies readonly { id: string; cat: Categorie }[];
 type Service = (typeof SERVICES)[number]["id"] | "partenaire" | "autre";
@@ -30,6 +32,14 @@ const ICONES: Record<string, ReactNode> = {
   risques: <path d="M12 3l10 18H2zM12 10v4.5M12 17.5h.01" />,
   suivi: <path d="M3 12h4l3-8 4 16 3-8h4" />,
   cartes: <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14" />,
+  dividende: <><circle cx="8" cy="7" r="3" /><circle cx="17" cy="9" r="2.2" /><path d="M2 21v-2a6 6 0 0 1 12 0v2M14 21v-1.5a4 4 0 0 1 7-2.6" /></>,
+  sante: <><path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.4 12 20 12 20z" /><path d="M12 10v5M9.5 12.5h5" /></>,
+  jeunesse: <><path d="M4 21V10l8-6 8 6v11" /><path d="M9 21v-6h6v6M12 4v3" /></>,
+  acces: <path d="M4 20L8 4M20 20L16 4M12 5v2M12 10.5v2.5M12 16.5v3" />,
+  marche: <><path d="M5 8h14l-1 13H6z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></>,
+  ciblage: <path d="M3 4h18l-7 9v6l-4 2v-8z" />,
+  listes: <><path d="M9 6h11M9 12h11M9 18h11" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></>,
+  urbanisation: <><path d="M3 21h18M5 21V9l5-3v15M10 21V4l9 4v13" /><path d="M13 11h3M13 15h3" /></>,
   formation: <><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5M22 9v5" /></>,
   partenaire: <path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.4 12 20 12 20z" />,
   coche: <path d="M5 12.5l4.5 4.5L19 7" />,
