@@ -24,10 +24,13 @@ export async function chargerFokontany(communes: Unite[]): Promise<Unite[]> {
   return unites;
 }
 
-/** Établissements de santé publics : [longitude, latitude, type (0 centre, 1 poste, 2 hôpital), nom]. */
-export type PointSante = [number, number, 0 | 1 | 2, string];
-export async function chargerSante(): Promise<PointSante[]> {
-  return (await lire<{ points: PointSante[] }>("sante.json")).points;
+/** Équipements affichés en points : [longitude, latitude, catégorie, nom, statut des écoles (0 inconnu, 1 public, 2 privé)].
+ * Santé : 0 centre, 1 poste, 2 hôpital. Écoles : 0 primaire, 1 collège, 2 lycée, 3 supérieur,
+ * 4 préscolaire, 5 niveau non précisé (NIVEAUX_ECOLES de src/config.py). */
+export type PointCarte = [number, number, number, string, number?];
+export type CoucheId = "sante" | "ecoles";
+export async function chargerPoints(couche: CoucheId): Promise<PointCarte[]> {
+  return (await lire<{ points: PointCarte[] }>(`${couche}.json`)).points;
 }
 
 /** Contours d'un niveau. Ceux des fokontany sont compressés : entiers, écarts entre points successifs. */

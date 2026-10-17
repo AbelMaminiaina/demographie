@@ -7,7 +7,7 @@ import json
 
 import telechargements
 from config import DOSSIER_SORTIES
-from config import TYPES_SANTE
+from config import NIVEAUX_ECOLES, TYPES_SANTE
 from tableau_de_bord import NOMS_DHS, _national, _niveaux, annee_courante_wp100, brut
 
 DOSSIER = DOSSIER_SORTIES / "web" / "donnees"
@@ -66,6 +66,8 @@ def generer(donnees):
                      "annee_wp100": annee_courante_wp100(donnees["worldpop_100m"]),
                      "nb_fokontany": len(fokontany["unites"]),
                      "nb_sante": len(donnees["sante"]),
+                     "nb_ecoles": len(donnees["ecoles"]),
+                     "osm_ecoles": donnees["ecoles"].attrs.get("instantane"),
                      "rg_national": _recensement_national(donnees)},
             **_national(donnees),
             "enquetes": _enquetes(donnees),
@@ -77,6 +79,11 @@ def generer(donnees):
         "sante.json": _ecrire("sante.json", {"points": [
             [round(e.longitude, 4), round(e.latitude, 4), list(TYPES_SANTE.values()).index(e.type), e.nom]
             for e in donnees["sante"].itertuples()]}),
+        # Écoles : [longitude, latitude, niveau (indice dans NIVEAUX_ECOLES), nom, statut (0 inconnu, 1 public, 2 privé)]
+        "ecoles.json": _ecrire("ecoles.json", {"points": [
+            [round(e.longitude, 4), round(e.latitude, 4), NIVEAUX_ECOLES.index(e.niveau), e.universite_publique or e.nom,
+             ("inconnu", "public", "privé").index(e.statut)]
+            for e in donnees["ecoles"].itertuples()]}),
         "contours_fokontany.json": _ecrire("contours_fokontany.json",
                                            {"echelle": fokontany["echelle"], "anneaux": fokontany["anneaux"]}),
     }

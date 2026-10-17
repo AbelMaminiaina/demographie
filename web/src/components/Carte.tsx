@@ -6,7 +6,7 @@ setWorkerUrl(adresseWorker);
 import { useEffect, useRef, useState } from "react";
 import { useLangue } from "../i18n";
 import type { Cle } from "../i18n/fr";
-import { boite, type PointSante } from "../lib/donnees";
+import { boite, type CoucheId, type PointCarte } from "../lib/donnees";
 import type { Contours, Niveau, Selection } from "../lib/types";
 import { NIVEAUX } from "../lib/types";
 
@@ -32,10 +32,23 @@ const EPAISSEUR: Record<Niveau, ExpressionSpecification | number> = {
 
 export interface Survol { niveau: Niveau; i: number; x: number; y: number }
 
-/** Couleur des établissements de santé par type : centre, poste, hôpital (reprise dans la légende). */
-export const COULEURS_SANTE = ["var(--serie-3)", "var(--serie-4)", "var(--femme)"];
+/** Couches de points : couleur par catégorie (jetons CSS) et légende, reprise sous la carte. */
+export const COUCHES: Record<CoucheId, { couleurs: string[]; legende: { couleur: string; cle: Cle }[]; libelle: string;
+  rayon: [number, number, number, number]; gros: ExpressionSpecification }> = {
+  // Santé : centre, poste, hôpital ; les hôpitaux sont plus gros
+  sante: { couleurs: ["--serie-3", "--serie-4", "--femme"], libelle: "sante.type.", rayon: [2.4, 4, 6, 9], gros: ["==", ["get", "t"], 2],
+    legende: [{ couleur: "--serie-3", cle: "sante.type.0" }, { couleur: "--serie-4", cle: "sante.type.1" }, { couleur: "--femme", cle: "sante.type.2" }] },
+  // Écoles : primaire, collège, lycée, supérieur, préscolaire, niveau non précisé
+  // (sans bleu, couleur des découpages, ni les couleurs de la santé)
+  // Les universités publiques (supérieur et public) sont plus grosses
+  ecoles: { couleurs: ["--serie-5", "--d7", "--d7", "--encre", "--serie-5", "--discret"], libelle: "ecole.niveau.", rayon: [2, 5, 5, 11],
+    gros: ["all", ["==", ["get", "t"], 3], ["==", ["get", "s"], 1]],
+    legende: [{ couleur: "--serie-5", cle: "ecole.legende.0" }, { couleur: "--d7", cle: "ecole.legende.1" },
+              { couleur: "--encre", cle: "ecole.legende.2" }, { couleur: "--discret", cle: "ecole.legende.3" }] },
+};
+export interface Couche { points: PointCarte[] | null; visible: boolean; publiquesSeules?: boolean }
 
-export function Carte({ niveau, contours, couleurs, selection, zone, centrage, sombre, fondActif, sante, santeVisible, onSurvol, onChoisir }: {
+export function Carte({ niveau, contours, couleurs, selection, zone, centrage, sombre, fondActif, couches, onSurvol, onChoisir }: {
   niveau: Niveau;
   contours: Partial<Record<Niveau, Contours>>;
   couleurs: string[] | null;
@@ -44,8 +57,7 @@ export function Carte({ niveau, contours, couleurs, selection, zone, centrage, s
   centrage: number;               // change à chaque demande de recentrage sur la sélection
   sombre: boolean;
   fondActif: boolean;
-  sante: PointSante[] | null;     // établissements de santé publics, chargés à la première demande
-  santeVisible: boolean;
+  couches: Record<CoucheId, Couche>;   // équipements en points, chargés à la première demande
   onSurvol: (s: Survol | null) => void;
   onChoisir: (s: Selection) => void;
 }) {
@@ -95,18 +107,21 @@ export function Carte({ niveau, contours, couleurs, selection, zone, centrage, s
       etat.current.onSurvol(i == null ? null : { niveau: n, i, x: e.originalEvent.clientX, y: e.originalEvent.clientY });
     });
     m.on("mouseout", () => etat.current.onSurvol(null));
-    // Établissement de santé survolé : son nom et son type (texte inséré sans HTML)
+    // Équipement survolé : son nom et sa catégorie (texte inséré sans HTML)
     const bulle = new Popup({ closeButton: false, closeOnClick: false, offset: 8 });
-    m.on("mousemove", "points-sante", (e) => {
-      const f = e.features?.[0];
-      if (!f) return;
-      const contenu = document.createElement("div");
-      const nom = document.createElement("strong");
-      nom.textContent = String(f.properties.n);
-      contenu.append(nom, document.createElement("br"), etat.current.t(`sante.type.${f.properties.t}` as Cle));
-      bulle.setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number]).setDOMContent(contenu).addTo(m);
-    });
-    m.on("mouseleave", "points-sante", () => bulle.remove());
+    for (const id of Object.keys(COUCHES) as CoucheId[]) {
+      m.on("mousemove", `points-${id}`, (e) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        const contenu = document.createElement("div");
+        const nom = document.createElement("strong");
+        nom.textContent = String(f.properties.n || "—");
+        const statut = f.properties.s ? ` · ${etat.current.t(`ecole.statut.${f.properties.s}` as Cle)}` : "";
+        contenu.append(nom, document.createElement("br"), etat.current.t(`${COUCHES[id].libelle}${f.properties.t}` as Cle) + statut);
+        bulle.setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number]).setDOMContent(contenu).addTo(m);
+      });
+      m.on("mouseleave", `points-${id}`, () => bulle.remove());
+    }
     m.on("click", (e) => {
       const n = etat.current.niveau;
       if (!m.getLayer(premiereCouche(n))) return;
@@ -153,24 +168,35 @@ export function Carte({ niveau, contours, couleurs, selection, zone, centrage, s
     }
   }, [contours, styleCharge, fondActif, fondEnErreur]);
 
-  // Établissements de santé : points au-dessus des découpages
+  // Équipements : points au-dessus des découpages, une couleur par catégorie
   useEffect(() => {
     const m = carte.current;
-    if (!m || !stylePret.current || !sante || m.getSource("src-sante")) return;
-    m.addSource("src-sante", { type: "geojson", data: { type: "FeatureCollection", features: sante.map(([x, y, type, n]) => (
-      { type: "Feature", properties: { t: type, n }, geometry: { type: "Point", coordinates: [x, y] } })) } });
-    m.addLayer({ id: "points-sante", type: "circle", source: "src-sante", layout: { visibility: santeVisible ? "visible" : "none" },
-      paint: {
-        "circle-color": ["match", ["get", "t"], 0, jeton("--serie-3"), 1, jeton("--serie-4"), jeton("--femme")],
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, ["match", ["get", "t"], 2, 4, 2.4], 11, ["match", ["get", "t"], 2, 9, 6]],
-        "circle-stroke-color": jeton("--surface"), "circle-stroke-width": 0.8,
-      } });
+    if (!m || !stylePret.current) return;
+    for (const id of Object.keys(COUCHES) as CoucheId[]) {
+      const { points, visible } = couches[id];
+      if (!points || m.getSource(`src-${id}`)) continue;
+      const { couleurs: c, rayon: [petit, grand, petitZoom, grandZoom], gros } = COUCHES[id];
+      m.addSource(`src-${id}`, { type: "geojson", data: { type: "FeatureCollection", features: points.map(([x, y, t, n, s]) => (
+        { type: "Feature", properties: { t, n, s: s ?? 0 }, geometry: { type: "Point", coordinates: [x, y] } })) } });
+      // Rayon au zoom 5 puis 11 ; les points « gros » (hôpitaux, universités publiques) ressortent
+      const rayon = (base: number, grosRayon: number): ExpressionSpecification => ["case", gros, grosRayon, base];
+      m.addLayer({ id: `points-${id}`, type: "circle", source: `src-${id}`, layout: { visibility: visible ? "visible" : "none" },
+        paint: {
+          "circle-color": ["match", ["get", "t"], ...c.flatMap((j, k) => [k, jeton(j)]), jeton("--discret")] as unknown as ExpressionSpecification,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, rayon(petit, grand), 11, rayon(petitZoom, grandZoom)],
+          "circle-stroke-color": jeton("--surface"), "circle-stroke-width": 0.8,
+        } });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sante, styleCharge]);
+  }, [couches.sante.points, couches.ecoles.points, styleCharge]);
   useEffect(() => {
     const m = carte.current;
-    if (m?.getLayer("points-sante")) m.setLayoutProperty("points-sante", "visibility", santeVisible ? "visible" : "none");
-  }, [santeVisible, sante, styleCharge]);
+    for (const id of Object.keys(COUCHES) as CoucheId[]) {
+      if (!m?.getLayer(`points-${id}`)) continue;
+      m.setLayoutProperty(`points-${id}`, "visibility", couches[id].visible ? "visible" : "none");
+      m.setFilter(`points-${id}`, couches[id].publiquesSeules ? ["==", ["get", "s"], 1] : null);
+    }
+  }, [couches, styleCharge]);
 
   // Seul le découpage choisi est visible ; les limites de régions restent en repère
   useEffect(() => {

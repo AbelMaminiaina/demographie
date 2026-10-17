@@ -33,6 +33,9 @@ export interface Unite {
   rg?: Recensement;
   dhs?: Record<string, number | null>;
   es?: [number, number, number];   // établissements de santé publics : centres, postes, hôpitaux (liste 2019)
+  ec?: number[];        // écoles cartographiées dans OpenStreetMap, par niveau (même ordre que les points, voir donnees.ts)
+  ecp?: number[];       // dont écoles identifiées comme publiques, par niveau
+  up?: string[];        // universités publiques situées dans l'unité
 }
 
 export interface Meta {
@@ -46,6 +49,8 @@ export interface Meta {
   annee_wp100: number;
   nb_fokontany: number;
   nb_sante: number;
+  nb_ecoles: number;
+  osm_ecoles: string | null;   // date de l'instantané OpenStreetMap
   rg_national: Recensement;
 }
 

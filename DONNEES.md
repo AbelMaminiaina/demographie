@@ -17,6 +17,7 @@ Les fichiers de `data/` ne sont pas versionnés dans git : ils sont recréés pa
 | [Emploi (ENEMPSI, ENESI, EPM)](#oit--emploi-daprès-les-enquêtes-enempsi-enesi-et-epm) | INSTAT (enquêtes) ; OIT (calcul des indicateurs) | OIT, ILOSTAT (API SDMX) | Activité, emploi, chômage, informalité, jeunes NEET, emploi par secteur et par statut | 2001-2022 | Pays | CC BY 4.0 (OIT) |
 | [Pauvreté (EPM)](#banque-mondiale--pauvreté-daprès-les-enquêtes-epm) | INSTAT (enquêtes) ; Banque mondiale (calcul) | Banque mondiale, Poverty and Inequality Platform (API) | Taux et écart de pauvreté à 3 seuils, indice de Gini | 1980-2021 | Pays | CC BY 4.0 |
 | [Établissements de santé publics](#établissements-de-santé-publics-liste-de-2019) | Maina et al. (KEMRI-Wellcome Trust), à partir des listes des ministères de la Santé | HDX (`health-facilities-in-sub-saharan-africa`) | Centres de santé, postes de santé et hôpitaux publics géolocalisés | 2019 | Points, rattachés aux communes | CC BY 4.0 |
+| [Écoles (OpenStreetMap)](#écoles-openstreetmap) | Contributeurs OpenStreetMap | Humanitarian OpenStreetMap Team, sur HDX (`hotosm_mdg_education_facilities`) | Écoles, collèges, lycées et établissements du supérieur cartographiés (recensement partiel) | Mis à jour chaque semaine | Points, rattachés aux communes | ODbL 1.0 |
 | [Grilles de population](#worldpop--estimations-sur-grilles-de-1-km-et-de-100-m) | WorldPop (université de Southampton) | WorldPop Hub | Habitants par carré de 1 km et de 100 m | 2015-2030 | Grilles, agrégées aux fokontany (100 m) et aux communes, districts et régions (1 km) | CC BY 4.0 |
 
 ## Fiches par source
@@ -196,6 +197,17 @@ Quand l'API donne plusieurs périodes de référence pour un même indicateur, s
 - **Contenu :** pour chaque établissement, le nom, le type (centre de santé, poste de santé, hôpital), la région, les coordonnées et la méthode de géolocalisation. Les établissements privés et confessionnels ne sont pas inclus.
 - **Limites :** la liste date de 2019. Les établissements ouverts depuis manquent, et certains centres de santé de base (CSB) peuvent être absents ou mal placés. Les ratios « habitants par établissement » sont donc des ordres de grandeur.
 
+### Écoles (OpenStreetMap)
+
+- **Producteur :** les contributeurs d'OpenStreetMap ; export hebdomadaire du Humanitarian OpenStreetMap Team (HOT).
+- **Accès :** HDX, jeu `hotosm_mdg_education_facilities`, fichier GeoJSON compressé. Il est retéléchargé à chaque collecte ; la date de l'instantané OpenStreetMap figure dans les données de l'application (`osm_ecoles`).
+- **Conditions :** Open Database License (ODbL 1.0). Toute réutilisation doit mentionner « © contributeurs OpenStreetMap », et une base dérivée doit être publiée sous la même licence.
+- **Fichier brut :** `data/brut/openstreetmap/etablissements_enseignement.geojson.zip`.
+- **Traitement :** l'export contient aussi les bâtiments scolaires. Un bâtiment sans nom ni type d'établissement est écarté, car une école en compte souvent plusieurs ; un même nom n'est gardé qu'une fois par commune. Le niveau est déduit du type OpenStreetMap puis du nom : EPP et EC (primaire), CEG, collège ou Kolejy (collège), lycée ou LTP, université ou institut (supérieur), préscolaire. Les autres sont classés « niveau non précisé ».
+- **Statut public ou privé :** il vient de l'exploitant indiqué dans OpenStreetMap quand il existe, sinon du nom : EPP, CEG, « collège d'enseignement général », « lycée public » donnent « public » ; « privé », les écoles confessionnelles (catholiques, FJKM, luthériennes…) et étrangères donnent « privé ». Les autres restent « inconnu » : beaucoup de lycées publics portent un nom de lieu ou de personne sans autre indication. Les motifs sont dans `src/config.py`.
+- **Universités publiques :** reconnues par le nom de leur campus (`UNIVERSITES_PUBLIQUES` dans `src/config.py`) : les six universités historiques et les universités régionales cartographiées. Celles qui ne sont pas encore dans OpenStreetMap sont signalées à chaque exécution du pipeline.
+- **Limites :** **recensement partiel.** OpenStreetMap ne recense qu'une partie des écoles du pays, et beaucoup de communes n'en comptent aucune alors qu'elles ont des écoles. Les comptes ne doivent pas servir à mesurer l'équipement scolaire d'une commune. Une partie des établissements reste de statut inconnu.
+
 ### Microdonnées des enquêtes
 
 Les microdonnées (réponses individuelles anonymisées) de l'EPM 2021-2022 et de l'ENEMPSI 2012 sont diffusées sur des catalogues qui demandent une inscription et l'acceptation de conditions d'utilisation : la plateforme de l'INSTAT (microdata.instat.mg) et le catalogue de l'OIT. Le pipeline ne les télécharge pas automatiquement. Les indicateurs de l'OIT et de la Banque mondiale en sont tirés.
@@ -232,6 +244,8 @@ data/
 │   │   └── pauvrete_madagascar.json
 │   ├── dhs/
 │   │   └── indicateurs_regions.json
+│   ├── openstreetmap/
+│   │   └── etablissements_enseignement.geojson.zip
 │   ├── sante_etablissements/
 │   │   └── etablissements_publics_afrique_subsaharienne.xlsx
 │   ├── worldpop/
@@ -249,6 +263,8 @@ data/
     ├── territoires/                    Estimations HDX : population et densité par unité administrative
     │   ├── regions.csv, districts.csv, communes.csv, fokontany.csv
     │   └── <niveau>_series_2009_2018.csv
+    ├── education/
+    │   └── ecoles_openstreetmap.csv
     ├── sante/
     │   ├── dhs_regions.csv
     │   └── etablissements_sante_publics.csv
@@ -393,6 +409,9 @@ Une ligne par région : `pcode`, `nom` et les 8 indicateurs du [tableau DHS](#dh
 ### `sante/etablissements_sante_publics.csv`
 Une ligne par établissement de santé public : `nom` (tel que dans la source), `type` (centre de santé, poste de santé, hôpital), `latitude`, `longitude`, `region_source` (région donnée par la source), `source_coordonnees` (méthode de géolocalisation), `distance_commune_km` (0 si l'établissement est dans le contour de sa commune, sinon distance au contour le plus proche), puis le rattachement à la carte : `commune_pcode`, `commune`, `district_pcode`, `district`, `region_pcode`, `region`.
 
+### `education/ecoles_openstreetmap.csv`
+Une ligne par établissement cartographié : `nom` (vide si OpenStreetMap n'en donne pas), `niveau` (primaire, collège, lycée, supérieur, préscolaire, niveau non précisé), `statut_osm` (public, private, religious… quand il est renseigné), `statut` (public, privé ou inconnu, voir la fiche de la source), `universite_publique` (nom officiel, pour les campus des universités publiques), `latitude`, `longitude`, `region_source` (région donnée par l'export), `osm_id` (identifiant de l'objet OpenStreetMap), `distance_commune_km`, puis le rattachement à la carte : `commune_pcode`, `commune`, `district_pcode`, `district`, `region_pcode`, `region`.
+
 ### `estimations/worldpop_<niveau>.csv`
 Une ligne par région, district ou commune : `pcode`, `nom`, puis `wp_2015` à `wp_2030` (habitants estimés, arrondis à l'unité).
 
@@ -406,7 +425,7 @@ Une ligne par fokontany (17 464) : `pcode`, `nom`, le rattachement (`commune_pco
 - **Rattachement des contours :** les communes et les fokontany sont rattachés à leur unité parente en cherchant le contour parent qui contient un point intérieur de l'unité (`src/geometrie.py`), puis par le couple (unité parente, nom).
 - **Superficies :** calculées sur les contours simplifiés, en projection équirectangulaire locale. La superficie totale obtenue (591 000 km²) est proche de la superficie officielle de Madagascar (587 000 km²).
 - **WorldPop 100 m :** chaque carré de 100 m est affecté au fokontany qui contient son centre. Les grilles sont lues par bandes de lignes pour limiter la mémoire.
-- **Établissements de santé :** chaque établissement est rattaché à la commune dont le contour le contient. Les contours simplifiés coupent parfois le littoral : un établissement situé à moins de 10 km d'une commune lui est alors rattaché ; au-delà, il est écarté (coordonnées hors de la carte).
+- **Écoles et établissements de santé :** chaque établissement est rattaché à la commune dont le contour le contient. Les contours simplifiés coupent parfois le littoral : un établissement situé à moins de 10 km d'une commune lui est alors rattaché ; au-delà, il est écarté (coordonnées hors de la carte).
 - **WorldPop :** chaque carré de 1 km est affecté à la commune qui le contient, puis les sommes sont agrégées aux districts et aux régions.
 - **Contrôles qualité :** le pipeline s'arrête si l'une de ces conditions n'est pas remplie :
   - le nombre d'unités attendu à chaque niveau ;
@@ -419,7 +438,7 @@ Une ligne par fokontany (17 464) : `pcode`, `nom`, le rattachement (`commune_pco
   - la pyramide des âges cohérente avec la population totale, à 1 % près ;
   - le total WorldPop proche de celui de l'ONU, à 5 % près, avec moins de 2 % de la population hors des contours ;
   - pour la grille à 100 m : le même total national qu'à 1 km, à 2 % près, et moins de 1 % de la population hors des fokontany ;
-  - pour les établissements de santé : des types connus, moins de 1 % des établissements hors de la carte, et la même région que la source pour au moins 97 % d'entre eux.
+  - pour les établissements de santé et les écoles : moins de 1 % des établissements hors de la carte, et la même région que la source pour au moins 97 % d'entre eux ; pour la santé, des types connus.
 
 ## Citer ces données
 
@@ -433,5 +452,6 @@ Toute réutilisation des fichiers de ce projet doit mentionner les sources d'ori
 - INSTAT et BNGRC, *Madagascar - Subnational Population Statistics*, diffusé par OCHA sur HDX (CC BY 3.0 IGO).
 - geoBoundaries (Runfola et al., 2020) ; régions © contributeurs OpenStreetMap (ODbL 1.0) ; districts, communes et fokontany : BNGRC et OCHA (CC BY 3.0 IGO).
 - INSTAT et ICF, *Enquête démographique et de santé de Madagascar 2021* (The DHS Program, API publique).
+- © contributeurs OpenStreetMap, export du Humanitarian OpenStreetMap Team sur HDX (ODbL 1.0).
 - Maina J., Ouma P. O., Macharia P. M. et al. (2019), *A spatial database of health facilities managed by the public health sector in sub Saharan Africa*, Scientific Data 6:134, doi:10.1038/s41597-019-0142-2 (CC BY 4.0).
 - Bondarenko M. et al. (2025), *Constrained estimates of 2015-2030 total number of people per grid square*, WorldPop, université de Southampton, R2025A v1, doi:10.5258/SOTON/WP00840 (1 km) et doi:10.5258/SOTON/WP00839 (100 m) (CC BY 4.0).

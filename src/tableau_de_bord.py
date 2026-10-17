@@ -2,7 +2,7 @@
 import json
 from datetime import date
 
-from config import DOSSIER_SORTIES, INDICATEURS_DHS, RACINE, TYPES_SANTE, brut
+from config import DOSSIER_SORTIES, INDICATEURS_DHS, NIVEAUX_ECOLES, RACINE, TYPES_SANTE, brut
 from geometrie import simplifier
 
 MODELE = RACINE / "src" / "modele_tableau_de_bord.html"
@@ -90,6 +90,19 @@ def _niveaux(donnees):
     sante_par = {"regions": sante.groupby(["region_pcode", "type"]).size(),
                  "districts": sante.groupby(["district_pcode", "type"]).size(),
                  "communes": sante.groupby(["cle", "type"]).size()}
+    # Écoles cartographiées dans OpenStreetMap par unité, une valeur par niveau (NIVEAUX_ECOLES)
+    ecoles = donnees["ecoles"]
+    ecoles_par = {"regions": ecoles.groupby(["region_pcode", "niveau"]).size(),
+                  "districts": ecoles.groupby(["district_pcode", "niveau"]).size(),
+                  "communes": ecoles.groupby(["cle", "niveau"]).size()}
+    publiques = ecoles[ecoles["statut"] == "public"]
+    publiques_par = {"regions": publiques.groupby(["region_pcode", "niveau"]).size(),
+                     "districts": publiques.groupby(["district_pcode", "niveau"]).size(),
+                     "communes": publiques.groupby(["cle", "niveau"]).size()}
+    univ = ecoles[ecoles["universite_publique"] != ""]
+    univ_par = {"regions": univ.groupby("region_pcode")["universite_publique"].unique(),
+                "districts": univ.groupby("district_pcode")["universite_publique"].unique(),
+                "communes": univ.groupby("cle")["universite_publique"].unique()}
 
     resultat = {}
     for niveau in TOLERANCES:
@@ -116,6 +129,10 @@ def _niveaux(donnees):
             comptes = sante_par[niveau]
             cle_sante = u["cle"] if niveau == "communes" else u["pcode"]
             ligne["es"] = [int(comptes.get((cle_sante, t), 0)) for t in types_sante]
+            ligne["ec"] = [int(ecoles_par[niveau].get((cle_sante, t), 0)) for t in NIVEAUX_ECOLES]
+            ligne["ecp"] = [int(publiques_par[niveau].get((cle_sante, t), 0)) for t in NIVEAUX_ECOLES]
+            if cle_sante in univ_par[niveau].index:
+                ligne["up"] = sorted(univ_par[niveau][cle_sante])
             if niveau == "regions":
                 ligne["dhs"] = {c: (None if v != v else float(v)) for c, v in dhs_par_cle.loc[u["cle"]].items()}
             lignes.append(ligne)

@@ -4,6 +4,7 @@ import json
 import math
 import re
 import unicodedata
+import zipfile
 
 import numpy as np
 import pandas as pd
@@ -12,7 +13,8 @@ from rasterio.features import rasterize
 from rasterio.windows import Window
 
 from config import (DOSSIER_TRAITE, INDICATEURS, INDICATEURS_DHS, INDICATEURS_EMPLOI, INDICATEURS_PROJECTIONS,
-                    NIVEAUX, PARENTS, RGPH3_TOTAL, TYPES_SANTE, brut, traite)
+                    AMENITES_ECOLES, MOTIFS_ECOLE_PRIVEE, MOTIFS_ECOLE_PUBLIQUE, NIVEAUX, PARENTS, RGPH3_TOTAL,
+                    TYPES_SANTE, UNIVERSITES_PUBLIQUES, brut, traite)
 from geometrie import anneaux, boite, contient, point_interieur, superficie_km2
 import rgph3
 
@@ -700,23 +702,14 @@ def pauvrete():
     return table.sort_values("annee")
 
 
-def etablissements_sante(niveaux, distance_max_km=10):
-    """Établissements de santé publics, chacun rattaché à la commune de la carte qui le contient.
+def _rattacher_aux_communes(table, niveaux, libelle, distance_max_km=10):
+    """Rattache chaque point (colonnes longitude, latitude) à la commune de la carte qui le contient.
 
-    Les contours simplifiés coupent parfois le littoral : un établissement situé juste à côté est
-    rattaché à la commune la plus proche s'il en est à moins de `distance_max_km`.
+    Les contours simplifiés coupent parfois le littoral : un point situé juste à côté est rattaché à
+    la commune la plus proche s'il en est à moins de `distance_max_km` ; au-delà, il est écarté.
+    Contrôles : moins de 1 % de points hors de la carte, et la région déduite de la position égale
+    à celle que donne la source (colonne region_source) pour au moins 97 % des points.
     """
-    brute = pd.read_excel(brut("sante_etablissements"))
-    brute = brute[brute["Country"] == "Madagascar"]
-    inconnus = set(brute["Facility_t"]) - set(TYPES_SANTE)
-    if inconnus:
-        raise ValueError(f"Établissements de santé : types inconnus {inconnus}")
-    table = pd.DataFrame({
-        "nom": brute["Facility_n"].str.strip(), "type": brute["Facility_t"].map(TYPES_SANTE),
-        "latitude": brute["Lat"].round(5), "longitude": brute["Long"].round(5),
-        "region_source": brute["Admin1"], "source_coordonnees": brute["LL_source"],
-    }).reset_index(drop=True)
-
     communes = niveaux["communes"]["unites"].set_index("cle")
     contours = [(cle, geo, boite(geo)) for cle, geo in niveaux["communes"]["contours"].items()]
     sommets = [(cle, x, y) for cle, geo, _ in contours for a in anneaux(geo) for x, y, *_ in a[::4]]
@@ -732,21 +725,120 @@ def etablissements_sante(niveaux, distance_max_km=10):
         return cle, math.hypot((sx - x) * 111.32 * math.cos(math.radians(y)), (sy - y) * 110.57)
 
     rattachements = [rattacher(x, y) for x, y in zip(table["longitude"], table["latitude"])]
+    table = table.copy()
     table["cle"] = [c if d is not None and d <= distance_max_km else None for c, d in rattachements]
     table["distance_commune_km"] = [round(d, 1) if d else 0.0 for _, d in rattachements]
     hors = table["cle"].isna()
     if hors.mean() > 0.01:
-        raise ValueError(f"Établissements de santé : {hors.sum()} hors des communes de la carte")
+        raise ValueError(f"{libelle} : {hors.sum()} hors des communes de la carte")
     table = table[~hors].copy()
     infos = communes.loc[table["cle"], ["pcode", "nom", "district_pcode", "district", "region_pcode", "region"]]
     table[["commune_pcode", "commune", "district_pcode", "district", "region_pcode", "region"]] = infos.values
-    # Contrôle : la région déduite de la position doit être celle que donne la source
     meme_region = float((table["region_source"].map(cle_nom) == table["region"].map(cle_nom)).mean())
     if meme_region < 0.97:
-        raise ValueError(f"Établissements de santé : région différente de la source pour {1 - meme_region:.1%}")
+        raise ValueError(f"{libelle} : région différente de la source pour {1 - meme_region:.1%}")
     table.attrs |= {"hors_carte": int(hors.sum()), "pres_du_contour": int((table["distance_commune_km"] > 0).sum()),
                     "meme_region": meme_region}
+    return table
+
+
+def etablissements_sante(niveaux):
+    """Établissements de santé publics (liste de 2019), rattachés aux communes de la carte."""
+    brute = pd.read_excel(brut("sante_etablissements"))
+    brute = brute[brute["Country"] == "Madagascar"]
+    inconnus = set(brute["Facility_t"]) - set(TYPES_SANTE)
+    if inconnus:
+        raise ValueError(f"Établissements de santé : types inconnus {inconnus}")
+    table = pd.DataFrame({
+        "nom": brute["Facility_n"].str.strip(), "type": brute["Facility_t"].map(TYPES_SANTE),
+        "latitude": brute["Lat"].round(5), "longitude": brute["Long"].round(5),
+        "region_source": brute["Admin1"], "source_coordonnees": brute["LL_source"],
+    }).reset_index(drop=True)
+    table = _rattacher_aux_communes(table, niveaux, "Établissements de santé")
     return table.sort_values(["region", "district", "commune", "type", "nom"]).reset_index(drop=True)
+
+
+def _sans_accents(texte):
+    return unicodedata.normalize("NFD", texte or "").encode("ascii", "ignore").decode().lower()
+
+
+def statut_ecole(operateur, nom):
+    """Public, privé ou inconnu : d'après l'exploitant indiqué dans OpenStreetMap, sinon d'après le nom
+    (EPP, CEG, « lycée public » pour le public ; « privé », confessions, écoles étrangères pour le privé)."""
+    if operateur == "public":
+        return "public"
+    if operateur in ("private", "religious", "catholic", "semi-private"):
+        return "privé"
+    n = _sans_accents(nom)
+    if re.search(MOTIFS_ECOLE_PRIVEE, n):
+        return "privé"
+    if re.search(MOTIFS_ECOLE_PUBLIQUE, n):
+        return "public"
+    return "inconnu"
+
+
+def niveau_ecole(amenity, nom):
+    """Niveau d'enseignement d'un établissement OpenStreetMap, d'après son type puis son nom.
+
+    Sigles usuels : EPP (école primaire publique), EC (école communautaire, primaire),
+    CEG (collège d'enseignement général), LTP (lycée technique et professionnel).
+    """
+    n = _sans_accents(nom)
+    if amenity == "kindergarten" or re.search(r"prescolaire|maternelle|jardin d.enfants|garderie", n):
+        return "préscolaire"
+    if amenity in ("university", "college") or re.search(r"universit|institut|faculte|ecole normale|cntemad|\bens\b|\bispm\b|\bist\b", n):
+        return "supérieur"
+    if re.search(r"\be\.?p\.?p\b", n):   # « EPP Petit Lycée » reste une école primaire
+        return "primaire"
+    if re.search(r"lycee|\bltp\b", n):
+        return "lycée"
+    if re.search(r"\bc\.?e\.?g\b|college|kolejy|kokejy", n):
+        return "collège"
+    if re.search(r"\be\.?p\.?p\b|\bepc\b|\bep\b|\bec\b|primaire", n):
+        return "primaire"
+    return "niveau non précisé"
+
+
+def ecoles_osm(niveaux):
+    """Établissements d'enseignement cartographiés dans OpenStreetMap, rattachés aux communes.
+
+    L'export contient aussi les bâtiments scolaires : un bâtiment sans nom ni type d'établissement
+    est écarté (une école en compte souvent plusieurs), et un même nom n'est gardé qu'une fois par
+    commune. Le recensement reste partiel : OpenStreetMap ne couvre qu'une partie des écoles.
+    """
+    with zipfile.ZipFile(brut("ecoles_osm")) as z:
+        nom_geojson = next(n for n in z.namelist() if n.endswith(".geojson"))
+        entites = json.loads(z.read(nom_geojson))["features"]
+        lisez_moi = next((z.read(n).decode("utf-8") for n in z.namelist() if n.endswith("README.txt")), "")
+    lignes = []
+    for f in entites:
+        p, g = f["properties"], f["geometry"]
+        if not g or not (p.get("amenity") in AMENITES_ECOLES or (p.get("name") and p.get("building"))):
+            continue
+        x, y = g["coordinates"][:2] if g["type"] == "Point" else point_interieur(g)
+        nom = (p.get("name") or "").strip()
+        lignes.append({"nom": nom, "niveau": niveau_ecole(p.get("amenity"), nom),
+                       "statut_osm": p.get("operator_type") or "", "latitude": round(y, 5), "longitude": round(x, 5),
+                       "region_source": p.get("adm1_name") or "", "osm_id": p["id"],
+                       "etablissement_osm": p.get("amenity") in AMENITES_ECOLES})
+    table = _rattacher_aux_communes(pd.DataFrame(lignes), niveaux, "Écoles (OpenStreetMap)")
+    # Un même établissement est parfois saisi deux fois (point et contour) : un nom par commune
+    table["cle_nom"] = table["nom"].map(cle_nom)
+    table = table.sort_values("etablissement_osm", ascending=False, kind="stable")
+    doublon = (table["cle_nom"] != "") & table.duplicated(["cle", "cle_nom"])
+    table = table[~doublon].drop(columns=["cle_nom", "etablissement_osm"])
+    # Statut, puis universités publiques reconnues par le nom de leur campus
+    table["statut"] = [statut_ecole(o, n) for o, n in zip(table["statut_osm"], table["nom"])]
+    noms = table["nom"].map(_sans_accents)
+    table["universite_publique"] = ""
+    for officiel, motif in UNIVERSITES_PUBLIQUES.items():
+        trouve = noms.str.contains(motif, regex=True)
+        table.loc[trouve, ["universite_publique", "statut", "niveau"]] = [officiel, "public", "supérieur"]
+    absentes = [u for u in UNIVERSITES_PUBLIQUES if u not in set(table["universite_publique"])]
+    instantane = re.search(r"Snapshot:\s*(\d{4}-\d{2}-\d{2})", lisez_moi)
+    table.attrs |= {"doublons": int(doublon.sum()), "instantane": instantane.group(1) if instantane else None,
+                    "universites_absentes": absentes}
+    return table.sort_values(["region", "district", "commune", "niveau", "nom"]).reset_index(drop=True)
 
 
 def tout_nettoyer():
@@ -761,7 +853,8 @@ def tout_nettoyer():
     - worldpop_100m : estimations WorldPop à 100 m par fokontany, 2015-2030 ;
     - emploi, emploi_detail : indicateurs d'emploi de l'OIT par enquête (ENEMPSI, ENESI, EPM) ;
     - pauvrete : pauvreté et inégalités par enquête EPM (Banque mondiale) ;
-    - sante : établissements de santé publics géolocalisés, rattachés aux communes.
+    - sante : établissements de santé publics géolocalisés, rattachés aux communes ;
+    - ecoles : établissements d'enseignement cartographiés dans OpenStreetMap (recensement partiel).
     """
     DOSSIER_TRAITE.mkdir(parents=True, exist_ok=True)
     series, pyramide = indicateurs_nationaux()
@@ -808,8 +901,19 @@ def tout_nettoyer():
           + f"), {sante.attrs['pres_du_contour']} rattachés à la commune la plus proche, "
           f"{sante.attrs['hors_carte']} hors carte ; région identique à la source : {sante.attrs['meme_region']:.0%}")
 
+    ecoles = ecoles_osm(niveaux)
+    print(f"  Écoles (OpenStreetMap du {ecoles.attrs['instantane']}) : {len(ecoles)} ("
+          + ", ".join(f"{t} : {n}" for t, n in ecoles["niveau"].value_counts().items())
+          + f"), {ecoles.attrs['doublons']} doublons écartés, {ecoles.attrs['hors_carte']} hors carte ; "
+          f"région identique à la source : {ecoles.attrs['meme_region']:.0%} ; statut : "
+          + ", ".join(f"{t} {n}" for t, n in ecoles["statut"].value_counts().items())
+          + f" ; universités publiques : {ecoles['universite_publique'].replace('', None).nunique()}"
+          + (f" (absentes d'OpenStreetMap : {', '.join(ecoles.attrs['universites_absentes'])})"
+             if ecoles.attrs["universites_absentes"] else ""))
+
     series.to_csv(traite("indicateurs"))
     sante.drop(columns="cle").to_csv(traite("sante_etablissements"), index=False)
+    ecoles.drop(columns="cle").to_csv(traite("ecoles_osm"), index=False)
     pyramide.to_csv(traite("pyramide"), index=False)
     proj.to_csv(traite("projections"))
     table_dhs.drop(columns="cle").to_csv(traite("dhs"), index=False)
@@ -839,4 +943,4 @@ def tout_nettoyer():
     return {"series": series, "pyramide": pyramide, "projections": proj, "niveaux": niveaux,
             "dhs": table_dhs, "worldpop": estimations, "rgph3": rgph, "fokontany_cales": cales,
             "worldpop_100m": wp100, "emploi": emploi_synthese, "emploi_detail": emploi_detail,
-            "pauvrete": table_pauvrete, "sante": sante}
+            "pauvrete": table_pauvrete, "sante": sante, "ecoles": ecoles}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Carte, COULEURS_SANTE, type Survol } from "./components/Carte";
+import { Carte, COUCHES, type Couche, type Survol } from "./components/Carte";
 import { Fiche } from "./components/Fiche";
 import { FicheTerritoire, NIVEAUX_FICHE } from "./components/FicheTerritoire";
 import { FicheZone, PanneauZone } from "./components/Zone";
@@ -15,7 +15,7 @@ import { Ciblage, Comparateur } from "./components/Comparer";
 import { ajouterLieu, comparaisonDepuisAdresse, comparaisonMemorisee, memoriserComparaison, type Lieu } from "./lib/comparaison";
 import { useLangue, type Langue } from "./i18n";
 import type { Cle } from "./i18n/fr";
-import { chargerBase, chargerContours, chargerFokontany, chargerSante, type PointSante } from "./lib/donnees";
+import { chargerBase, chargerContours, chargerFokontany, chargerPoints, type CoucheId } from "./lib/donnees";
 import { dateLongue } from "./lib/format";
 import { construireEchelle, construireIndicateurs, INDICATEUR_PAR_DEFAUT, type Indicateur } from "./lib/indicateurs";
 import { useTheme, type ModeTheme } from "./lib/theme";
@@ -42,8 +42,16 @@ export default function App() {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [centrage, setCentrage] = useState(0);
   const [fondActif, setFondActif] = useState(true);
-  const [sante, setSante] = useState<PointSante[] | null>(null);
-  const [santeVisible, setSanteVisible] = useState(false);
+  // Équipements en points (santé, écoles) : chargés la première fois qu'on les affiche
+  const [couches, setCouches] = useState<Record<CoucheId, Couche>>({
+    sante: { points: null, visible: false }, ecoles: { points: null, visible: false } });
+  const basculerCouche = (id: CoucheId, visible: boolean) => {
+    setCouches((c) => ({ ...c, [id]: { ...c[id], visible } }));
+    if (visible && !couches[id].points) {
+      chargerPoints(id).then((points) => setCouches((c) => ({ ...c, [id]: { ...c[id], points } })))
+        .catch((err) => setErreur(String(err.message ?? err)));
+    }
+  };
   const [survol, setSurvol] = useState<Survol | null>(null);
   const [fkRepere, setFkRepere] = useState<string | null>(null);
   // Les couleurs de la carte lisent les jetons CSS : on les recalcule une fois le thème appliqué
@@ -250,7 +258,7 @@ export default function App() {
           <div className="carte-ui relative min-w-0 overflow-hidden">
             <div className="relative h-[72vh] min-h-[520px]">
               <Carte niveau={niveau} contours={contours} couleurs={couleurs} selection={selection} zone={zone} centrage={centrage}
-                sombre={theme.sombre} fondActif={fondActif} sante={sante} santeVisible={santeVisible} onSurvol={setSurvol}
+                sombre={theme.sombre} fondActif={fondActif} couches={couches} onSurvol={setSurvol}
                 onChoisir={(s) => (modeZone && zoneAccepte(s.niveau) ? basculerDansZone(s) : choisir(s, false))} />
               <div className="pointer-events-none absolute left-3 right-14 top-3 flex flex-wrap items-start gap-2">
                 <div className="segments pointer-events-auto max-w-full overflow-x-auto shadow-sm" role="group" aria-label="Découpage">
@@ -301,18 +309,26 @@ export default function App() {
                     <input type="checkbox" checked={fondActif} onChange={(e) => setFondActif(e.target.checked)} />
                     {t("fondDeCarte")}
                   </label>
-                  <label className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.75rem] text-encre-2">
-                    <input type="checkbox" checked={santeVisible} onChange={(e) => {
-                      setSanteVisible(e.target.checked);
-                      if (e.target.checked && !sante) chargerSante().then(setSante).catch((err) => setErreur(String(err.message ?? err)));
-                    }} />
-                    {t("coucheSante")}
-                    {santeVisible && ([0, 1, 2] as const).map((k) => (
-                      <span key={k} className="ml-1 inline-flex items-center gap-1 text-discret">
-                        <i className="inline-block h-2 w-2 rounded-full" style={{ background: COULEURS_SANTE[k] }} />{t(`sante.type.${k}`)}
-                      </span>
-                    ))}
-                  </label>
+                  {([["sante", "coucheSante"], ["ecoles", "coucheEcoles"]] as [CoucheId, Cle][]).map(([id, cle]) => (
+                    <div key={id} className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.75rem] text-encre-2">
+                      <label className="flex items-center gap-1.5">
+                        <input type="checkbox" checked={couches[id].visible} onChange={(e) => basculerCouche(id, e.target.checked)} />
+                        {t(cle)}
+                      </label>
+                      {couches[id].visible && COUCHES[id].legende.map((l) => (
+                        <span key={l.cle} className="ml-1 inline-flex items-center gap-1 text-discret">
+                          <i className="inline-block h-2 w-2 rounded-full" style={{ background: `var(${l.couleur})` }} />{t(l.cle)}
+                        </span>
+                      ))}
+                      {id === "ecoles" && couches.ecoles.visible && (
+                        <label className="ml-1 inline-flex items-center gap-1">
+                          <input type="checkbox" checked={!!couches.ecoles.publiquesSeules}
+                            onChange={(e) => setCouches((c) => ({ ...c, ecoles: { ...c.ecoles, publiquesSeules: e.target.checked } }))} />
+                          {t("ecolesPubliquesSeules")}
+                        </label>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

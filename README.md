@@ -17,6 +17,7 @@ L'application propose une carte de Madagascar à quatre niveaux (régions, distr
 - la population des fokontany calée sur le recensement ;
 - les indicateurs de santé DHS ;
 - les **établissements de santé publics** (2 664 centres de santé, postes de santé et hôpitaux, liste de 2019) : couche de points sur la carte, nombre d'établissements et habitants par établissement pour chaque région, district et commune.
+- les **écoles cartographiées dans OpenStreetMap** (environ 4 000 écoles primaires, collèges, lycées et établissements du supérieur) : couche de points avec un filtre « publiques seulement », comptes par niveau dans chaque fiche, écoles publiques identifiées (EPP, CEG, lycées publics) et les 9 universités publiques cartographiées. C'est un recensement partiel, signalé comme tel.
 
 Elle offre aussi :
 

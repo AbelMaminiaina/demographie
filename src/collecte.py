@@ -13,7 +13,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from config import (BANQUE_MONDIALE_URL, DHS_PAYS, DHS_URL, DOSSIER_BRUT, GEOBOUNDARIES_URL,
-                    HDX_DATASET, HDX_SANTE_DATASET, HDX_URL, ILO_SDMX_URL, INDICATEURS, INDICATEURS_DHS, INDICATEURS_EMPLOI,
+                    HDX_DATASET, HDX_ECOLES_DATASET, HDX_SANTE_DATASET, HDX_URL, ILO_SDMX_URL, INDICATEURS, INDICATEURS_DHS, INDICATEURS_EMPLOI,
                     PIP_URL, SEUILS_PAUVRETE,
                     INDICATEURS_PROJECTIONS, NIVEAUX, PAYS, RGPH3_URL, SOURCE_PROJECTIONS, WORLDPOP_100M_URL,
                     WORLDPOP_URL, brut)
@@ -245,6 +245,17 @@ def etablissements_sante():
     return fichier
 
 
+def ecoles_osm():
+    """Établissements d'enseignement d'OpenStreetMap (export HOT sur HDX, mis à jour chaque semaine)."""
+    print("Écoles (OpenStreetMap, export HOT)...")
+    r = SESSION.get(f"{HDX_URL}/package_show", params={"id": HDX_ECOLES_DATASET}, timeout=TIMEOUT)
+    r.raise_for_status()
+    url = next(x["url"] for x in r.json()["result"]["resources"] if x["format"].upper() == "GEOJSON")
+    fichier = SESSION.get(url, timeout=300)
+    fichier.raise_for_status()
+    return _ecrire(brut("ecoles_osm"), fichier.content, "OpenStreetMap, export HOT (HDX, ODbL 1.0)", url)
+
+
 def tout_collecter():
     JOURNAL.clear()
     debut = _maintenant()
@@ -257,6 +268,7 @@ def tout_collecter():
     emploi_oit()
     pauvrete_pip()
     etablissements_sante()
+    ecoles_osm()
     for niveau in NIVEAUX:
         instat_population(niveau)
         contours(niveau)

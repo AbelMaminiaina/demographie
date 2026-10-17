@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLangue } from "../i18n";
 import type { Cle } from "../i18n/fr";
 import { croissance, nbSante } from "../lib/indicateurs";
-import { compact, densite, entier, nombre, pct } from "../lib/format";
+import { compact, dateLongue, densite, entier, nombre, pct } from "../lib/format";
 import type { Base, Niveau, Recensement, Selection, Unite } from "../lib/types";
 import { EstimationDate } from "./Estimation";
 import { MAX_LIEUX } from "../lib/comparaison";
@@ -76,7 +76,9 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
   onChoisir: (s: Selection, centrer?: boolean) => void; onReinitialiser: () => void; fkRepere: string | null;
   comparaison: { niveau: Niveau; i: number }[]; onComparer: (s: Selection) => void;
 }) {
-  const { t } = useLangue();
+  const { t, langue } = useLangue();
+  // Libellé accordé au nombre : la clé « .un » porte le singulier
+  const compte = (n: number, cle: string) => `${entier(n)} ${t((n === 1 ? `${cle}.un` : cle) as Cle)}`;
   const meta = base.meta;
   const AN = Math.min(new Date().getFullYear(), meta.annees_wp[meta.annees_wp.length - 1]);
   const iAn = meta.annees_wp.indexOf(AN);
@@ -207,10 +209,30 @@ export function Fiche({ base, unites, selection, fokontanyParCommune, onChoisir,
         return (
           <Bloc titre={t("ficheSante")}>
             {n === 0 ? <p className="m-0">{t("santeAucun")}</p> : (
-              <Chiffres elements={[[entier(u.es[0]), t("santeCentres")], [entier(u.es[1]), t("santePostes")],
-                [entier(u.es[2]), t("santeHopitaux")], [entier(Math.round(u.wp[iAn] / n)), t("santeHabitants", { annee: AN })]]} />
+              <Chiffres elements={[[entier(u.es[0]), t((u.es[0] === 1 ? "santeCentres.un" : "santeCentres") as Cle)],
+                [entier(u.es[1]), t((u.es[1] === 1 ? "santePostes.un" : "santePostes") as Cle)],
+                [entier(u.es[2]), t((u.es[2] === 1 ? "santeHopitaux.un" : "santeHopitaux") as Cle)],
+                [entier(Math.round(u.wp[iAn] / n)), t("santeHabitants", { annee: AN })]]} />
             )}
             <p className="m-0 text-[0.78rem] text-discret">{t("santeNote")}</p>
+          </Bloc>
+        );
+      })()}
+      {u.ec && (() => {
+        const total = u.ec.reduce((a, b) => a + b, 0);
+        return (
+          <Bloc titre={t("ficheEcoles")}>
+            {total === 0 ? <p className="m-0">{t("ecolesAucune")}</p> : (
+              <Chiffres elements={u.ec.flatMap((n, k) => (n ? [[entier(n), t((n === 1 ? `ecole.compte.${k}.un` : `ecole.compte.${k}`) as Cle)] as [string, string]] : []))} />
+            )}
+            {u.ecp && u.ecp.slice(0, 3).some((n) => n > 0) && (
+              <p className="m-0 text-[0.86rem]">
+                {t("ecolesPubliques", { liste: [0, 1, 2].filter((k) => u.ecp![k] > 0)
+                  .map((k) => compte(u.ecp![k], `ecole.public.${k}`)).join(", ") })}
+              </p>
+            )}
+            {u.up && <p className="m-0 text-[0.86rem]">{t("ecolesUniversites", { liste: u.up.join(", ") })}</p>}
+            <p className="m-0 text-[0.78rem] text-discret">{t("ecolesNote", { date: meta.osm_ecoles ? dateLongue(new Date(meta.osm_ecoles), langue) : "" })}</p>
           </Bloc>
         );
       })()}

@@ -20,6 +20,7 @@ BRUT = {
     "emploi": "oit_ilostat/{indicateur}.csv",
     "pauvrete": "banque_mondiale_pip/pauvrete_madagascar.json",
     "sante_etablissements": "sante_etablissements/etablissements_publics_afrique_subsaharienne.xlsx",
+    "ecoles_osm": "openstreetmap/etablissements_enseignement.geojson.zip",
     "journal": "journal_collecte.json",
 }
 # Données traitées : un dossier par thème, fichiers CSV prêts à l'emploi.
@@ -38,6 +39,7 @@ TRAITE = {
     "emploi_synthese": "enquetes/emploi_synthese.csv",
     "pauvrete": "enquetes/pauvrete_epm.csv",
     "sante_etablissements": "sante/etablissements_sante_publics.csv",
+    "ecoles_osm": "education/ecoles_openstreetmap.csv",
 }
 
 
@@ -136,3 +138,29 @@ SEUILS_PAUVRETE = (3.00, 4.20, 8.30)
 # (Maina et al., 2019, Scientific Data), compilée à partir de sources gouvernementales.
 HDX_SANTE_DATASET = "health-facilities-in-sub-saharan-africa"
 TYPES_SANTE = {"Health Centre": "centre de santé", "Health Post": "poste de santé", "Hospital": "hôpital"}
+
+# Établissements d'enseignement d'OpenStreetMap : export hebdomadaire du Humanitarian OpenStreetMap
+# Team sur HDX. Seuls les objets typés comme établissements, ou nommés, sont gardés.
+HDX_ECOLES_DATASET = "hotosm_mdg_education_facilities"
+AMENITES_ECOLES = ("school", "kindergarten", "college", "university", "prep_school")
+NIVEAUX_ECOLES = ["primaire", "collège", "lycée", "supérieur", "préscolaire", "niveau non précisé"]
+
+# Statut des écoles : seuls les cas sûrs sont classés, les autres restent « inconnu ».
+# Motifs appliqués au nom sans accents, en minuscules.
+MOTIFS_ECOLE_PRIVEE = (r"priv|catholi|fjkm|\beel\b|luther|loterana|adventiste|\bsainte?\b|\bst\b|notre.dame|sacre|"
+                       r"la salle|\becar\b|international|francais|americ|confession|mission|evangel|islam|coran|madrasa")
+MOTIFS_ECOLE_PUBLIQUE = (r"\be\.?p\.?p\b|primaire publique|\bc\.?e\.?g\b|college d.enseignement (general|public)|"
+                         r"lycee public|lycee d.enseignement general|\bpublic\b")
+# Universités publiques : nom officiel et motif reconnaissant leur campus dans OpenStreetMap.
+# Les universités de Vakinankaratra et de Melaky n'y sont pas encore cartographiées.
+UNIVERSITES_PUBLIQUES = {
+    "Université d'Antananarivo": r"campus universitaire ambohitsaina|universite d.antananarivo",
+    "Université de Fianarantsoa": r"campus universitaire andrainjato|universite de fianarantsoa",
+    "Université de Toamasina": r"universite de toamasina",
+    "Université de Mahajanga": r"universite de mahajanga",
+    "Université de Toliara": r"universite de toliara",
+    "Université d'Antsiranana": r"universite d.antsiranana",
+    "Université de l'Itasy": r"universite de l.itasy",
+    "Université de la SAVA": r"universite de la sava",
+    "Université d'Analanjirofo": r"universite d.analan?[jl]?[ia]rofo|universite d.analairofo",
+}

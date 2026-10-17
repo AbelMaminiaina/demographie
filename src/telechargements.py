@@ -25,6 +25,7 @@ LICENCES = {
     "dhs": "Données publiques du programme DHS, citation obligatoire",
     "oit": "CC BY 4.0 (OIT, ILOSTAT)",
     "sante": "CC BY 4.0 (Maina et al., 2019, Scientific Data, diffusion HDX)",
+    "osm": "ODbL 1.0 (© contributeurs OpenStreetMap, export HOT)",
 }
 
 # (chemin dans data/traite, thème, description, licence, nom de feuille Excel)
@@ -49,6 +50,7 @@ FICHIERS = [
     ("national/pyramide_ages.csv", "national", "Population par groupe d'âge de 5 ans et par sexe, chaque année", "bm", "Pyramide des âges"),
     ("sante/dhs_regions.csv", "sante", "Santé et fécondité par région (enquête DHS 2021)", "dhs", "Santé DHS régions"),
     ("sante/etablissements_sante_publics.csv", "sante", "Établissements de santé publics géolocalisés (liste de 2019) : type, coordonnées, commune, district et région", "sante", "Établissements de santé"),
+    ("education/ecoles_openstreetmap.csv", "education", "Écoles, collèges, lycées et établissements du supérieur cartographiés dans OpenStreetMap (recensement partiel) : niveau, coordonnées, commune, district et région", "osm", "Écoles OpenStreetMap"),
     ("enquetes/pauvrete_epm.csv", "enquetes", "Pauvreté et inégalités par enquête EPM (Banque mondiale)", "bm", "Pauvreté"),
     ("enquetes/emploi_synthese.csv", "enquetes", "Emploi : synthèse par enquête (activité, chômage, informalité, NEET)", "oit", "Emploi synthèse"),
     ("enquetes/emploi_oit.csv", "enquetes", "Emploi : toutes les observations de l'OIT (par sexe, âge, secteur, statut)", "oit", None),
