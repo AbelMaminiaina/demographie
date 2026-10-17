@@ -70,6 +70,8 @@ export const mg: Partial<Record<Cle, string>> = {
   "dhs.alphabetisation_femmes_pct": "Vehivavy mahay mamaky teny sy manoratra (%)",
   legendeQuantiles: "Sokajy mitovy isa.",
   legendeEcart: "Volon-davenona : elanelana latsaky ny 2,5 %.",
+  legendeAfficher: "Antsipiriany sy sosona",
+  legendeMasquer: "Afeno ny antsipiriany",
   pasDeDonnee: "Tsy misy angona",
 
   "tuile.population": "Mponina",

@@ -69,6 +69,8 @@ export const en: Record<Cle, string> = {
   "dhs.alphabetisation_femmes_pct": "Literate women (%)",
   legendeQuantiles: "Classes of equal size.",
   legendeEcart: "Grey: gap below 2.5%.",
+  legendeAfficher: "Details and layers",
+  legendeMasquer: "Hide details",
   pasDeDonnee: "No data",
 
   "tuile.population": "Population",

@@ -43,6 +43,8 @@ export default function App() {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [centrage, setCentrage] = useState(0);
   const [fondActif, setFondActif] = useState(true);
+  // Sur téléphone, la légende ne montre que l'échelle de couleurs ; le reste se déplie à la demande
+  const [legendeOuverte, setLegendeOuverte] = useState(false);
   // Équipements en points (santé, écoles) : chargés la première fois qu'on les affiche
   const [couches, setCouches] = useState<Record<CoucheId, Couche>>({
     sante: { points: null, visible: false }, ecoles: { points: null, visible: false } });
@@ -302,7 +304,7 @@ export default function App() {
                 </button>
               )}
               {echelle && (
-                <div className="carte-ui absolute bottom-9 left-3 max-w-[calc(100%-1.5rem)] px-3 py-2 sm:bottom-3 sm:max-w-[420px]">
+                <div className="carte-ui absolute bottom-9 left-3 right-3 sm:right-auto max-w-[calc(100%-1.5rem)] px-3 py-2 sm:bottom-3 sm:max-w-[420px]">
                   <div className="flex">
                     {echelle.classes.map((c) => (
                       <div key={c.couleur + c.libelle} className="min-w-0 flex-1">
@@ -311,6 +313,11 @@ export default function App() {
                       </div>
                     ))}
                   </div>
+                  <button type="button" onClick={() => setLegendeOuverte((o) => !o)} aria-expanded={legendeOuverte} aria-controls="legende-details"
+                    className="mt-1 cursor-pointer border-0 bg-transparent p-0 text-[0.75rem] font-semibold text-accent sm:hidden">
+                    {legendeOuverte ? `${t("legendeMasquer")} ▴` : `${t("legendeAfficher")} ▾`}
+                  </button>
+                  <div id="legende-details" className={legendeOuverte ? "" : "max-sm:hidden"}>
                   <p className="m-0 mt-1 text-[0.72rem] leading-snug text-discret">
                     {t(indicateur.note, { enquete: base.meta.enquete_dhs })} {echelle.divergent ? t("legendeEcart") : t("legendeQuantiles")}
                   </p>
@@ -338,6 +345,7 @@ export default function App() {
                       )}
                     </div>
                   ))}
+                  </div>
                 </div>
               )}
             </div>

@@ -67,6 +67,8 @@ export const fr = {
   "dhs.alphabetisation_femmes_pct": "Femmes alphabétisées (%)",
   legendeQuantiles: "Classes de même effectif.",
   legendeEcart: "Gris : écart inférieur à 2,5 %.",
+  legendeAfficher: "Détails et couches",
+  legendeMasquer: "Masquer les détails",
   pasDeDonnee: "Pas de donnée",
 
   "tuile.population": "Population",
