@@ -4,3 +4,7 @@ sorties/*
 __pycache__/
 .venv/
 site/
+
+# Propositions et livrables clients (prix, noms) : restent en local, sauf le générateur
+propositions/*
+!propositions/livrable_microplan.py
