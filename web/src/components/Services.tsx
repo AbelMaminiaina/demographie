@@ -90,7 +90,7 @@ export function AppelDevis({ texte, lieux, lien }: { texte: string; lieux: strin
 
 // Livrable de démonstration publié avec le site (produit par propositions/livrable_microplan.py --public)
 const EXEMPLE = "exemple-livrable/";
-const EXEMPLE_CHIFFRES = [["communes", 20], ["fokontany", 204], ["enfants", 95138], ["equipes", 226], ["doses", 104727], ["verifier", 109]] as const;
+const EXEMPLE_CHIFFRES = [["communes", 20], ["fokontany", 204], ["enfants", 95138], ["equipes", 226], ["doses", 104727], ["verifier", 95]] as const;
 const RAMPE_CIBLE = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#184f95"];
 
 /** Exemple concret de ce que reçoit le client : chiffres clés, cartes et fichiers téléchargeables. */

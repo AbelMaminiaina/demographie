@@ -42,7 +42,7 @@ REF_DEVIS = "exemple public" if PUBLIC else f"devis {REFERENCE}"
 PART_CIBLE, PAR_JOUR, JOURS, PERTE = 0.17, 120, 4, 0.10
 CAP = PAR_JOUR * JOURS
 LIBELLE_CIBLE = "enfants de 0 à 59 mois"
-SEUIL_ECART = 30  # % d'écart entre les deux estimations au-delà duquel un fokontany est à vérifier
+SEUIL_ECART = 30  # % d'écart entre les deux estimations de 2018 au-delà duquel un fokontany est à vérifier
 TYPES_SANTE = ["Centre de santé", "Poste de santé", "Hôpital"]
 COUL_SANTE = ["#1baf7a", "#eda100", "#eb6834"]
 RAMPE = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#184f95"]
@@ -57,7 +57,9 @@ def dec(v):
 
 
 # ---------- Données ----------
-base = json.loads((DONNEES / "base.json").read_text(encoding="utf-8"))["niveaux"]
+BASE = json.loads((DONNEES / "base.json").read_text(encoding="utf-8"))
+base = BASE["niveaux"]
+I2018, I2026 = (BASE["meta"]["annees_wp"].index(a) for a in (2018, 2026))
 F = json.loads((DONNEES / "fokontany.json").read_text(encoding="utf-8"))["unites"]
 GF = json.loads((DONNEES / "contours_fokontany.json").read_text(encoding="utf-8"))
 GC = {f["properties"]["i"]: f["geometry"] for f in json.loads((DONNEES / "contours_communes.json").read_text(encoding="utf-8"))["features"]}
@@ -106,13 +108,14 @@ for ci, c in enumerate(base["communes"]):
         if f["c"] != ci:
             continue
         an = anneaux_fk(fi)
-        wp = f["wp"][11]
+        wp, wp18 = f["wp"][I2026], f["wp"][I2018]
         ca = f.get("ca")
-        ecart = round(100 * (wp - ca) / ca) if ca else None
-        fks.append({"n": f["n"], "pc": f["pc"], "ca": ca, "wp": wp, "ecart": ecart,
+        # Les deux estimations sont comparées pour la même année (2018) : l'écart mesure leur désaccord, pas la croissance
+        ecart = round(100 * (wp18 - ca) / ca) if ca else None
+        fks.append({"n": f["n"], "pc": f["pc"], "ca": ca, "wp18": wp18, "wp": wp, "ecart": ecart,
                     "verifier": ecart is not None and abs(ecart) >= SEUIL_ECART,
                     "ci": round(wp * PART_CIBLE), "anneaux": an, "centre": centre(an)})
-    communes.append({"i": ci, "n": c["n"], "pc": c["pc"], "wp": c["wp"][11], "rg": (c.get("rg") or {}).get("p"),
+    communes.append({"i": ci, "n": c["n"], "pc": c["pc"], "wp": c["wp"][I2026], "rg": (c.get("rg") or {}).get("p"),
                      "anneaux": anneaux_commune(ci), "fk": fks})
 
 # Formations sanitaires du district, rattachées à leur fokontany
@@ -313,12 +316,13 @@ P(f"La proposition estimait {annonce} équipes à partir des totaux communaux. L
   f"quand les fokontany qu'on peut regrouper sont trop petits ou trop éloignés. C'est l'apport principal de la microplanification : "
   f"ce besoin réel apparaît avant la campagne, pas pendant.")
 P(f"<b>Points d'attention.</b> {tot['verifier']} fokontany sur {tot['fk']} présentent un écart de {SEUIL_ECART} % ou plus entre les deux estimations "
-  f"de population : leurs effectifs sont à confirmer avec les chefs fokontany avant de figer le plan. "
+  f"de leur population en 2018 (recensement réparti et WorldPop) : leurs effectifs sont à confirmer avec les chefs fokontany avant de figer le plan. "
   + (f"{tot['sans_site']} commune(s) n'ont aucune formation sanitaire publique recensée : la vaccination y passe par des postes avancés ou le porte-à-porte. " if tot["sans_site"] else "")
   + "Les distances aux formations sanitaires sont à vol d'oiseau ; les pistes et la saison des pluies les allongent.")
 P("2. Méthode et hypothèses", "h1")
 for t_ in [
     "<b>Population 2026</b> : estimation WorldPop sur grille de 100 m, sommée par fokontany. La population 2018 « calée » répartit le recensement RGPH-3 de chaque commune entre ses fokontany.",
+    f"<b>Fokontany à vérifier</b> : l'écart compare, pour la même année 2018, la population calée sur le recensement et l'estimation WorldPop. Au-delà de {SEUIL_ECART} %, les deux sources se contredisent sur la taille du fokontany.",
     f"<b>Cible</b> : {LIBELLE_CIBLE} = {round(PART_CIBLE * 100)} % de la population (norme d'exemple).",
     f"<b>Rendement</b> : une équipe vaccine {PAR_JOUR} enfants par jour pendant {JOURS} jours, soit {CAP} enfants au plus (norme d'exemple).",
     f"<b>Doses</b> : une par enfant, plus {round(PERTE * 100)} % de perte (norme d'exemple).",
@@ -341,7 +345,7 @@ P("4. Besoins par commune", "h1")
 lignes = [[c["n"], str(len(c["fk"])), nb(sum(f["wp"] for f in c["fk"])), nb(c["ci"]), str(len(c["equipes"])), nb(c["doses"]), str(len(c["sites"])), str(c["a_verifier"])] for c in communes]
 histoire.append(tableau(["COMMUNE", "FOKONTANY", "POP. 2026", "CIBLE", "ÉQUIPES", "DOSES", "FORM. SAN.", "À VÉRIFIER"], lignes,
                         [50, 18, 21, 19, 17, 19, 18, 18], ["Total du district", str(tot["fk"]), nb(tot["wp"]), nb(tot["ci"]), str(tot["equipes"]), nb(tot["doses"]), str(len(sites)), str(tot["verifier"])]))
-P("« À vérifier » : nombre de fokontany dont les deux estimations divergent de 30 % ou plus.", "note")
+P(f"« À vérifier » : nombre de fokontany dont les deux estimations de 2018 divergent de {SEUIL_ECART} % ou plus.", "note")
 
 # Une section par commune
 for n_c, c in enumerate(communes, 1):
@@ -355,12 +359,13 @@ for n_c, c in enumerate(communes, 1):
     P("Population cible par fokontany", "h2")
     lf = []
     for f in sorted(c["fk"], key=lambda f: f["repere"]):
-        lf.append([str(f["repere"]), Paragraph(f["n"], S["cel"]), nb(f["ca"]) if f["ca"] else "n.d.", nb(f["wp"]),
-                   "" if f["ecart"] is None else f"{f['ecart']:+d} %" + (" ⚠" if f["verifier"] else ""), nb(f["ci"]),
+        lf.append([str(f["repere"]), Paragraph(f["n"], S["cel"]), nb(f["ca"]) if f["ca"] else "n.d.", nb(f["wp18"]),
+                   "" if f["ecart"] is None else f"{f['ecart']:+d} %" + (" ⚠" if f["verifier"] else ""), nb(f["wp"]), nb(f["ci"]),
                    Paragraph(f"{f['site']['n']} ({dec(f['dist'])} km)", S["cel"])])
-    histoire.append(tableau(["N°", "FOKONTANY", "2018 CALÉE", "2026", "ÉCART", "CIBLE", "FORMATION SANITAIRE LA PLUS PROCHE"], lf,
-                            [8, 42, 18, 16, 16, 14, 60], ["", "Total", nb(sum(f["ca"] or 0 for f in c["fk"])), nb(sum(f["wp"] for f in c["fk"])), "", nb(c["ci"]), ""], droite=(2, 5)))
-    P(f"⚠ : écart de {SEUIL_ECART} % ou plus entre les deux estimations, effectif à confirmer avec le chef fokontany.", "note")
+    histoire.append(tableau(["N°", "FOKONTANY", "2018 CALÉE", "2018 WP", "ÉCART", "2026 WP", "CIBLE", "FORMATION SANITAIRE PROCHE"], lf,
+                            [8, 37, 17, 15, 16, 15, 13, 53], ["", "Total", nb(sum(f["ca"] or 0 for f in c["fk"])), nb(sum(f["wp18"] for f in c["fk"])), "",
+                                                              nb(sum(f["wp"] for f in c["fk"])), nb(c["ci"]), ""], droite=(2, 6)))
+    P(f"WP : estimation WorldPop. Écart : WorldPop 2018 comparé à la population 2018 calée. ⚠ : écart de {SEUIL_ECART} % ou plus, effectif à confirmer avec le chef fokontany.", "note")
     le = [[f"Éq. {e['num']}", Paragraph(" + ".join(m[0] for m in e["items"]), S["cel"]), nb(e["ci"]), dec(e["jours"]), nb(e["doses"]),
            Paragraph(e["site"]["n"], S["cel"])] for e in c["equipes"]]
     titre_plan = Paragraph("Plan de répartition des équipes", S["h2"])
@@ -412,7 +417,7 @@ for l in [[f"Microplanification de la campagne de vaccination – district d'{DI
           ["Rendement", f"{PAR_JOUR} enfants par équipe et par jour"], ["Durée de la campagne", f"{JOURS} jours"],
           ["Perte de doses", f"{round(PERTE * 100)} %"], [],
           ["Onglets"], ["Communes", "Besoins par commune : cible, équipes, doses"],
-          ["Fokontany", "Population 2018 calée et 2026 WorldPop, écart, cible, formation sanitaire la plus proche"],
+          ["Fokontany", "Population 2018 calée et WorldPop (écart entre les deux), population 2026, cible, formation sanitaire la plus proche"],
           ["Équipes", "Fokontany ou secteurs attribués à chaque équipe, cible, jours, doses"],
           ["Calendrier", "Programme jour par jour de chaque équipe"], [],
           ["Sources", "RGPH-3 2018 (INSTAT), WorldPop R2025A, formations sanitaires publiques (HDX), contours OCHA et geoBoundaries"]]:
@@ -426,11 +431,11 @@ ws.column_dimensions["A"].width, ws.column_dimensions["B"].width = 24, 90
 feuille(wb.create_sheet("Communes"), ["Commune", "Code", "Fokontany", "Population 2026", "Cible", "Équipes", "Doses", "Formations sanitaires", "Fokontany à vérifier"],
         [[c["n"], c["pc"], len(c["fk"]), sum(f["wp"] for f in c["fk"]), c["ci"], len(c["equipes"]), c["doses"], len(c["sites"]), c["a_verifier"]] for c in communes],
         [28, 14, 11, 16, 10, 10, 10, 14, 14])
-feuille(wb.create_sheet("Fokontany"), ["Commune", "Fokontany", "Code", "Population 2018 calée", "Population 2026 WorldPop", "Écart (%)", "À vérifier",
+feuille(wb.create_sheet("Fokontany"), ["Commune", "Fokontany", "Code", "Population 2018 calée", "Population 2018 WorldPop", "Écart 2018 (%)", "À vérifier", "Population 2026 WorldPop",
                                        "Cible", "Jours-équipe", "Formation sanitaire la plus proche", "Distance (km, vol d'oiseau)"],
-        [[c["n"], f["n"], f["pc"], f["ca"], f["wp"], f["ecart"], "oui" if f["verifier"] else "", f["ci"], round(f["ci"] / PAR_JOUR, 1), f["site"]["n"], round(f["dist"], 1)]
+        [[c["n"], f["n"], f["pc"], f["ca"], f["wp18"], f["ecart"], "oui" if f["verifier"] else "", f["wp"], f["ci"], round(f["ci"] / PAR_JOUR, 1), f["site"]["n"], round(f["dist"], 1)]
          for c in communes for f in sorted(c["fk"], key=lambda f: -f["ci"])],
-        [24, 32, 16, 14, 14, 10, 10, 10, 11, 34, 14])
+        [24, 32, 16, 14, 14, 12, 10, 14, 10, 11, 34, 14])
 feuille(wb.create_sheet("Équipes"), ["Commune", "Équipe", "Fokontany ou secteurs", "Cible", "Jours", "Doses", "Base (formation sanitaire)", "Distance (km)"],
         [[c["n"], e["num"], " + ".join(m[0] for m in e["items"]), e["ci"], round(e["jours"], 1), e["doses"], e["site"]["n"], round(e["dist"], 1)]
          for c in communes for e in c["equipes"]],
