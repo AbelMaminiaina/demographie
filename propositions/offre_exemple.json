@@ -1,0 +1,193 @@
+{
+  "reference": "OFF-2026-1018-01",
+  "date": "2026-10-18",
+  "validite_jours": 90,
+  "appel": {
+    "intitule": "Microplanification de la campagne de vaccination de mars 2027 dans le district d'Antsirabe II",
+    "reference": "TDR-SPV-2026-07",
+    "commanditaire": "ONG Santé Plus Vakinankaratra (exemple)",
+    "destinataire": "Madame la Coordonnatrice des programmes",
+    "adresse": "Antsirabe, région Vakinankaratra",
+    "date_limite": "2026-10-30"
+  },
+  "soumissionnaire": {
+    "nom": "Démographie de Madagascar",
+    "responsable": "[Nom et prénom du responsable]",
+    "fonction": "Analyste de données et SIG, gérant",
+    "statut": "[Forme juridique : entreprise individuelle, SARLU…]",
+    "nif": "[NIF]",
+    "stat": "[STAT]",
+    "rcs": "[RCS, si applicable]",
+    "adresse": "[Adresse postale]",
+    "telephone": "[Téléphone]",
+    "email": "a.maminiaina@gmail.com",
+    "site": "https://abelmaminiaina.github.io/demographie/",
+    "presentation": [
+      "Démographie de Madagascar produit et diffuse des données démographiques ouvertes sur l'ensemble du territoire : population par région, district, commune et fokontany, projections 2015-2030, cartes et fiches par territoire, accessibilité aux formations sanitaires.",
+      "La structure réalise des missions d'analyse de données et de cartographie pour les programmes de santé, de nutrition et de développement : estimation de populations cibles, microplanification, cartographie de l'accès aux services, tableaux de bord."
+    ],
+    "domaines": [
+      "Estimation de populations cibles à fine échelle (fokontany, grille de 100 m)",
+      "Systèmes d'information géographique : cartes, calculs de distance et d'accessibilité",
+      "Traitement et contrôle qualité de données (recensement, enquêtes, données de routine)",
+      "Outils de suivi : tableaux de bord, classeurs de microplanification"
+    ]
+  },
+  "contexte": [
+    "Le commanditaire prépare, avec le district sanitaire d'Antsirabe II, la campagne de vaccination de mars 2027 ciblant les enfants de 0 à 59 mois dans les 20 communes du district.",
+    "Les TDR relèvent que les dénombrements disponibles datent de plusieurs années et que la répartition des équipes entre les communes lors de la dernière campagne a laissé des zones sous-couvertes."
+  ],
+  "objectifs": [
+    "Estimer la population cible par fokontany et par commune pour 2027",
+    "Déterminer le nombre d'équipes, de jours de travail et de doses nécessaires par commune",
+    "Rattacher chaque fokontany à une formation sanitaire et identifier les zones éloignées",
+    "Produire un plan de répartition des équipes et des cartes utilisables sur le terrain"
+  ],
+  "comprehension": [
+    "Nous comprenons que le besoin principal est opérationnel : disposer avant février 2027 de chiffres fiables par fokontany pour affecter les équipes, commander les doses et organiser les déplacements.",
+    "Les chiffres produits seront des estimations. Leur valeur dépend de leur confrontation aux dénombrements des chefs fokontany et des responsables de centres de santé : notre méthode prévoit donc une liste explicite des fokontany à vérifier."
+  ],
+  "commentaires_tdr": [
+    "Les TDR ne précisent pas les normes de campagne (enfants vaccinés par équipe et par jour, durée, taux de perte). Nous proposons de les arrêter lors de la réunion de cadrage ; à défaut, nous utiliserons 120 enfants par équipe et par jour, 4 jours et 10 % de perte, à titre provisoire.",
+    "Nous suggérons d'ajouter une courte séance de restitution avec l'équipe cadre du district, afin de valider les fokontany signalés comme incertains avant la version finale."
+  ],
+  "methode": [
+    {
+      "titre": "Cadrage et collecte des normes",
+      "description": "Réunion de cadrage avec le commanditaire et le district ; recueil des normes de campagne, de la liste des sites de vaccination et des chiffres de la dernière campagne.",
+      "sortie": "Rapport de démarrage (méthode et calendrier validés)",
+      "jours": {"principal": 1, "expert": 1}
+    },
+    {
+      "titre": "Estimation de la population cible par fokontany",
+      "description": "Population 2027 issue de WorldPop (grille de 100 m) calée sur le recensement RGPH-3 ; part des 0-59 mois issue de l'enquête DHS ; comparaison avec une seconde estimation et signalement des écarts supérieurs à 30 %.",
+      "sortie": "Tableau des cibles par fokontany, liste des fokontany à vérifier",
+      "jours": {"principal": 5, "expert": 0}
+    },
+    {
+      "titre": "Rattachement aux formations sanitaires et distances",
+      "description": "Localisation des formations sanitaires (OpenStreetMap, liste du district), rattachement de chaque fokontany à la plus proche, calcul des distances et repérage des zones éloignées.",
+      "sortie": "Table de rattachement et des distances",
+      "jours": {"principal": 3, "expert": 0}
+    },
+    {
+      "titre": "Répartition des équipes et calendrier",
+      "description": "Calcul des besoins par commune (équipes, jours, doses), découpage des grands fokontany en secteurs, regroupement des petits par proximité, calendrier jour par jour ; validation des hypothèses avec l'expert santé.",
+      "sortie": "Plan de répartition des équipes et calendrier",
+      "jours": {"principal": 3, "expert": 2}
+    },
+    {
+      "titre": "Cartographie par commune",
+      "description": "Une carte par commune : fokontany, population cible, formations sanitaires et secteurs d'équipes ; carte d'ensemble du district.",
+      "sortie": "Atlas de 21 cartes (PDF et images)",
+      "jours": {"principal": 2, "expert": 0}
+    },
+    {
+      "titre": "Rapport, restitution et corrections",
+      "description": "Rédaction du rapport, séance de restitution à Antsirabe, intégration des remarques (deux tours de corrections inclus).",
+      "sortie": "Rapport final, classeur Excel et cartes",
+      "jours": {"principal": 2, "expert": 1}
+    }
+  ],
+  "donnees": [
+    ["Recensement RGPH-3 (INSTAT, 2018)", "Population de référence par commune"],
+    ["WorldPop (grille de 100 m, 2015-2030)", "Répartition de la population et projection 2027"],
+    ["Enquête DHS Madagascar", "Part des enfants de 0 à 59 mois"],
+    ["OpenStreetMap et liste du district", "Localisation des formations sanitaires"],
+    ["Données de la dernière campagne (commanditaire)", "Contrôle de cohérence des estimations"]
+  ],
+  "qualite": [
+    "Double estimation de la population cible et signalement des écarts importants",
+    "Contrôle des totaux : la somme des fokontany est égale au total des communes et du district",
+    "Relecture des hypothèses par l'expert santé avant la version finale",
+    "Sources et hypothèses documentées dans chaque livrable ; scripts de calcul conservés pour mise à jour"
+  ],
+  "calendrier": {
+    "debut": "2026-11-09",
+    "semaines": 9,
+    "activites": [[1, 1], [1, 4], [3, 5], [4, 6], [5, 6], [6, 9]]
+  },
+  "livrables": [
+    {"nom": "Rapport de démarrage", "contenu": "Méthode, normes retenues, calendrier détaillé", "format": "PDF", "semaine": 1},
+    {"nom": "Tableau des cibles", "contenu": "Population cible par fokontany et par commune, fokontany à vérifier", "format": "Excel", "semaine": 4},
+    {"nom": "Version provisoire", "contenu": "Rapport, plan des équipes, calendrier, cartes", "format": "PDF et Excel", "semaine": 6},
+    {"nom": "Version finale", "contenu": "Livrables corrigés après restitution", "format": "PDF, Excel, images", "semaine": 9}
+  ],
+  "equipe": [
+    {
+      "id": "principal",
+      "role": "Consultant principal, analyste de données et SIG",
+      "nom": "[Nom et prénom]",
+      "profil": "[Diplôme], [X] ans d'expérience en traitement de données et cartographie ; auteur du site Démographie de Madagascar.",
+      "taches": "Coordination, estimations, calculs SIG, cartes, rapport",
+      "tarif": 350000
+    },
+    {
+      "id": "expert",
+      "role": "Expert santé publique et vaccination (partenaire)",
+      "nom": "[Nom et prénom du partenaire]",
+      "profil": "[Médecin ou épidémiologiste], [X] ans d'expérience en campagnes de vaccination à Madagascar.",
+      "taches": "Validation des normes et des hypothèses, relecture, restitution",
+      "tarif": 400000
+    }
+  ],
+  "references": [
+    {
+      "titre": "Site Démographie de Madagascar",
+      "client": "Réalisation propre, données ouvertes",
+      "annee": "2026",
+      "description": "Population par région, district, commune et fokontany ; projections 2015-2030 ; cartes et accessibilité aux formations sanitaires. Accès public : https://abelmaminiaina.github.io/demographie/"
+    },
+    {
+      "titre": "Exemple de microplanification, district d'Antsirabe II",
+      "client": "Démonstration sur données publiques",
+      "annee": "2026",
+      "description": "Rapport de 35 pages et classeur Excel : 204 fokontany, 226 équipes, calendrier jour par jour. Extrait disponible sur demande."
+    },
+    {
+      "titre": "[Mission similaire]",
+      "client": "[Client]",
+      "annee": "[Année]",
+      "description": "[Description en deux lignes, résultat obtenu]"
+    }
+  ],
+  "risques": [
+    ["Normes de campagne transmises en retard", "Normes provisoires utilisées dès la semaine 1, recalcul automatique à réception"],
+    ["Écart important entre estimations et dénombrements locaux", "Liste des fokontany à vérifier, arbitrage lors de la restitution"],
+    ["Liste des sites de vaccination incomplète", "Complément par OpenStreetMap et validation par le district"],
+    ["Distances à vol d'oiseau sous-estimant les temps de trajet", "Signalement des zones enclavées, ajustement avec les équipes de terrain"]
+  ],
+  "engagements": [
+    "Confidentialité : les données transmises par le commanditaire ne sont utilisées que pour la mission et ne sont pas diffusées.",
+    "Protection des données : aucune donnée nominative n'est traitée ; les fichiers sont conservés sur un support protégé et supprimés sur demande.",
+    "Propriété : les livrables appartiennent au commanditaire ; les données ouvertes utilisées restent citées avec leurs sources.",
+    "Absence de conflit d'intérêts avec le commanditaire et les autres soumissionnaires."
+  ],
+  "frais": [
+    ["Transport Antananarivo – Antsirabe aller-retour (restitution)", "voyage", 2, 60000],
+    ["Hébergement à Antsirabe", "nuit", 2, 80000],
+    ["Indemnités journalières", "jour", 2, 50000],
+    ["Communication et connexion internet", "forfait", 1, 40000]
+  ],
+  "tva": null,
+  "paiement": [
+    ["Rapport de démarrage validé", 30],
+    ["Version provisoire remise", 40],
+    ["Version finale validée", 30]
+  ],
+  "banque": {
+    "titulaire": "[Titulaire du compte]",
+    "banque": "[Nom de la banque, agence]",
+    "rib": "[RIB]",
+    "mobile": "[Mobile money : opérateur et numéro, si accepté]"
+  },
+  "pieces": [
+    "Carte fiscale et attestation NIF en cours de validité",
+    "Carte statistique (STAT)",
+    "Extrait RCS ou attestation d'existence, si applicable",
+    "Attestation de régularité fiscale, si demandée par les TDR",
+    "CV signés des membres de l'équipe",
+    "Lettres de référence ou attestations de bonne exécution",
+    "RIB"
+  ]
+}

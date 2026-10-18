@@ -8,3 +8,5 @@ site/
 # Propositions et livrables clients (prix, noms) : restent en local, sauf le générateur
 propositions/*
 !propositions/livrable_microplan.py
+!propositions/offre_tdr.py
+!propositions/offre_exemple.json
