@@ -9,6 +9,7 @@ on:
     paths:
       - "src/**"
       - "web/**"
+      - "docs/exemple-livrable/**"
       - "requirements.txt"
       - ".github/workflows/mise-a-jour-mensuelle.yml"
 
@@ -82,6 +83,7 @@ jobs:
           cp -r web/dist/. site/
           cp sorties/tableau_de_bord/index.html site/classique/index.html
           cp docs/apercu.png site/apercu.png   # image des aperçus de liens (og:image)
+          cp -r docs/exemple-livrable site/exemple-livrable   # livrable de démonstration de la page Services
 
       - name: Préparer le site pour GitHub Pages
         uses: actions/upload-pages-artifact@v5

@@ -3,6 +3,7 @@ import { CONTACT, FORMULAIRE, WHATSAPP } from "../config";
 import { useLangue } from "../i18n";
 import type { Cle } from "../i18n/fr";
 import { defilerVers } from "../lib/defilement";
+import { entier } from "../lib/format";
 import { compter } from "../lib/statistiques";
 
 const lienWhatsapp = (texte?: string) => `https://wa.me/${WHATSAPP}${texte ? `?text=${encodeURIComponent(texte)}` : ""}`;
@@ -84,6 +85,80 @@ export function AppelDevis({ texte, lieux, lien }: { texte: string; lieux: strin
       <span className="min-w-0 text-[0.86rem] text-encre">{texte}</span>
       <button type="button" className={bouton} onClick={() => demanderDevis({ service: "rapport", lieux, lien })}>{t("serviceDevis")}</button>
     </div>
+  );
+}
+
+// Livrable de démonstration publié avec le site (produit par propositions/livrable_microplan.py --public)
+const EXEMPLE = "exemple-livrable/";
+const EXEMPLE_CHIFFRES = [["communes", 20], ["fokontany", 204], ["enfants", 95138], ["equipes", 226], ["doses", 104727], ["verifier", 109]] as const;
+const RAMPE_CIBLE = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#184f95"];
+
+/** Exemple concret de ce que reçoit le client : chiffres clés, cartes et fichiers téléchargeables. */
+function ExempleLivrable({ onDemander }: { onDemander: () => void }) {
+  const { t } = useLangue();
+  const point = (couleur: string) => <span className="inline-block h-2.5 w-2.5 rounded-full border border-white" style={{ background: couleur }} />;
+  const contenu = (cle: "exempleRapport" | "exempleClasseur") => (
+    <div className="grid content-start gap-1.5">
+      <h4 className="m-0 text-[0.95rem] font-semibold">{t(cle)}</h4>
+      <ul className="m-0 grid list-none gap-1.5 p-0 text-[0.86rem] text-encre-2">
+        {[1, 2, 3].map((k) => (
+          <li key={k} className="flex gap-2"><span className="mt-0.5 text-accent"><Icone nom="coche" taille={15} /></span>{t(`${cle}.l${k}` as Cle)}</li>
+        ))}
+      </ul>
+    </div>
+  );
+  return (
+    <section id="exemple-livrable" className="carte-ui grid gap-6 p-5 sm:p-8" aria-labelledby="exemple-titre">
+      <div className="grid max-w-[760px] gap-2">
+        <span className="etiquette">{t("exempleSurtitre")}</span>
+        <h3 id="exemple-titre" className="m-0 text-xl font-bold leading-snug sm:text-[1.45rem]">{t("exempleTitre")}</h3>
+        <p className="m-0 text-[0.92rem] leading-relaxed text-encre-2">{t("exempleIntro")}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+        {EXEMPLE_CHIFFRES.map(([cle, v]) => (
+          <div key={cle} className="grid content-start gap-0.5 border-t-2 pt-2" style={{ borderColor: "var(--accent)" }}>
+            <strong className="text-[1.35rem] tabular-nums">{entier(v)}</strong>
+            <span className="text-[0.8rem] leading-snug text-encre-2">{t(`exempleChiffre.${cle}` as Cle)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
+        <figure className="m-0 grid content-start gap-2 rounded-xl p-3" style={{ background: "#fff" }}>
+          <img src={`${EXEMPLE}apercu_district.png`} width={987} height={1406} loading="lazy" alt={t("exempleCarteDistrict")}
+            className="mx-auto h-auto max-h-[560px] w-auto max-w-full" />
+          <figcaption className="grid gap-1.5 text-[0.8rem] leading-snug" style={{ color: "#3b4652" }}>
+            {t("exempleCarteDistrict")}
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="flex" aria-hidden="true">{RAMPE_CIBLE.map((c) => <span key={c} className="h-2.5 w-5" style={{ background: c }} />)}</span>
+              <span className="flex items-center gap-1">{point("#1baf7a")}{t("exempleCentre")}</span>
+              <span className="flex items-center gap-1">{point("#eda100")}{t("exemplePosteSante")}</span>
+            </span>
+          </figcaption>
+        </figure>
+        <div className="grid content-start gap-5">
+          <figure className="m-0 grid content-start gap-2 rounded-xl p-3" style={{ background: "#fff" }}>
+            <img src={`${EXEMPLE}apercu_commune.png`} width={479} height={790} loading="lazy" alt={t("exempleCarteCommune")}
+              className="mx-auto h-auto max-h-[300px] w-auto max-w-full" />
+            <figcaption className="text-[0.8rem] leading-snug" style={{ color: "#3b4652" }}>{t("exempleCarteCommune")}</figcaption>
+          </figure>
+          <h4 className="m-0 text-[1.05rem] font-bold">{t("exempleContenu")}</h4>
+          {contenu("exempleRapport")}
+          {contenu("exempleClasseur")}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 border-t border-trait pt-5">
+        <a href={`${EXEMPLE}Rapport_microplanification_Antsirabe_II.pdf`} target="_blank" rel="noopener" className={`${bouton} px-4 py-2.5 no-underline`}
+          onClick={() => compter("exemple/rapport")}>{t("exempleTelechargerRapport")}</a>
+        <a href={`${EXEMPLE}Microplan_Antsirabe_II.xlsx`} download className={`${bouton} px-4 py-2.5 no-underline`}
+          onClick={() => compter("exemple/classeur")}>{t("exempleTelechargerClasseur")}</a>
+        <button type="button" onClick={onDemander}
+          className="w-full cursor-pointer rounded-xl border-0 px-5 py-2.5 text-sm font-semibold text-white shadow-md sm:ml-auto sm:w-fit"
+          style={{ background: "var(--accent)" }}>{t("exempleCta")}</button>
+      </div>
+    </section>
   );
 }
 
@@ -236,6 +311,10 @@ export function Services() {
                 ))}
               </ul>
               <p className="m-0 text-[0.78rem] text-discret">{t("servicePour", { public: t(`service.${id}.public` as Cle) })}</p>
+              {id === "microplan" && (
+                <a href="#exemple-livrable" onClick={(e) => { e.preventDefault(); defilerVers("exemple-livrable"); }}
+                  className="w-fit text-[0.84rem] font-semibold text-accent underline underline-offset-2">{t("exempleVoir")} →</a>
+              )}
               <div className="mt-auto flex items-center justify-between gap-2 border-t border-trait pt-3">
                 <span className="flex items-center gap-1.5 text-[0.8rem] text-encre-2"><Icone nom="horloge" taille={15} />{t(`service.${id}.duree` as Cle)}</span>
                 <button type="button" onClick={() => choisir(id)}
@@ -247,6 +326,8 @@ export function Services() {
           );
         })}
       </div>
+
+      <ExempleLivrable onDemander={() => choisir("microplan")} />
 
       {/* Abonnement */}
       <div className="carte-ui flex flex-wrap items-center gap-4 p-5 sm:p-6" style={{ background: `linear-gradient(90deg, ${teinte("var(--serie-4)", 14)}, var(--surface))` }}>

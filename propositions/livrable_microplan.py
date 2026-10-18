@@ -2,7 +2,8 @@
 
 Produit un rapport PDF (cartes, tableaux, plan des équipes) et un classeur Excel (communes, fokontany,
 équipes, calendrier jour par jour) à partir des données publiées par le site.
-Usage : python livrable_microplan.py <dossier_donnees> <dossier_sortie>
+Usage : python livrable_microplan.py <dossier_donnees> <dossier_sortie> [--public]
+--public : version publiée sur le site (client fictif, aperçus des cartes conservés).
 """
 import json
 import math
@@ -33,8 +34,10 @@ IMAGES = SORTIE / "_images"
 IMAGES.mkdir(exist_ok=True)
 
 DISTRICT = "Antsirabe II"
-CLIENT = "ONG Santé Plus Vakinankaratra (exemple)"
-REFERENCE = "DEV-2026-1018-01"
+PUBLIC = "--public" in sys.argv[3:]
+CLIENT = "client fictif, exemple de démonstration" if PUBLIC else "ONG Santé Plus Vakinankaratra (exemple)"
+REFERENCE = "EXEMPLE" if PUBLIC else "DEV-2026-1018-01"
+REF_DEVIS = "exemple public" if PUBLIC else f"devis {REFERENCE}"
 # Normes d'exemple, à remplacer par celles du client
 PART_CIBLE, PAR_JOUR, JOURS, PERTE = 0.17, 120, 4, 0.10
 CAP = PAR_JOUR * JOURS
@@ -280,7 +283,7 @@ histoire.append(Spacer(1, 3 * mm))
 P(f"Campagne de vaccination de mars 2027<br/>District d'{DISTRICT}", "titre")
 histoire.append(Spacer(1, 6 * mm))
 P(f"Population cible, besoins en équipes et en doses, et plan de répartition des équipes pour les {len(communes)} communes et {tot['fk']} fokontany du district.")
-P(f"Client : {CLIENT}<br/>Référence : devis {REFERENCE}, formule Standard<br/>Établi le {date.today().strftime('%d/%m/%Y')} par Démographie de Madagascar")
+P(f"Client : {CLIENT}<br/>Référence : {REF_DEVIS}, formule Standard<br/>Établi le {date.today().strftime('%d/%m/%Y')} par Démographie de Madagascar")
 histoire.append(Spacer(1, 8 * mm))
 chiffres = [[Paragraph(nb(tot["ci"]), S["chiffre"]), Paragraph(str(tot["equipes"]), S["chiffre"]), Paragraph(nb(tot["doses"]), S["chiffre"]), Paragraph(str(tot["verifier"]), S["chiffre"])],
             [Paragraph(f"{LIBELLE_CIBLE} ciblés", S["legende"]), Paragraph(f"équipes sur {JOURS} jours", S["legende"]),
@@ -403,7 +406,7 @@ def feuille(ws, entete, lignes, largeurs):
 
 ws = wb.active
 ws.title = "Lisez-moi"
-for l in [[f"Microplanification de la campagne de vaccination – district d'{DISTRICT}"], [f"Client : {CLIENT} · devis {REFERENCE}"],
+for l in [[f"Microplanification de la campagne de vaccination – district d'{DISTRICT}"], [f"Client : {CLIENT} · {REF_DEVIS}"],
           ["VERSION DE DÉMONSTRATION : normes d'exemple, à remplacer par celles du client."], [],
           ["Normes utilisées"], ["Population cible", f"{LIBELLE_CIBLE} = {round(PART_CIBLE * 100)} % de la population"],
           ["Rendement", f"{PAR_JOUR} enfants par équipe et par jour"], ["Durée de la campagne", f"{JOURS} jours"],
@@ -437,6 +440,12 @@ feuille(wb.create_sheet("Calendrier"), ["Commune", "Équipe", "Jour", "Fokontany
         [24, 8, 6, 44, 16])
 wb.save(SORTIE / f"Microplan_{DISTRICT.replace(' ', '_')}.xlsx")
 
+if PUBLIC:
+    # Aperçus pour la page du site : la carte du district et celle de la commune la plus peuplée
+    grande = max(communes, key=lambda c: c["ci"])
+    (IMAGES / "district.png").replace(SORTIE / "apercu_district.png")
+    (IMAGES / f"commune_{grande['pc']}.png").replace(SORTIE / "apercu_commune.png")
+    print(f"Commune en aperçu : {grande['n']}")
 for p in IMAGES.iterdir():
     p.unlink()
 IMAGES.rmdir()
