@@ -10,3 +10,4 @@ propositions/*
 !propositions/livrable_microplan.py
 !propositions/offre_tdr.py
 !propositions/offre_exemple.json
+!propositions/linkedin_visuels.py
